@@ -1,0 +1,231 @@
+Here’s a Replit “build me this app” prompt you can paste as-is. It’s written so the agent doesn’t hand-wave accessibility, and it biases toward *native semantics* (minimal ARIA) plus practical screen-reader behavior.
+
+---
+
+## Replit prompt: Accessible Mudlet-class MUD client (local + server)
+
+Build a cross-platform, screen-reader-first MUD client with Mudlet-like features, runnable as:
+
+1. **Local desktop app** (Mac/Windows/Linux)
+2. **Self-hosted server + web client** (so the same client can be used remotely)
+
+### Primary goals
+
+* Match core Mudlet feature set: multiple profiles, triggers, aliases, timers, scripting, logging, GMCP, MCCP, TLS, mapper hooks, package/import/export.
+* Be **more accessible than Mudlet** for VoiceOver/NVDA/Orca users.
+* Prefer **native HTML semantics** and predictable focus/keyboard behavior. Use ARIA only when native elements can’t express meaning.
+
+---
+
+## Architecture (do both, share code where possible)
+
+### Option A (preferred): Web-first + Desktop wrapper
+
+* Frontend: **React** (or Svelte) + TypeScript.
+* Desktop: **Tauri** wrapper (preferred) or Electron if needed.
+* Server: Node.js (Fastify/Express) that can host the web app and optionally provide a relay service.
+* Networking: client connects directly to MUD via WebSocket-to-TCP relay when in browser, or directly TCP when in desktop mode.
+
+  * Desktop mode: direct TCP sockets from Tauri/Rust side (or Node if Electron).
+  * Browser mode: cannot do raw TCP, so provide a **relay service**:
+
+    * Web client ↔ WebSocket ↔ Relay server ↔ TCP/TLS ↔ MUD
+
+### Option B: Pure desktop + optional remote UI
+
+* Desktop only initially, but still keep web UI possible later.
+
+Implement **Option A**.
+
+---
+
+## Core protocols and features
+
+### Connectivity
+
+* Telnet-style MUDs with:
+
+  * **TLS** (secure connections)
+  * **MCCP** (compression)
+  * **GMCP** (structured data)
+* Keep raw ANSI color parsing (xterm-256), but allow “accessible text mode” that strips colors and reduces control codes.
+
+### Output handling
+
+* Parse incoming stream into:
+
+  * **Main output**
+  * Optional: “channels/tabs” (chat, combat, system) using user rules and GMCP tags
+* Provide a “Copy last N lines” command.
+* Provide per-profile logging with timestamps.
+
+### Automation
+
+* Triggers (regex + plain text)
+* Aliases (command shortcuts)
+* Timers
+* Scripting: **Lua-like feel**, but implement in **JavaScript/TypeScript** (safe sandbox).
+
+  * Provide a compatibility layer: `send()`, `echo()`, `setVariable()`, `getVariable()`, `playSound()`, etc.
+  * Store scripts per profile; allow import/export as JSON package.
+
+### UI layout (Mudlet-ish, but accessible)
+
+* Tabs/profiles list, connect button, status line
+* Main output area
+* Command input
+* Side panels: triggers/aliases/timers/scripts
+* Package manager screen (import/export)
+* Optional mapper stub: accept room updates from GMCP and store them, even if full visual map is not implemented yet.
+
+---
+
+## Accessibility requirements (non-negotiable)
+
+### 1) Keyboard-first UX
+
+* Everything usable with keyboard alone.
+* Define and document shortcuts:
+
+  * Connect/disconnect
+  * Focus input
+  * Jump to output (read mode)
+  * Toggle “speech follow output”
+  * Toggle “brief mode” (reduce spam lines)
+  * Open command history
+  * Switch tabs/panels
+* No keyboard traps. Escape always returns to main.
+
+### 2) Output area must be screen-reader friendly
+
+Do NOT implement the output as a div with thousands of spans.
+Instead:
+
+* Use a **semantic structure**:
+
+  * A “Transcript” container with **real text nodes**, grouped by line.
+  * Prefer **`<pre>`** or a list of `<p>` lines, but keep it performant:
+
+    * Virtualize visually, but ensure screen readers can still access recent text.
+* Provide two modes:
+
+  1. **Read Mode**: output is navigable like a document (arrow keys, VO navigation).
+  2. **Live Mode**: focus stays in input while output updates without stealing focus.
+
+### 3) Announcements without ARIA spam
+
+Use minimal ARIA:
+
+* Prefer native elements: buttons, inputs, lists, headings.
+* Only use ARIA for:
+
+  * A single **live region** for critical connection status/errors (polite, not chatty).
+  * Optionally, a single live region for “new line count” when in Live Mode.
+    Avoid marking every line as `aria-live`. That causes constant interruptions.
+
+### 4) Speech output (system voice + optional AI voice)
+
+Implement speech as an **optional layer**, not required for SR users.
+
+**System speech option**:
+
+* In browser: Web Speech API `speechSynthesis`.
+* In desktop: platform TTS (macOS NSSpeechSynthesizer / Windows SAPI / Linux speech-dispatcher) or use the browser engine if Tauri.
+  Controls:
+* Rate, pitch, volume, voice selection
+* Hotkeys to increase/decrease rate (like “speech rate up/down”)
+* Command syntax from input window, e.g.:
+
+  * `/speech on`
+  * `/speech off`
+  * `/speech rate 1.2`
+  * `/speech voice "Samantha"`
+  * `/speech channel combat off`
+* Allow “Speak only matched lines” (filters).
+* Allow “Do not speak when VoiceOver/NVDA is already reading”:
+
+  * Provide a toggle “SR companion mode” and default it to OFF.
+
+**Optional AI voice connectors**:
+
+* Pluggable “Voice Provider” interface:
+
+  * Provider: System TTS (default)
+  * Provider: OpenAI voice (optional, behind user-supplied API key)
+  * Provider: ElevenLabs (optional)
+* Make this purely optional and never required for core UX.
+
+### 5) Focus + notifications rules
+
+* Output updates must **never** steal focus from input.
+* When user jumps to Read Mode, freeze auto-scroll unless they opt in.
+* Provide a “New messages” indicator that is not visual-only:
+
+  * A small text label near input: “(12 new lines)” and a shortcut to jump.
+
+### 6) Contrast and scaling
+
+* Support large fonts, line spacing controls, and “high contrast” theme.
+* Respect OS-level reduced motion.
+* No tiny icon-only buttons; every control has visible text.
+
+### 7) Accessibility testing checklist (build into project)
+
+Add a built-in “Accessibility Self Test” page that verifies:
+
+* Tab order sensible
+* Buttons have discernible text (native or label)
+* Focus visible
+* Output readable in Read Mode
+* Live Mode does not interrupt continuously
+* Screen reader quick-nav works (headings, landmarks minimal)
+
+---
+
+## Data & storage
+
+* Profiles stored locally (IndexedDB for web, filesystem for desktop).
+* Import/export profiles as a single zip-like package (JSON + scripts).
+* Secrets (passwords/API keys) stored securely:
+
+  * Desktop: OS keychain
+  * Web: warn user and store only if they accept (or require manual entry each time)
+
+---
+
+## Deliverables
+
+1. Working app with:
+
+   * Connect to a public test MUD
+   * Send/receive text
+   * Command history + aliases + triggers
+   * Logging
+   * Speech controls + `/speech` commands
+2. README with:
+
+   * How to run locally
+   * How to deploy server + relay
+   * Accessibility design decisions
+   * Keyboard shortcuts list
+3. Minimal automated tests:
+
+   * ANSI parser tests
+   * Trigger engine tests
+   * Relay connection test
+
+---
+
+## Implementation details / constraints
+
+* Keep the output performant: cap transcript to last N lines with user setting (default 2000).
+* Provide “export last 10k lines” via log file, not DOM.
+* Avoid heavy ARIA. Lean on semantic HTML and predictable focus management.
+* Use TypeScript everywhere.
+
+---
+
+If you want, I can also give you:
+
+* a ready-made shortcut map that feels good on macOS with VoiceOver (and doesn’t collide with common VO keys), and
+* a suggested “Mudlet parity” checklist so you can ship in phases without feature creep turning into a Voidborn. 🧵
