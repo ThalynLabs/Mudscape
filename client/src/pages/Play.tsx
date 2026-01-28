@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRoute } from "wouter";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
+import { useQuery } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/use-profiles";
 import { TerminalLine } from "@/components/TerminalLine";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings, Wifi, WifiOff, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, ProfileSettings, MudTrigger, MudAlias } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
 import { createScriptingContext, processTriggers, processAlias } from "@/lib/scripting";
@@ -41,15 +42,21 @@ export default function Play() {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Derived settings
-  const settings = (profile?.settings || {}) as ProfileSettings;
+  // Fetch global settings
+  const { data: globalSettings } = useQuery<GlobalSettings>({
+    queryKey: ['/api/settings'],
+  });
+  
+  // Merge global settings with profile overrides
+  const profileSettings = (profile?.settings || {}) as ProfileSettings;
+  const settings = mergeSettings(globalSettings ?? DEFAULT_GLOBAL_SETTINGS, profileSettings);
   const triggers = (profile?.triggers || []) as MudTrigger[];
   const aliases = (profile?.aliases || []) as MudAlias[];
   
   const { speak, speakLine, togglePause, paused } = useSpeech({
     enabled: settings.speechEnabled ?? false,
-    rate: settings.speechRate,
-    voiceURI: settings.speechVoice,
+    rate: settings.speechRate ?? 1,
+    voiceURI: settings.speechVoice ?? undefined,
   });
 
   // Scripting helpers
@@ -150,8 +157,8 @@ export default function Play() {
             speak(cleanText);
           }
 
-          // Run triggers synchronously
-          if (triggers.length > 0) {
+          // Run triggers synchronously (if enabled)
+          if (triggers.length > 0 && settings.triggersEnabled !== false) {
             const cleanLine = stripAnsi(msg.content);
             const context = createScriptingContext(sendCommand, echoLocal, [], cleanLine);
             processTriggers(msg.content, triggers, context);
@@ -184,16 +191,21 @@ export default function Play() {
     e?.preventDefault();
     if (!inputValue.trim() || !socketRef.current) return;
 
-    // Process aliases first
-    const aliasResult = processAlias(inputValue, aliases, sendCommand, echoLocal);
-    const commandToSend = aliasResult || inputValue;
+    // Process aliases first (if enabled)
+    let commandToSend = inputValue;
+    if (settings.aliasesEnabled !== false) {
+      const aliasResult = processAlias(inputValue, aliases, sendCommand, echoLocal);
+      commandToSend = aliasResult || inputValue;
+    }
 
     // Send to server
     const msg: WsClientMessage = { type: 'send', data: commandToSend };
     socketRef.current.send(JSON.stringify(msg));
 
-    // Echo locally
-    setLines(prev => [...prev, `\x1b[36m${inputValue}\x1b[0m`]);
+    // Echo locally (if enabled)
+    if (settings.showInputEcho !== false) {
+      setLines(prev => [...prev, `\x1b[36m${inputValue}\x1b[0m`]);
+    }
     
     // History
     setCommandHistory(prev => [inputValue, ...prev.filter(c => c !== inputValue)].slice(0, 50));
@@ -265,7 +277,8 @@ export default function Play() {
       <div 
         className="flex-1 overflow-hidden relative" 
         style={{ 
-          fontSize: `${(settings.fontScale || 1)}rem` 
+          fontSize: `${(settings.fontScale || 1)}rem`,
+          lineHeight: settings.lineHeight || 1.4,
         }}
       >
         <div className="absolute inset-0 scanlines opacity-10 pointer-events-none z-10" />

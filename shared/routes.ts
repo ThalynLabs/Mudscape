@@ -1,7 +1,42 @@
 import { z } from 'zod';
-import { insertProfileSchema, profiles } from './schema';
+import { insertProfileSchema, profiles, GlobalSettings } from './schema';
+
+// Zod schema for global settings validation
+const globalSettingsSchema = z.object({
+  speechEnabled: z.boolean().optional(),
+  speechRate: z.number().optional(),
+  speechVoice: z.string().optional(),
+  fontScale: z.number().optional(),
+  lineHeight: z.number().optional(),
+  highContrast: z.boolean().optional(),
+  readerMode: z.boolean().optional(),
+  showInputEcho: z.boolean().optional(),
+  triggersEnabled: z.boolean().optional(),
+  aliasesEnabled: z.boolean().optional(),
+  autoReconnect: z.boolean().optional(),
+  reconnectDelay: z.number().optional(),
+  keepAlive: z.boolean().optional(),
+  keepAliveInterval: z.number().optional(),
+});
 
 export const api = {
+  settings: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/settings',
+      responses: {
+        200: globalSettingsSchema,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/settings',
+      input: globalSettingsSchema.partial(),
+      responses: {
+        200: globalSettingsSchema,
+      },
+    },
+  },
   profiles: {
     list: {
       method: 'GET' as const,

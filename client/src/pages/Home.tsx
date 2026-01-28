@@ -3,8 +3,10 @@ import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { ProfileCard } from "@/components/ProfileCard";
 import { useState } from "react";
 import { Profile } from "@shared/schema";
-import { Loader2, TerminalSquare } from "lucide-react";
+import { Loader2, TerminalSquare, Settings } from "lucide-react";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 export default function Home() {
   const { data: profiles, isLoading, error } = useProfiles();
@@ -68,11 +70,19 @@ export default function Home() {
             </p>
           </div>
           
-          <CreateProfileDialog 
-            open={dialogOpen} 
-            onOpenChange={handleCreateOpen} 
-            existingProfile={editingProfile}
-          />
+          <div className="flex items-center gap-3">
+            <Link href="/settings">
+              <Button variant="outline" size="icon" data-testid="button-global-settings">
+                <Settings className="w-5 h-5" />
+                <span className="sr-only">Global Settings</span>
+              </Button>
+            </Link>
+            <CreateProfileDialog 
+              open={dialogOpen} 
+              onOpenChange={handleCreateOpen} 
+              existingProfile={editingProfile}
+            />
+          </div>
         </header>
 
         {/* Profiles Grid */}

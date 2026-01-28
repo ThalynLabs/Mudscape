@@ -49,6 +49,17 @@ Preferred communication style: Simple, everyday language.
 - **Ctrl (alone)**: Toggle pause/resume of speech synthesis
 - All interactive elements have proper ARIA labels for screen reader compatibility
 
+### Settings Architecture
+- **Global Settings**: App-wide defaults stored in global_settings table (single row)
+  - Speech: speechEnabled, speechRate, speechVoice
+  - Display: fontScale, lineHeight, highContrast, readerMode, showInputEcho
+  - Automation: triggersEnabled, aliasesEnabled
+  - Connection: autoReconnect, reconnectDelay, keepAlive, keepAliveInterval
+- **Profile Settings**: Per-MUD overrides stored in profiles.settings column
+  - Null/undefined values inherit from global defaults
+  - mergeSettings() function combines global + profile settings
+- **Settings UI**: /settings page with Global Defaults and Per-MUD tabs
+
 ## External Dependencies
 
 ### Database

@@ -60,6 +60,25 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === GLOBAL SETTINGS ROUTES ===
+  app.get(api.settings.get.path, async (req, res) => {
+    const settings = await storage.getGlobalSettings();
+    res.json(settings);
+  });
+
+  app.put(api.settings.update.path, async (req, res) => {
+    try {
+      const input = api.settings.update.input.parse(req.body);
+      const settings = await storage.updateGlobalSettings(input);
+      res.json(settings);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
+      throw e;
+    }
+  });
+
   // === WEBSOCKET RELAY ===
   const wss = new WebSocketServer({ noServer: true });
 
