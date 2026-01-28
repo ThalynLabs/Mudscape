@@ -62,7 +62,7 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
               </div>
               <Switch
                 id="high-contrast"
-                checked={settings.highContrast}
+                checked={settings.highContrast ?? false}
                 onCheckedChange={(val) => updateSetting('highContrast', val)}
               />
             </div>
@@ -79,7 +79,7 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
               </div>
               <Switch
                 id="speech-enabled"
-                checked={settings.speechEnabled}
+                checked={settings.speechEnabled ?? false}
                 onCheckedChange={(val) => updateSetting('speechEnabled', val)}
               />
             </div>
@@ -89,7 +89,7 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
                 <div className="space-y-2">
                   <Label>Voice</Label>
                   <Select
-                    value={settings.speechVoice}
+                    value={settings.speechVoice ?? undefined}
                     onValueChange={(val) => updateSetting('speechVoice', val)}
                   >
                     <SelectTrigger>
@@ -128,8 +128,32 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
               </div>
               <Switch
                 id="reader-mode"
-                checked={settings.readerMode}
+                checked={settings.readerMode ?? false}
                 onCheckedChange={(val) => updateSetting('readerMode', val)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="strip-symbols">Strip Symbols</Label>
+                <p className="text-xs text-muted-foreground">Remove decorative characters for screen readers</p>
+              </div>
+              <Switch
+                id="strip-symbols"
+                checked={settings.stripSymbols ?? false}
+                onCheckedChange={(val) => updateSetting('stripSymbols', val)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="gmcp-enabled">Enable GMCP</Label>
+                <p className="text-xs text-muted-foreground">Receive structured data from MUD</p>
+              </div>
+              <Switch
+                id="gmcp-enabled"
+                checked={settings.gmcpEnabled ?? true}
+                onCheckedChange={(val) => updateSetting('gmcpEnabled', val)}
               />
             </div>
           </section>

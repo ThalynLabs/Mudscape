@@ -2,17 +2,21 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRoute } from "wouter";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
-import { useProfile } from "@/hooks/use-profiles";
+import { useProfile, useUpdateProfile } from "@/hooks/use-profiles";
 import { TerminalLine } from "@/components/TerminalLine";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { TimersPanel } from "@/components/TimersPanel";
+import { KeybindingsPanel } from "@/components/KeybindingsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Wifi, WifiOff, ArrowDown } from "lucide-react";
+import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
 import { createScriptingContext, processTriggers, processAlias } from "@/lib/scripting";
+import { useTimers } from "@/hooks/use-timers";
+import { useKeybindings } from "@/hooks/use-keybindings";
 
 // Hardcoded maximum lines to keep in buffer to prevent memory leaks
 const MAX_LINES = 5000;
@@ -36,6 +40,9 @@ export default function Play() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [timersOpen, setTimersOpen] = useState(false);
+  const [keybindingsOpen, setKeybindingsOpen] = useState(false);
+  const [gmcpData, setGmcpData] = useState<Record<string, unknown>>({});
 
   // Refs
   const socketRef = useRef<WebSocket | null>(null);
@@ -52,6 +59,9 @@ export default function Play() {
   const settings = mergeSettings(globalSettings ?? DEFAULT_GLOBAL_SETTINGS, profileSettings);
   const triggers = (profile?.triggers || []) as MudTrigger[];
   const aliases = (profile?.aliases || []) as MudAlias[];
+  const timers = (profile?.timers || []) as MudTimer[];
+  const keybindings = (profile?.keybindings || []) as MudKeybinding[];
+  const updateProfile = useUpdateProfile();
   
   const { speak, speakLine, togglePause, paused } = useSpeech({
     enabled: settings.speechEnabled ?? false,
@@ -70,6 +80,39 @@ export default function Play() {
   const echoLocal = useCallback((text: string) => {
     setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
   }, []);
+
+  const executeScript = useCallback((script: string) => {
+    const ctx = createScriptingContext(sendCommand, echoLocal);
+    try {
+      const fn = new Function('send', 'echo', 'setVariable', 'getVariable', script);
+      fn(ctx.send, ctx.echo, ctx.setVariable, ctx.getVariable);
+    } catch (err) {
+      console.error('Script execution error:', err);
+      echoLocal(`[Script Error] ${err}`);
+    }
+  }, [sendCommand, echoLocal]);
+
+  const disableTimer = useCallback((timerId: string) => {
+    if (!profile) return;
+    const updatedTimers = timers.map(t => 
+      t.id === timerId ? { ...t, active: false } : t
+    );
+    updateProfile.mutate({ id: profile.id, timers: updatedTimers });
+  }, [profile, timers, updateProfile]);
+
+  useTimers({
+    timers,
+    onExecute: executeScript,
+    onDisableTimer: disableTimer,
+    enabled: isConnected,
+  });
+
+  useKeybindings({
+    keybindings,
+    onSend: sendCommand,
+    onExecuteScript: executeScript,
+    enabled: isConnected,
+  });
 
   // Track if only Ctrl was pressed (no other keys)
   const ctrlOnlyRef = useRef(true);
@@ -135,7 +178,8 @@ export default function Play() {
         type: "connect",
         host: profile.host,
         port: profile.port,
-        encoding: profile.encoding || "ISO-8859-1"
+        encoding: profile.encoding || "ISO-8859-1",
+        gmcp: settings.gmcpEnabled !== false
       };
       ws.send(JSON.stringify(msg));
       setLines(prev => [...prev, `\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
@@ -176,6 +220,26 @@ export default function Play() {
         } else if (msg.type === 'error') {
           setLines(prev => [...prev, `\x1b[31m>> Error: ${msg.message}\x1b[0m`]);
           toast({ variant: "destructive", title: "Connection Error", description: msg.message });
+        } else if (msg.type === 'gmcp') {
+          console.log('GMCP:', msg.module, msg.data);
+          setGmcpData(prev => ({ ...prev, [msg.module]: msg.data }));
+          
+          if (msg.module === 'Char.Vitals' && typeof msg.data === 'object' && msg.data !== null) {
+            const vitals = msg.data as Record<string, unknown>;
+            const vitalStr = Object.entries(vitals)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(' | ');
+            setLines(prev => [...prev, `\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
+          } else if (msg.module === 'Room.Info' && typeof msg.data === 'object' && msg.data !== null) {
+            const room = msg.data as Record<string, unknown>;
+            const roomName = room.name || room.short || 'Unknown Room';
+            const exits = Array.isArray(room.exits) ? room.exits.join(', ') : 
+                          (typeof room.exits === 'object' && room.exits !== null) ? Object.keys(room.exits).join(', ') : '';
+            const roomLine = exits ? `[Room] ${roomName} | Exits: ${exits}` : `[Room] ${roomName}`;
+            setLines(prev => [...prev, `\x1b[36m${roomLine}\x1b[0m`]);
+          } else if (msg.module.startsWith('Core.')) {
+            console.log('GMCP Core module:', msg.module, msg.data);
+          }
         }
       } catch (e) {
         console.error("Failed to parse WS message", e);
@@ -261,16 +325,38 @@ export default function Play() {
             <span>{profile.host}:{profile.port}</span>
           </div>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-          data-testid="button-settings"
-        >
-          <Settings className="w-4 h-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setTimersOpen(true)}
+            aria-label="Timers"
+            data-testid="button-timers"
+          >
+            <Clock className="w-4 h-4" />
+            <span className="sr-only">Timers</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setKeybindingsOpen(true)}
+            aria-label="Keybindings"
+            data-testid="button-keybindings"
+          >
+            <Keyboard className="w-4 h-4" />
+            <span className="sr-only">Keybindings</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            data-testid="button-settings"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        </div>
       </div>
 
       {/* Terminal Area */}
@@ -291,6 +377,7 @@ export default function Play() {
           itemContent={(index, line) => (
             <TerminalLine 
               content={line} 
+              stripSymbols={settings.stripSymbols}
               className={clsx(
                 "px-4 py-0.5",
                 settings.highContrast && "bg-black text-white"
@@ -338,6 +425,18 @@ export default function Play() {
         profile={profile} 
         open={settingsOpen} 
         onOpenChange={setSettingsOpen} 
+      />
+
+      <TimersPanel 
+        profile={profile} 
+        open={timersOpen} 
+        onOpenChange={setTimersOpen} 
+      />
+
+      <KeybindingsPanel 
+        profile={profile} 
+        open={keybindingsOpen} 
+        onOpenChange={setKeybindingsOpen} 
       />
     </div>
   );

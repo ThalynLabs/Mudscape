@@ -166,6 +166,13 @@ function GlobalSettingsTab() {
               onValueChange={([value]) => updateSetting('lineHeight', value)}
             />
           </SettingRow>
+          <SettingRow label="Strip Symbols" description="Remove decorative symbols for screen readers (box art, lines, etc.)">
+            <Switch
+              data-testid="switch-strip-symbols"
+              checked={localSettings.stripSymbols ?? false}
+              onCheckedChange={(checked) => updateSetting('stripSymbols', checked)}
+            />
+          </SettingRow>
         </CardContent>
       </Card>
 
@@ -238,6 +245,13 @@ function GlobalSettingsTab() {
               max={300}
               value={localSettings.keepAliveInterval ?? 60}
               onChange={(e) => updateSetting('keepAliveInterval', parseInt(e.target.value) || 60)}
+            />
+          </SettingRow>
+          <SettingRow label="Enable GMCP" description="Receive structured data from MUD (vitals, room info)">
+            <Switch
+              data-testid="switch-gmcp-enabled"
+              checked={localSettings.gmcpEnabled ?? true}
+              onCheckedChange={(checked) => updateSetting('gmcpEnabled', checked)}
             />
           </SettingRow>
         </CardContent>

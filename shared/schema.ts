@@ -21,6 +21,8 @@ export const profiles = pgTable("profiles", {
   triggers: jsonb("triggers").$type<MudTrigger[]>().default([]),
   aliases: jsonb("aliases").$type<MudAlias[]>().default([]),
   scripts: jsonb("scripts").$type<MudScript[]>().default([]),
+  timers: jsonb("timers").$type<MudTimer[]>().default([]),
+  keybindings: jsonb("keybindings").$type<MudKeybinding[]>().default([]),
 });
 
 // === TYPE DEFINITIONS ===
@@ -38,6 +40,7 @@ export interface GlobalSettings {
   highContrast?: boolean;
   readerMode?: boolean; // Default to reader mode or live mode
   showInputEcho?: boolean; // Show what the user types in the terminal
+  stripSymbols?: boolean; // Remove decorative symbols for screen readers
   
   // Automation settings
   triggersEnabled?: boolean;
@@ -48,6 +51,9 @@ export interface GlobalSettings {
   reconnectDelay?: number; // seconds
   keepAlive?: boolean;
   keepAliveInterval?: number; // seconds
+  
+  // GMCP settings
+  gmcpEnabled?: boolean;
 }
 
 // Profile settings - null means "use global default"
@@ -63,6 +69,7 @@ export interface ProfileSettings {
   highContrast?: boolean | null;
   readerMode?: boolean | null;
   showInputEcho?: boolean | null;
+  stripSymbols?: boolean | null;
   
   // Automation settings (null = use global)
   triggersEnabled?: boolean | null;
@@ -73,6 +80,9 @@ export interface ProfileSettings {
   reconnectDelay?: number | null;
   keepAlive?: boolean | null;
   keepAliveInterval?: number | null;
+  
+  // GMCP settings (null = use global)
+  gmcpEnabled?: boolean | null;
 }
 
 export interface MudTrigger {
@@ -94,6 +104,23 @@ export interface MudScript {
   id: string;
   name: string;
   content: string;
+  active: boolean;
+}
+
+export interface MudTimer {
+  id: string;
+  name: string;
+  interval: number; // milliseconds
+  oneShot: boolean; // if true, fires once then disables
+  script: string; // JavaScript code to execute
+  active: boolean;
+}
+
+export interface MudKeybinding {
+  id: string;
+  key: string; // e.g. "F1", "Ctrl+Shift+A"
+  command: string; // Command to send or script to execute
+  isScript: boolean; // If true, command is JavaScript; if false, it's a MUD command
   active: boolean;
 }
 
@@ -122,12 +149,14 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   highContrast: false,
   readerMode: false,
   showInputEcho: true,
+  stripSymbols: false,
   triggersEnabled: true,
   aliasesEnabled: true,
   autoReconnect: true,
   reconnectDelay: 5,
   keepAlive: false,
   keepAliveInterval: 60,
+  gmcpEnabled: true,
 };
 
 // Merge global settings with profile overrides
@@ -149,12 +178,14 @@ export function mergeSettings(global: GlobalSettings, profile: ProfileSettings):
 // === WEBSOCKET TYPES ===
 // Messages between Frontend and Relay Server
 export type WsClientMessage =
-  | { type: 'connect'; host: string; port: number; encoding?: string }
+  | { type: 'connect'; host: string; port: number; encoding?: string; gmcp?: boolean }
   | { type: 'disconnect' }
-  | { type: 'send'; data: string }; // User command
+  | { type: 'send'; data: string }
+  | { type: 'gmcp'; module: string; data: unknown }; // Send GMCP message
 
 export type WsServerMessage =
   | { type: 'connected'; host: string; port: number }
   | { type: 'disconnected'; reason?: string }
   | { type: 'data'; content: string; raw?: boolean } // Content is ANSI text
+  | { type: 'gmcp'; module: string; data: unknown } // GMCP data from server
   | { type: 'error'; message: string };

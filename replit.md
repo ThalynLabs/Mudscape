@@ -43,22 +43,31 @@ Preferred communication style: Simple, everyday language.
 - Scripting context provides send(), echo(), setVariable(), and getVariable() functions
 - Triggers: Pattern-based automation that runs on incoming MUD lines (supports plain text and regex)
 - Aliases: Command macros that expand shortcuts into full commands with optional scripting
+- Timers: Scheduled script execution (one-shot or repeating intervals), managed via TimersPanel
+- Keybindings: Custom keyboard shortcuts mapped to commands or scripts, recorded via KeybindingsPanel
 
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech
 - **Ctrl (alone)**: Toggle pause/resume of speech synthesis
 - All interactive elements have proper ARIA labels for screen reader compatibility
+- **Strip Symbols Setting**: Removes decorative characters (box drawing, ASCII art) for cleaner screen reader output
 
 ### Settings Architecture
 - **Global Settings**: App-wide defaults stored in global_settings table (single row)
   - Speech: speechEnabled, speechRate, speechVoice
-  - Display: fontScale, lineHeight, highContrast, readerMode, showInputEcho
+  - Display: fontScale, lineHeight, highContrast, readerMode, showInputEcho, stripSymbols
   - Automation: triggersEnabled, aliasesEnabled
-  - Connection: autoReconnect, reconnectDelay, keepAlive, keepAliveInterval
+  - Connection: autoReconnect, reconnectDelay, keepAlive, keepAliveInterval, gmcpEnabled
 - **Profile Settings**: Per-MUD overrides stored in profiles.settings column
   - Null/undefined values inherit from global defaults
   - mergeSettings() function combines global + profile settings
 - **Settings UI**: /settings page with Global Defaults and Per-MUD tabs
+
+### GMCP Support
+- Generic MUD Communication Protocol for structured data from MUD servers
+- Telnet option negotiation (option 201) handled in WebSocket relay
+- Supports Core.Hello, Char.Vitals, Room.Info modules
+- GMCP data displayed in terminal and stored in gmcpData state for UI display
 
 ## External Dependencies
 
@@ -70,7 +79,8 @@ Preferred communication style: Simple, everyday language.
 ### MUD Protocol Support
 - **WebSocket (ws)**: Server-side WebSocket for relay service
 - **net module**: Direct TCP connections from server to MUD servers
-- Planned support for TLS, MCCP (compression), and GMCP (structured data)
+- **GMCP (implemented)**: Generic MUD Communication Protocol via telnet option 201
+- Planned support for TLS, MCCP (compression)
 
 ### UI Framework
 - **Radix UI**: Accessible primitives for dialogs, dropdowns, forms, etc.
