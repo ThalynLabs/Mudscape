@@ -8,12 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings, Wifi, WifiOff, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, ProfileSettings } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, ProfileSettings, MudTrigger, MudAlias } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
+import { createScriptingContext, runTriggerScript, processAlias } from "@/lib/scripting";
 
 // Hardcoded maximum lines to keep in buffer to prevent memory leaks
 const MAX_LINES = 5000;
+
+// Strip ANSI codes for speech
+function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, "").trim();
+}
 
 export default function Play() {
   const [, params] = useRoute("/play/:id");
@@ -37,11 +43,61 @@ export default function Play() {
 
   // Derived settings
   const settings = (profile?.settings || {}) as ProfileSettings;
-  const { speak } = useSpeech({
+  const triggers = (profile?.triggers || []) as MudTrigger[];
+  const aliases = (profile?.aliases || []) as MudAlias[];
+  
+  const { speak, speakLine, togglePause, paused } = useSpeech({
     enabled: settings.speechEnabled ?? false,
     rate: settings.speechRate,
     voiceURI: settings.speechVoice,
   });
+
+  // Scripting helpers
+  const sendCommand = useCallback((cmd: string) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      const msg: WsClientMessage = { type: 'send', data: cmd };
+      socketRef.current.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  const echoLocal = useCallback((text: string) => {
+    setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
+  }, []);
+
+  // Global keyboard shortcuts (Ctrl+1-9 to read lines, Ctrl to toggle pause)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl + number keys (1-9) to read recent lines
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 9) {
+          e.preventDefault();
+          const lineIndex = lines.length - num;
+          if (lineIndex >= 0 && lines[lineIndex]) {
+            const cleanLine = stripAnsi(lines[lineIndex]);
+            speakLine(cleanLine);
+          }
+          return;
+        }
+      }
+    };
+
+    const handleGlobalKeyUp = (e: KeyboardEvent) => {
+      // Single Ctrl key press (without other keys) toggles pause
+      if (e.key === 'Control' && !e.altKey && !e.shiftKey && !e.metaKey) {
+        // Only toggle if no other key was pressed with it
+        togglePause();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keyup', handleGlobalKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('keyup', handleGlobalKeyUp);
+    };
+  }, [lines, speakLine, togglePause]);
 
   // Connect to WebSocket
   useEffect(() => {
@@ -79,10 +135,16 @@ export default function Play() {
         if (msg.type === 'data') {
           // Speak if enabled
           if (settings.speechEnabled) {
-            // Very basic strip ANSI for speech
-            // Real implementation would be more robust
-            const cleanText = msg.content.replace(/\x1b\[[0-9;]*m/g, ""); 
+            const cleanText = stripAnsi(msg.content);
             speak(cleanText);
+          }
+
+          // Run triggers
+          if (triggers.length > 0) {
+            const context = createScriptingContext(sendCommand, echoLocal, [], msg.content);
+            import("@/lib/scripting").then(({ processTriggers }) => {
+              processTriggers(msg.content, triggers, context);
+            });
           }
 
           setLines(prev => {
@@ -106,14 +168,18 @@ export default function Play() {
     return () => {
       ws.close();
     };
-  }, [profile, toast, speak, settings.speechEnabled]);
+  }, [profile, toast, speak, settings.speechEnabled, triggers, sendCommand, echoLocal]);
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim() || !socketRef.current) return;
 
+    // Process aliases first
+    const aliasResult = processAlias(inputValue, aliases, sendCommand, echoLocal);
+    const commandToSend = aliasResult || inputValue;
+
     // Send to server
-    const msg: WsClientMessage = { type: 'send', data: inputValue + '\r\n' };
+    const msg: WsClientMessage = { type: 'send', data: commandToSend };
     socketRef.current.send(JSON.stringify(msg));
 
     // Echo locally
@@ -173,8 +239,15 @@ export default function Play() {
             <span>{profile.host}:{profile.port}</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Settings"
+          data-testid="button-settings"
+        >
           <Settings className="w-4 h-4" />
+          <span className="sr-only">Settings</span>
         </Button>
       </div>
 
