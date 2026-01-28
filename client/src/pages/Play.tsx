@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { WsClientMessage, WsServerMessage, ProfileSettings, MudTrigger, MudAlias } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
-import { createScriptingContext, runTriggerScript, processAlias } from "@/lib/scripting";
+import { createScriptingContext, processTriggers, processAlias } from "@/lib/scripting";
 
 // Hardcoded maximum lines to keep in buffer to prevent memory leaks
 const MAX_LINES = 5000;
@@ -64,9 +64,17 @@ export default function Play() {
     setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
   }, []);
 
-  // Global keyboard shortcuts (Ctrl+1-9 to read lines, Ctrl to toggle pause)
+  // Track if only Ctrl was pressed (no other keys)
+  const ctrlOnlyRef = useRef(true);
+
+  // Global keyboard shortcuts (Ctrl+1-9 to read lines, Ctrl alone to toggle pause)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // If Ctrl is pressed with any other key, mark that Ctrl wasn't alone
+      if (e.ctrlKey && e.key !== 'Control') {
+        ctrlOnlyRef.current = false;
+      }
+
       // Ctrl + number keys (1-9) to read recent lines
       if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
         const num = parseInt(e.key);
@@ -84,9 +92,12 @@ export default function Play() {
 
     const handleGlobalKeyUp = (e: KeyboardEvent) => {
       // Single Ctrl key press (without other keys) toggles pause
-      if (e.key === 'Control' && !e.altKey && !e.shiftKey && !e.metaKey) {
-        // Only toggle if no other key was pressed with it
-        togglePause();
+      if (e.key === 'Control') {
+        if (ctrlOnlyRef.current) {
+          togglePause();
+        }
+        // Reset for next Ctrl press
+        ctrlOnlyRef.current = true;
       }
     };
 
@@ -139,12 +150,11 @@ export default function Play() {
             speak(cleanText);
           }
 
-          // Run triggers
+          // Run triggers synchronously
           if (triggers.length > 0) {
-            const context = createScriptingContext(sendCommand, echoLocal, [], msg.content);
-            import("@/lib/scripting").then(({ processTriggers }) => {
-              processTriggers(msg.content, triggers, context);
-            });
+            const cleanLine = stripAnsi(msg.content);
+            const context = createScriptingContext(sendCommand, echoLocal, [], cleanLine);
+            processTriggers(msg.content, triggers, context);
           }
 
           setLines(prev => {

@@ -1,5 +1,23 @@
 import { MudTrigger, MudAlias } from "@shared/schema";
 
+/**
+ * MUD Client Scripting Engine
+ * 
+ * SECURITY MODEL:
+ * Scripts are user-provided code that runs with full JavaScript capabilities.
+ * This is intentional and matches how traditional MUD clients (Mudlet, CMUD) work.
+ * Users write their own automation scripts and are responsible for their content.
+ * 
+ * This is NOT a sandbox - scripts can access window, DOM, etc.
+ * This is acceptable because:
+ * 1. Scripts are only created/edited by the profile owner
+ * 2. Scripts are stored per-profile and not shared publicly
+ * 3. MUD scripting inherently requires powerful automation capabilities
+ * 
+ * If scripts are ever shared between users, implement proper sandboxing
+ * using a library like "ses" (Secure ECMAScript) or a Web Worker isolate.
+ */
+
 // Global variables storage for scripts
 const scriptVariables: Record<string, unknown> = {};
 
