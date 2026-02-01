@@ -141,14 +141,14 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
                 <div className="space-y-2">
                   <Label>Class (optional)</Label>
                   <Select
-                    value={newAlias.classId || ''}
-                    onValueChange={(val) => setNewAlias({ ...newAlias, classId: val || undefined })}
+                    value={newAlias.classId || '__none__'}
+                    onValueChange={(val) => setNewAlias({ ...newAlias, classId: val === '__none__' ? undefined : val })}
                   >
                     <SelectTrigger data-testid="select-alias-class">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {classes.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -235,14 +235,14 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
                             </SelectContent>
                           </Select>
                           <Select
-                            value={alias.classId || ''}
-                            onValueChange={(val) => updateAlias(alias.id, { classId: val || undefined })}
+                            value={alias.classId || '__none__'}
+                            onValueChange={(val) => updateAlias(alias.id, { classId: val === '__none__' ? undefined : val })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="No Class" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="__none__">None</SelectItem>
                               {classes.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                               ))}

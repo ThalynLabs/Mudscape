@@ -167,14 +167,14 @@ export function ButtonsPanel({ profile, open, onOpenChange }: ButtonsPanelProps)
                 <div className="space-y-2">
                   <Label>Class (optional)</Label>
                   <Select
-                    value={newButton.classId || ''}
-                    onValueChange={(val) => setNewButton({ ...newButton, classId: val || undefined })}
+                    value={newButton.classId || '__none__'}
+                    onValueChange={(val) => setNewButton({ ...newButton, classId: val === '__none__' ? undefined : val })}
                   >
                     <SelectTrigger data-testid="select-button-class">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {classes.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -275,14 +275,14 @@ export function ButtonsPanel({ profile, open, onOpenChange }: ButtonsPanelProps)
                             </SelectContent>
                           </Select>
                           <Select
-                            value={button.classId || ''}
-                            onValueChange={(val) => updateButton(button.id, { classId: val || undefined })}
+                            value={button.classId || '__none__'}
+                            onValueChange={(val) => updateButton(button.id, { classId: val === '__none__' ? undefined : val })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="No Class" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="__none__">None</SelectItem>
                               {classes.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                               ))}
