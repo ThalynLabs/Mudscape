@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Zap, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder } from "lucide-react";
+import { Plus, Trash2, Zap, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder, CheckSquare, Square, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudTrigger, MudClass } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
@@ -30,9 +31,12 @@ interface TriggerCardProps {
   deleteTrigger: (id: string) => void;
   toggleTrigger: (id: string, active: boolean) => void;
   openWizardFor: (target: string) => void;
+  selectMode: boolean;
+  isSelected: boolean;
+  onSelectToggle: (id: string) => void;
 }
 
-function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger, deleteTrigger, toggleTrigger, openWizardFor }: TriggerCardProps) {
+function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger, deleteTrigger, toggleTrigger, openWizardFor, selectMode, isSelected, onSelectToggle }: TriggerCardProps) {
   if (editingId === trigger.id) {
     return (
       <Card>
@@ -100,12 +104,20 @@ function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger,
   }
 
   return (
-    <Card className={!trigger.active ? 'opacity-50' : ''}>
+    <Card className={`${!trigger.active ? 'opacity-50' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
+          {selectMode && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onSelectToggle(trigger.id)}
+              className="mt-1"
+              data-testid={`checkbox-trigger-${trigger.id}`}
+            />
+          )}
           <div 
             className="flex-1 cursor-pointer min-w-0"
-            onClick={() => setEditingId(trigger.id)}
+            onClick={() => selectMode ? onSelectToggle(trigger.id) : setEditingId(trigger.id)}
           >
             <div className="font-mono text-sm text-primary truncate">
               {trigger.pattern}
@@ -115,20 +127,22 @@ function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger,
               {trigger.soundFile && ` • Sound: ${trigger.soundFile}`}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Switch
-              checked={trigger.active}
-              onCheckedChange={(val) => toggleTrigger(trigger.id, val)}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => deleteTrigger(trigger.id)}
-              data-testid={`button-delete-trigger-${trigger.id}`}
-            >
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
-          </div>
+          {!selectMode && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Switch
+                checked={trigger.active}
+                onCheckedChange={(val) => toggleTrigger(trigger.id, val)}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteTrigger(trigger.id)}
+                data-testid={`button-delete-trigger-${trigger.id}`}
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -144,12 +158,59 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
   const [wizardTarget, setWizardTarget] = useState<'new' | string>('new');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newTrigger, setNewTrigger] = useState<Partial<MudTrigger>>({
     pattern: '',
     type: 'regex',
     script: '',
     active: true,
   });
+
+  const toggleSelectMode = () => {
+    if (selectMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectMode(!selectMode);
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredTriggers.map(t => t.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const deleteSelected = () => {
+    saveTriggers(triggers.filter(t => !selectedIds.has(t.id)));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
+  const moveSelectedToClass = (classId: string | undefined) => {
+    saveTriggers(triggers.map(t => selectedIds.has(t.id) ? { ...t, classId } : t));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
+  const toggleSelectedActive = (active: boolean) => {
+    saveTriggers(triggers.map(t => selectedIds.has(t.id) ? { ...t, active } : t));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
 
   const filteredTriggers = useMemo(() => {
     if (!searchQuery.trim()) return triggers;
@@ -379,11 +440,63 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
 
           {triggers.length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Triggers ({triggers.length})
                 </h3>
+                <Button
+                  variant={selectMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleSelectMode}
+                  data-testid="button-select-mode-triggers"
+                >
+                  {selectMode ? <X className="w-4 h-4 mr-1" /> : <CheckSquare className="w-4 h-4 mr-1" />}
+                  {selectMode ? "Cancel" : "Select"}
+                </Button>
               </div>
+
+              {selectMode && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={selectAll} data-testid="button-select-all-triggers">
+                          Select All
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={deselectAll} data-testid="button-deselect-all-triggers">
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    {selectedIds.size > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="destructive" size="sm" onClick={deleteSelected} data-testid="button-delete-selected-triggers">
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => toggleSelectedActive(true)} data-testid="button-enable-selected-triggers">
+                          Enable
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => toggleSelectedActive(false)} data-testid="button-disable-selected-triggers">
+                          Disable
+                        </Button>
+                        <Select onValueChange={(val) => moveSelectedToClass(val === '__none__' ? undefined : val)}>
+                          <SelectTrigger className="w-[140px] h-8" data-testid="select-move-triggers-class">
+                            <SelectValue placeholder="Move to class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">No Class</SelectItem>
+                            {classes.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -416,6 +529,9 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
                         deleteTrigger={deleteTrigger}
                         toggleTrigger={toggleTrigger}
                         openWizardFor={openWizardFor}
+                        selectMode={selectMode}
+                        isSelected={selectedIds.has(trigger.id)}
+                        onSelectToggle={toggleSelection}
                       />
                     ))}
                   </CollapsibleContent>
@@ -449,6 +565,9 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
                           deleteTrigger={deleteTrigger}
                           toggleTrigger={toggleTrigger}
                           openWizardFor={openWizardFor}
+                          selectMode={selectMode}
+                          isSelected={selectedIds.has(trigger.id)}
+                          onSelectToggle={toggleSelection}
                         />
                       ))}
                     </CollapsibleContent>

@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Terminal, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder } from "lucide-react";
+import { Plus, Trash2, Terminal, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder, CheckSquare, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudAlias, MudClass } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
@@ -30,9 +31,12 @@ interface AliasCardProps {
   deleteAlias: (id: string) => void;
   toggleAlias: (id: string, active: boolean) => void;
   openWizardFor: (target: string) => void;
+  selectMode: boolean;
+  isSelected: boolean;
+  onSelectToggle: (id: string) => void;
 }
 
-function AliasCard({ alias, classes, editingId, setEditingId, updateAlias, deleteAlias, toggleAlias, openWizardFor }: AliasCardProps) {
+function AliasCard({ alias, classes, editingId, setEditingId, updateAlias, deleteAlias, toggleAlias, openWizardFor, selectMode, isSelected, onSelectToggle }: AliasCardProps) {
   if (editingId === alias.id) {
     return (
       <Card>
@@ -111,12 +115,20 @@ function AliasCard({ alias, classes, editingId, setEditingId, updateAlias, delet
   }
 
   return (
-    <Card className={!alias.active ? 'opacity-50' : ''}>
+    <Card className={`${!alias.active ? 'opacity-50' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
+          {selectMode && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onSelectToggle(alias.id)}
+              className="mt-1"
+              data-testid={`checkbox-alias-${alias.id}`}
+            />
+          )}
           <div 
             className="flex-1 cursor-pointer min-w-0"
-            onClick={() => setEditingId(alias.id)}
+            onClick={() => selectMode ? onSelectToggle(alias.id) : setEditingId(alias.id)}
           >
             <div className="font-mono text-sm text-primary truncate">
               {alias.pattern}
@@ -125,20 +137,22 @@ function AliasCard({ alias, classes, editingId, setEditingId, updateAlias, delet
               {alias.isScript ? 'Script' : alias.command}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Switch
-              checked={alias.active}
-              onCheckedChange={(val) => toggleAlias(alias.id, val)}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => deleteAlias(alias.id)}
-              data-testid={`button-delete-alias-${alias.id}`}
-            >
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
-          </div>
+          {!selectMode && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Switch
+                checked={alias.active}
+                onCheckedChange={(val) => toggleAlias(alias.id, val)}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteAlias(alias.id)}
+                data-testid={`button-delete-alias-${alias.id}`}
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -154,12 +168,59 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
   const [wizardTarget, setWizardTarget] = useState<'new' | string>('new');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newAlias, setNewAlias] = useState<Partial<MudAlias>>({
     pattern: '',
     command: '',
     isScript: false,
     active: true,
   });
+
+  const toggleSelectMode = () => {
+    if (selectMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectMode(!selectMode);
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredAliases.map(a => a.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const deleteSelected = () => {
+    saveAliases(aliases.filter(a => !selectedIds.has(a.id)));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
+  const moveSelectedToClass = (classId: string | undefined) => {
+    saveAliases(aliases.map(a => selectedIds.has(a.id) ? { ...a, classId } : a));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
+  const toggleSelectedActive = (active: boolean) => {
+    saveAliases(aliases.map(a => selectedIds.has(a.id) ? { ...a, active } : a));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
 
   const filteredAliases = useMemo(() => {
     if (!searchQuery.trim()) return aliases;
@@ -369,11 +430,63 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
 
           {aliases.length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Aliases ({aliases.length})
                 </h3>
+                <Button
+                  variant={selectMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleSelectMode}
+                  data-testid="button-select-mode-aliases"
+                >
+                  {selectMode ? <X className="w-4 h-4 mr-1" /> : <CheckSquare className="w-4 h-4 mr-1" />}
+                  {selectMode ? "Cancel" : "Select"}
+                </Button>
               </div>
+
+              {selectMode && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={selectAll} data-testid="button-select-all-aliases">
+                          Select All
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={deselectAll} data-testid="button-deselect-all-aliases">
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    {selectedIds.size > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="destructive" size="sm" onClick={deleteSelected} data-testid="button-delete-selected-aliases">
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => toggleSelectedActive(true)} data-testid="button-enable-selected-aliases">
+                          Enable
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => toggleSelectedActive(false)} data-testid="button-disable-selected-aliases">
+                          Disable
+                        </Button>
+                        <Select onValueChange={(val) => moveSelectedToClass(val === '__none__' ? undefined : val)}>
+                          <SelectTrigger className="w-[140px] h-8" data-testid="select-move-aliases-class">
+                            <SelectValue placeholder="Move to class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">No Class</SelectItem>
+                            {classes.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -406,6 +519,9 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
                         deleteAlias={deleteAlias}
                         toggleAlias={toggleAlias}
                         openWizardFor={openWizardFor}
+                        selectMode={selectMode}
+                        isSelected={selectedIds.has(alias.id)}
+                        onSelectToggle={toggleSelection}
                       />
                     ))}
                   </CollapsibleContent>
@@ -439,6 +555,9 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
                           deleteAlias={deleteAlias}
                           toggleAlias={toggleAlias}
                           openWizardFor={openWizardFor}
+                          selectMode={selectMode}
+                          isSelected={selectedIds.has(alias.id)}
+                          onSelectToggle={toggleSelection}
                         />
                       ))}
                     </CollapsibleContent>

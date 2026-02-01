@@ -43,6 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Collapsible Class Groups**: Triggers and aliases are organized by class in collapsible folders with item counts
 - **Search/Filter**: Real-time search across triggers and aliases by pattern, script content, or class name
 - **Class Badges**: Visual indicators show class status (enabled/disabled) and item counts
+- **Bulk Actions**: Select multiple triggers or aliases to delete, enable/disable, or move to a class in one action
 
 ### Shared Code Pattern
 - The `shared/` directory contains code used by both client and server
