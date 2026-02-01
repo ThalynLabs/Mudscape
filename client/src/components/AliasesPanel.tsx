@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Terminal, Wand2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Terminal, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder } from "lucide-react";
 import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudAlias, MudClass } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
@@ -19,6 +21,130 @@ interface AliasesPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface AliasCardProps {
+  alias: MudAlias;
+  classes: MudClass[];
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  updateAlias: (id: string, updates: Partial<MudAlias>) => void;
+  deleteAlias: (id: string) => void;
+  toggleAlias: (id: string, active: boolean) => void;
+  openWizardFor: (target: string) => void;
+}
+
+function AliasCard({ alias, classes, editingId, setEditingId, updateAlias, deleteAlias, toggleAlias, openWizardFor }: AliasCardProps) {
+  if (editingId === alias.id) {
+    return (
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <Input
+            value={alias.pattern}
+            onChange={(e) => updateAlias(alias.id, { pattern: e.target.value })}
+            className="font-mono text-sm"
+            placeholder="Pattern"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Select
+              value={alias.isScript ? 'script' : 'command'}
+              onValueChange={(val) => updateAlias(alias.id, { isScript: val === 'script' })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="command">Command</SelectItem>
+                <SelectItem value="script">Lua Script</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={alias.classId || '__none__'}
+              onValueChange={(val) => updateAlias(alias.id, { classId: val === '__none__' ? undefined : val })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No Class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">{alias.isScript ? 'Script' : 'Command'}</Label>
+            {alias.isScript && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openWizardFor(alias.id)}
+                className="h-6 text-xs"
+              >
+                <Wand2 className="w-3 h-3 mr-1" />
+                AI
+              </Button>
+            )}
+          </div>
+          {alias.isScript ? (
+            <Textarea
+              value={alias.command}
+              onChange={(e) => updateAlias(alias.id, { command: e.target.value })}
+              className="font-mono text-sm min-h-[80px]"
+            />
+          ) : (
+            <Input
+              value={alias.command}
+              onChange={(e) => updateAlias(alias.id, { command: e.target.value })}
+              className="font-mono text-sm"
+            />
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditingId(null)}
+          >
+            Done
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={!alias.active ? 'opacity-50' : ''}>
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div 
+            className="flex-1 cursor-pointer min-w-0"
+            onClick={() => setEditingId(alias.id)}
+          >
+            <div className="font-mono text-sm text-primary truncate">
+              {alias.pattern}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1 truncate">
+              {alias.isScript ? 'Script' : alias.command}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Switch
+              checked={alias.active}
+              onCheckedChange={(val) => toggleAlias(alias.id, val)}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => deleteAlias(alias.id)}
+              data-testid={`button-delete-alias-${alias.id}`}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps) {
   const updateMutation = useUpdateProfile();
   const aliases = (profile.aliases as MudAlias[]) || [];
@@ -26,12 +152,49 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardTarget, setWizardTarget] = useState<'new' | string>('new');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [newAlias, setNewAlias] = useState<Partial<MudAlias>>({
     pattern: '',
     command: '',
     isScript: false,
     active: true,
   });
+
+  const filteredAliases = useMemo(() => {
+    if (!searchQuery.trim()) return aliases;
+    const query = searchQuery.toLowerCase();
+    return aliases.filter(a => 
+      (a.pattern || '').toLowerCase().includes(query) ||
+      (a.command || '').toLowerCase().includes(query) ||
+      (a.classId && (classes.find(c => c.id === a.classId)?.name || '').toLowerCase().includes(query))
+    );
+  }, [aliases, searchQuery, classes]);
+
+  const groupedAliases = useMemo(() => {
+    const groups: Record<string, MudAlias[]> = { '__ungrouped__': [] };
+    classes.forEach(c => { groups[c.id] = []; });
+    
+    filteredAliases.forEach(alias => {
+      const groupId = alias.classId || '__ungrouped__';
+      if (!groups[groupId]) groups[groupId] = [];
+      groups[groupId].push(alias);
+    });
+    
+    return groups;
+  }, [filteredAliases, classes]);
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
 
   const saveAliases = (updatedAliases: MudAlias[]) => {
     updateMutation.mutate({
@@ -205,118 +368,89 @@ export function AliasesPanel({ profile, open, onOpenChange }: AliasesPanelProps)
           </Card>
 
           {aliases.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Existing Aliases ({aliases.length})
-              </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Aliases ({aliases.length})
+                </h3>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search aliases..."
+                  className="pl-9"
+                  data-testid="input-search-aliases"
+                />
+              </div>
               
-              {aliases.map((alias) => (
-                <Card key={alias.id} className={!alias.active ? 'opacity-50' : ''}>
-                  <CardContent className="p-4">
-                    {editingId === alias.id ? (
-                      <div className="space-y-3">
-                        <Input
-                          value={alias.pattern}
-                          onChange={(e) => updateAlias(alias.id, { pattern: e.target.value })}
-                          className="font-mono text-sm"
-                          placeholder="Pattern"
+              {groupedAliases['__ungrouped__']?.length > 0 && (
+                <Collapsible open={!collapsedGroups.has('__ungrouped__')} onOpenChange={() => toggleGroup('__ungrouped__')}>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 hover-elevate rounded-md">
+                    {collapsedGroups.has('__ungrouped__') ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <Folder className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Ungrouped</span>
+                    <Badge variant="secondary" className="ml-auto">{groupedAliases['__ungrouped__'].length}</Badge>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2 ml-6">
+                    {groupedAliases['__ungrouped__'].map((alias) => (
+                      <AliasCard
+                        key={alias.id}
+                        alias={alias}
+                        classes={classes}
+                        editingId={editingId}
+                        setEditingId={setEditingId}
+                        updateAlias={updateAlias}
+                        deleteAlias={deleteAlias}
+                        toggleAlias={toggleAlias}
+                        openWizardFor={openWizardFor}
+                      />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {classes.map(cls => {
+                const clsAliases = groupedAliases[cls.id] || [];
+                if (clsAliases.length === 0) return null;
+                
+                return (
+                  <Collapsible key={cls.id} open={!collapsedGroups.has(cls.id)} onOpenChange={() => toggleGroup(cls.id)}>
+                    <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 hover-elevate rounded-md">
+                      {collapsedGroups.has(cls.id) ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <FolderOpen className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{cls.name}</span>
+                      <Badge variant={cls.active ? "default" : "secondary"} className="ml-auto">
+                        {clsAliases.length}
+                      </Badge>
+                      {!cls.active && <Badge variant="outline" className="text-xs">Disabled</Badge>}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 mt-2 ml-6">
+                      {clsAliases.map((alias) => (
+                        <AliasCard
+                          key={alias.id}
+                          alias={alias}
+                          classes={classes}
+                          editingId={editingId}
+                          setEditingId={setEditingId}
+                          updateAlias={updateAlias}
+                          deleteAlias={deleteAlias}
+                          toggleAlias={toggleAlias}
+                          openWizardFor={openWizardFor}
                         />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Select
-                            value={alias.isScript ? 'script' : 'command'}
-                            onValueChange={(val) => updateAlias(alias.id, { isScript: val === 'script' })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="command">Command</SelectItem>
-                              <SelectItem value="script">Lua Script</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={alias.classId || '__none__'}
-                            onValueChange={(val) => updateAlias(alias.id, { classId: val === '__none__' ? undefined : val })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="No Class" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
-                              {classes.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">{alias.isScript ? 'Script' : 'Command'}</Label>
-                          {alias.isScript && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openWizardFor(alias.id)}
-                              className="h-6 text-xs"
-                            >
-                              <Wand2 className="w-3 h-3 mr-1" />
-                              AI
-                            </Button>
-                          )}
-                        </div>
-                        {alias.isScript ? (
-                          <Textarea
-                            value={alias.command}
-                            onChange={(e) => updateAlias(alias.id, { command: e.target.value })}
-                            className="font-mono text-sm min-h-[80px]"
-                          />
-                        ) : (
-                          <Input
-                            value={alias.command}
-                            onChange={(e) => updateAlias(alias.id, { command: e.target.value })}
-                            className="font-mono text-sm"
-                          />
-                        )}
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Done
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-3">
-                        <div 
-                          className="flex-1 cursor-pointer"
-                          onClick={() => setEditingId(alias.id)}
-                        >
-                          <div className="font-mono text-sm text-primary truncate">
-                            {alias.pattern}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 truncate">
-                            {alias.isScript ? 'Script' : alias.command}
-                            {alias.classId && ` • ${classes.find(c => c.id === alias.classId)?.name}`}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={alias.active}
-                            onCheckedChange={(val) => toggleAlias(alias.id, val)}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteAlias(alias.id)}
-                            data-testid={`button-delete-alias-${alias.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+
+              {filteredAliases.length === 0 && searchQuery && (
+                <div className="text-center text-muted-foreground py-4 text-sm">
+                  No aliases match "{searchQuery}"
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,19 +1,23 @@
-import { useProfiles, useDeleteProfile } from "@/hooks/use-profiles";
+import { useProfiles, useDeleteProfile, useCreateProfile } from "@/hooks/use-profiles";
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { useState, useEffect, useRef } from "react";
-import { Profile } from "@shared/schema";
-import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play } from "lucide-react";
+import { Profile, InsertProfile } from "@shared/schema";
+import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { data: profiles, isLoading, error } = useProfiles();
   const deleteMutation = useDeleteProfile();
+  const createMutation = useCreateProfile();
   const [, setLocation] = useLocation();
   const autoConnectChecked = useRef(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -43,6 +47,109 @@ export default function Home() {
   const handleCreateOpen = (open: boolean) => {
     if (!open) setEditingProfile(null);
     setDialogOpen(open);
+  };
+
+  const handleExportProfile = (profile: Profile) => {
+    const exportData = {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      profile: {
+        name: profile.name,
+        description: profile.description,
+        host: profile.host,
+        port: profile.port,
+        encoding: profile.encoding,
+        autoConnect: profile.autoConnect,
+        characterName: profile.characterName,
+        characterPassword: profile.characterPassword,
+        loginCommands: profile.loginCommands,
+        settings: profile.settings,
+        triggers: profile.triggers,
+        aliases: profile.aliases,
+        scripts: profile.scripts,
+        timers: profile.timers,
+        keybindings: profile.keybindings,
+        buttons: profile.buttons,
+        classes: profile.classes,
+        variables: profile.variables,
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${profile.name.toLowerCase().replace(/\s+/g, '-')}-profile.mudscape.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Profile exported", description: `${profile.name} saved to file` });
+  };
+
+  const handleImportProfile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        if (!data.profile || !data.profile.name || !data.profile.host || !data.profile.port) {
+          throw new Error('Invalid profile format: missing required fields');
+        }
+
+        if (typeof data.profile.port !== 'number' || data.profile.port < 1 || data.profile.port > 65535) {
+          throw new Error('Invalid port number');
+        }
+
+        const profileData: InsertProfile = {
+          name: (data.profile.name || 'Unnamed').trim() + " (Imported)",
+          description: typeof data.profile.description === 'string' ? data.profile.description : null,
+          host: String(data.profile.host).trim(),
+          port: Number(data.profile.port),
+          encoding: typeof data.profile.encoding === 'string' ? data.profile.encoding : "ISO-8859-1",
+          autoConnect: false,
+          characterName: typeof data.profile.characterName === 'string' ? data.profile.characterName : null,
+          characterPassword: typeof data.profile.characterPassword === 'string' ? data.profile.characterPassword : null,
+          loginCommands: typeof data.profile.loginCommands === 'string' ? data.profile.loginCommands : null,
+          settings: data.profile.settings && typeof data.profile.settings === 'object' ? data.profile.settings : {},
+          triggers: Array.isArray(data.profile.triggers) ? data.profile.triggers : [],
+          aliases: Array.isArray(data.profile.aliases) ? data.profile.aliases : [],
+          scripts: Array.isArray(data.profile.scripts) ? data.profile.scripts : [],
+          timers: Array.isArray(data.profile.timers) ? data.profile.timers : [],
+          keybindings: Array.isArray(data.profile.keybindings) ? data.profile.keybindings : [],
+          buttons: Array.isArray(data.profile.buttons) ? data.profile.buttons : [],
+          classes: Array.isArray(data.profile.classes) ? data.profile.classes : [],
+          variables: data.profile.variables && typeof data.profile.variables === 'object' ? data.profile.variables : {},
+        };
+
+        try {
+          await createMutation.mutateAsync(profileData);
+          toast({ title: "Profile imported", description: `${data.profile.name} has been imported` });
+        } catch (createErr) {
+          toast({ 
+            title: "Import failed", 
+            description: "Could not save profile to database. The data may be corrupted.",
+            variant: "destructive" 
+          });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Invalid file format";
+        toast({ 
+          title: "Import failed", 
+          description: message,
+          variant: "destructive" 
+        });
+      }
+    };
+    reader.readAsText(file);
+
+    if (importInputRef.current) {
+      importInputRef.current.value = '';
+    }
   };
 
   if (isLoading) {
@@ -85,6 +192,22 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-3">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,.mudscape.json"
+              className="hidden"
+              onChange={handleImportProfile}
+              aria-label="Import profile file"
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => importInputRef.current?.click()}
+              data-testid="button-import-profile"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import Profile
+            </Button>
             <Link href="/settings">
               <Button variant="outline" size="icon" data-testid="button-global-settings">
                 <Settings className="w-5 h-5" />
@@ -153,6 +276,11 @@ export default function Home() {
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExportProfile(profile)} data-testid={`menu-export-${profile.id}`}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Export Backup
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => handleDelete(profile.id)} 
                               className="text-destructive focus:text-destructive"

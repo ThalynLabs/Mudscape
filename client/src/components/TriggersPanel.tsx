@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Zap, Wand2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Zap, Wand2, ChevronDown, ChevronRight, Search, FolderOpen, Folder } from "lucide-react";
 import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudTrigger, MudClass } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
@@ -19,6 +21,120 @@ interface TriggersPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface TriggerCardProps {
+  trigger: MudTrigger;
+  classes: MudClass[];
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  updateTrigger: (id: string, updates: Partial<MudTrigger>) => void;
+  deleteTrigger: (id: string) => void;
+  toggleTrigger: (id: string, active: boolean) => void;
+  openWizardFor: (target: string) => void;
+}
+
+function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger, deleteTrigger, toggleTrigger, openWizardFor }: TriggerCardProps) {
+  if (editingId === trigger.id) {
+    return (
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <Input
+            value={trigger.pattern}
+            onChange={(e) => updateTrigger(trigger.id, { pattern: e.target.value })}
+            className="font-mono text-sm"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Select
+              value={trigger.type}
+              onValueChange={(val) => updateTrigger(trigger.id, { type: val as 'regex' | 'plain' })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="regex">Regex</SelectItem>
+                <SelectItem value="plain">Plain Text</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={trigger.classId || '__none__'}
+              onValueChange={(val) => updateTrigger(trigger.id, { classId: val === '__none__' ? undefined : val })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No Class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Script</Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openWizardFor(trigger.id)}
+              className="h-6 text-xs"
+            >
+              <Wand2 className="w-3 h-3 mr-1" />
+              AI
+            </Button>
+          </div>
+          <Textarea
+            value={trigger.script}
+            onChange={(e) => updateTrigger(trigger.id, { script: e.target.value })}
+            className="font-mono text-sm min-h-[80px]"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditingId(null)}
+          >
+            Done
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={!trigger.active ? 'opacity-50' : ''}>
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div 
+            className="flex-1 cursor-pointer min-w-0"
+            onClick={() => setEditingId(trigger.id)}
+          >
+            <div className="font-mono text-sm text-primary truncate">
+              {trigger.pattern}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {trigger.type}
+              {trigger.soundFile && ` • Sound: ${trigger.soundFile}`}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Switch
+              checked={trigger.active}
+              onCheckedChange={(val) => toggleTrigger(trigger.id, val)}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => deleteTrigger(trigger.id)}
+              data-testid={`button-delete-trigger-${trigger.id}`}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProps) {
   const updateMutation = useUpdateProfile();
   const triggers = (profile.triggers as MudTrigger[]) || [];
@@ -26,12 +142,49 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
   const [editingId, setEditingId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardTarget, setWizardTarget] = useState<'new' | string>('new');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [newTrigger, setNewTrigger] = useState<Partial<MudTrigger>>({
     pattern: '',
     type: 'regex',
     script: '',
     active: true,
   });
+
+  const filteredTriggers = useMemo(() => {
+    if (!searchQuery.trim()) return triggers;
+    const query = searchQuery.toLowerCase();
+    return triggers.filter(t => 
+      (t.pattern || '').toLowerCase().includes(query) ||
+      (t.script || '').toLowerCase().includes(query) ||
+      (t.classId && (classes.find(c => c.id === t.classId)?.name || '').toLowerCase().includes(query))
+    );
+  }, [triggers, searchQuery, classes]);
+
+  const groupedTriggers = useMemo(() => {
+    const groups: Record<string, MudTrigger[]> = { '__ungrouped__': [] };
+    classes.forEach(c => { groups[c.id] = []; });
+    
+    filteredTriggers.forEach(trigger => {
+      const groupId = trigger.classId || '__ungrouped__';
+      if (!groups[groupId]) groups[groupId] = [];
+      groups[groupId].push(trigger);
+    });
+    
+    return groups;
+  }, [filteredTriggers, classes]);
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
 
   const saveTriggers = (updatedTriggers: MudTrigger[]) => {
     updateMutation.mutate({
@@ -225,107 +378,89 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
           </Card>
 
           {triggers.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Existing Triggers ({triggers.length})
-              </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Triggers ({triggers.length})
+                </h3>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search triggers..."
+                  className="pl-9"
+                  data-testid="input-search-triggers"
+                />
+              </div>
               
-              {triggers.map((trigger) => (
-                <Card key={trigger.id} className={!trigger.active ? 'opacity-50' : ''}>
-                  <CardContent className="p-4">
-                    {editingId === trigger.id ? (
-                      <div className="space-y-3">
-                        <Input
-                          value={trigger.pattern}
-                          onChange={(e) => updateTrigger(trigger.id, { pattern: e.target.value })}
-                          className="font-mono text-sm"
+              {groupedTriggers['__ungrouped__']?.length > 0 && (
+                <Collapsible open={!collapsedGroups.has('__ungrouped__')} onOpenChange={() => toggleGroup('__ungrouped__')}>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 hover-elevate rounded-md">
+                    {collapsedGroups.has('__ungrouped__') ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <Folder className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Ungrouped</span>
+                    <Badge variant="secondary" className="ml-auto">{groupedTriggers['__ungrouped__'].length}</Badge>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2 ml-6">
+                    {groupedTriggers['__ungrouped__'].map((trigger) => (
+                      <TriggerCard
+                        key={trigger.id}
+                        trigger={trigger}
+                        classes={classes}
+                        editingId={editingId}
+                        setEditingId={setEditingId}
+                        updateTrigger={updateTrigger}
+                        deleteTrigger={deleteTrigger}
+                        toggleTrigger={toggleTrigger}
+                        openWizardFor={openWizardFor}
+                      />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {classes.map(cls => {
+                const clsTriggers = groupedTriggers[cls.id] || [];
+                if (clsTriggers.length === 0) return null;
+                
+                return (
+                  <Collapsible key={cls.id} open={!collapsedGroups.has(cls.id)} onOpenChange={() => toggleGroup(cls.id)}>
+                    <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 hover-elevate rounded-md">
+                      {collapsedGroups.has(cls.id) ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <FolderOpen className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{cls.name}</span>
+                      <Badge variant={cls.active ? "default" : "secondary"} className="ml-auto">
+                        {clsTriggers.length}
+                      </Badge>
+                      {!cls.active && <Badge variant="outline" className="text-xs">Disabled</Badge>}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 mt-2 ml-6">
+                      {clsTriggers.map((trigger) => (
+                        <TriggerCard
+                          key={trigger.id}
+                          trigger={trigger}
+                          classes={classes}
+                          editingId={editingId}
+                          setEditingId={setEditingId}
+                          updateTrigger={updateTrigger}
+                          deleteTrigger={deleteTrigger}
+                          toggleTrigger={toggleTrigger}
+                          openWizardFor={openWizardFor}
                         />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Select
-                            value={trigger.type}
-                            onValueChange={(val) => updateTrigger(trigger.id, { type: val as 'regex' | 'plain' })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="regex">Regex</SelectItem>
-                              <SelectItem value="plain">Plain Text</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={trigger.classId || '__none__'}
-                            onValueChange={(val) => updateTrigger(trigger.id, { classId: val === '__none__' ? undefined : val })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="No Class" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
-                              {classes.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">Script</Label>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openWizardFor(trigger.id)}
-                            className="h-6 text-xs"
-                          >
-                            <Wand2 className="w-3 h-3 mr-1" />
-                            AI
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={trigger.script}
-                          onChange={(e) => updateTrigger(trigger.id, { script: e.target.value })}
-                          className="font-mono text-sm min-h-[80px]"
-                        />
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Done
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-3">
-                        <div 
-                          className="flex-1 cursor-pointer"
-                          onClick={() => setEditingId(trigger.id)}
-                        >
-                          <div className="font-mono text-sm text-primary truncate">
-                            {trigger.pattern}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {trigger.type} {trigger.classId && `• ${classes.find(c => c.id === trigger.classId)?.name}`}
-                            {trigger.soundFile && ` • Sound: ${trigger.soundFile}`}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={trigger.active}
-                            onCheckedChange={(val) => toggleTrigger(trigger.id, val)}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteTrigger(trigger.id)}
-                            data-testid={`button-delete-trigger-${trigger.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+
+              {filteredTriggers.length === 0 && searchQuery && (
+                <div className="text-center text-muted-foreground py-4 text-sm">
+                  No triggers match "{searchQuery}"
+                </div>
+              )}
             </div>
           )}
         </div>

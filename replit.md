@@ -38,6 +38,12 @@ Preferred communication style: Simple, everyday language.
 - **Login Commands**: Configure commands to send after connecting (e.g., "connect {name} {password}")
 - **Placeholder Support**: {name} and {password} placeholders in login commands are replaced with stored credentials
 
+### Organization Features
+- **Profile Import/Export**: Export entire profiles as .mudscape.json backup files, import to restore or share configurations
+- **Collapsible Class Groups**: Triggers and aliases are organized by class in collapsible folders with item counts
+- **Search/Filter**: Real-time search across triggers and aliases by pattern, script content, or class name
+- **Class Badges**: Visual indicators show class status (enabled/disabled) and item counts
+
 ### Shared Code Pattern
 - The `shared/` directory contains code used by both client and server
 - Schema definitions, API route contracts, and type definitions are shared
