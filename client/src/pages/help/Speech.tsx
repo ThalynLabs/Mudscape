@@ -19,10 +19,13 @@ export default function Speech() {
           <CardContent className="space-y-3">
             <p>Speech can be toggled in several ways:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>Type <code className="bg-muted px-1 rounded">/speech on</code> or <code className="bg-muted px-1 rounded">/speech off</code></li>
+              <li>Type <code className="bg-muted px-1 rounded">/config speech on</code> or <code className="bg-muted px-1 rounded">/config speech off</code></li>
               <li>Go to Settings and toggle "Enable Speech"</li>
               <li>Configure per-profile in Per-MUD Settings</li>
             </ul>
+            <p className="text-sm text-muted-foreground mt-2">
+              The command prefix (default <code className="bg-muted px-1 rounded">/</code>) can be customized in Settings.
+            </p>
           </CardContent>
         </Card>
 
@@ -33,11 +36,11 @@ export default function Speech() {
           <CardContent className="space-y-3">
             <p>Fine-tune speech while playing:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li><code className="bg-muted px-1 rounded">/rate 1.5</code> - Speed (0.5 to 2.0)</li>
-              <li><code className="bg-muted px-1 rounded">/volume 80</code> - Volume (0 to 100)</li>
-              <li><code className="bg-muted px-1 rounded">/pitch 1.0</code> - Pitch (0.5 to 2.0)</li>
-              <li><code className="bg-muted px-1 rounded">/voice</code> - List available voices</li>
-              <li><code className="bg-muted px-1 rounded">/voice 3</code> - Select voice #3</li>
+              <li><code className="bg-muted px-1 rounded">/config rate 1.5</code> - Speed (0.5 to 2.0)</li>
+              <li><code className="bg-muted px-1 rounded">/config volume 80</code> - Volume (0 to 100)</li>
+              <li><code className="bg-muted px-1 rounded">/config pitch 1.0</code> - Pitch (0.5 to 2.0)</li>
+              <li><code className="bg-muted px-1 rounded">/config voice</code> - List available voices</li>
+              <li><code className="bg-muted px-1 rounded">/config voice 3</code> - Select voice #3</li>
             </ul>
           </CardContent>
         </Card>
@@ -69,7 +72,7 @@ export default function Speech() {
               Press Enter (even with an empty input) to hear the next queued message.
             </p>
             <p>
-              Enable with <code className="bg-muted px-1 rounded">/reader on</code> or in Settings.
+              Enable with <code className="bg-muted px-1 rounded">/config reader on</code> or in Settings.
             </p>
           </CardContent>
         </Card>

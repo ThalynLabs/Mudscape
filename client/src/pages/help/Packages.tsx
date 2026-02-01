@@ -81,10 +81,29 @@ export default function Packages() {
               <li>Preview the imported contents</li>
               <li>Choose to save to library or install directly</li>
             </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mudlet Compatibility</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Mudscape converts the following Mudlet automation items:
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Triggers</strong> - Pattern matching with regex or substring</li>
+              <li><strong>Aliases</strong> - Command shortcuts and macros</li>
+              <li><strong>Timers</strong> - Scheduled execution (one-shot or repeating)</li>
+              <li><strong>Keybindings</strong> - Keyboard shortcuts</li>
+              <li><strong>Buttons</strong> - Clickable action buttons</li>
+              <li><strong>Scripts</strong> - Lua code (preserved as-is)</li>
+              <li><strong>Classes/Folders</strong> - Organizational groups</li>
+            </ul>
             <p className="text-sm text-muted-foreground mt-2">
-              Mudlet packages are ZIP archives containing XML configuration files. 
-              Mudscape converts triggers, aliases, timers, keybindings, and buttons 
-              to its native format.
+              Lua scripts work in both clients, so your automation logic transfers directly.
+              Folder hierarchy is preserved - items stay grouped as they were in Mudlet.
             </p>
           </CardContent>
         </Card>

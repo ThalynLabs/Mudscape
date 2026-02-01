@@ -54,7 +54,9 @@ export default function SettingsHelp() {
               <div>
                 <h4 className="font-semibold">Automation</h4>
                 <p className="text-sm text-muted-foreground">
-                  Enable/disable triggers and aliases globally.
+                  Enable/disable triggers and aliases globally. Customize the command 
+                  prefix (default <code className="bg-muted px-1 rounded">/</code>) for 
+                  in-game configuration commands.
                 </p>
               </div>
               <div>
@@ -106,25 +108,30 @@ export default function SettingsHelp() {
             <table className="w-full mt-2">
               <tbody className="divide-y">
                 <tr>
-                  <td className="py-2 pr-4 font-mono text-sm">/settings</td>
+                  <td className="py-2 pr-4 font-mono text-sm">/config settings</td>
                   <td className="py-2">Open the settings panel</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 font-mono text-sm">/speech on|off</td>
+                  <td className="py-2 pr-4 font-mono text-sm">/config speech on|off</td>
                   <td className="py-2">Toggle speech</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 font-mono text-sm">/rate, /volume, /pitch</td>
+                  <td className="py-2 pr-4 font-mono text-sm">/config rate, /config volume, /config pitch</td>
                   <td className="py-2">Adjust voice settings</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 font-mono text-sm">/triggers, /aliases</td>
+                  <td className="py-2 pr-4 font-mono text-sm">/config triggers, /config aliases</td>
                   <td className="py-2">Toggle automation</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-mono text-sm">/config prefix &lt;char&gt;</td>
+                  <td className="py-2">Change command prefix</td>
                 </tr>
               </tbody>
             </table>
             <p className="text-sm text-muted-foreground mt-2">
               Changes made via commands are saved to the current profile's settings.
+              The command prefix (default <code className="bg-muted px-1 rounded">/</code>) can be customized.
             </p>
           </CardContent>
         </Card>

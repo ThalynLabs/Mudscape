@@ -107,6 +107,25 @@ export default function Keyboard() {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Reserved Shortcuts</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>Some keyboard shortcuts are reserved by Mudscape and cannot be overridden:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+1-9</kbd> - Read recent lines</li>
+              <li><kbd className="bg-muted px-2 py-0.5 rounded text-sm">F1</kbd> - Open help wiki</li>
+              <li><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Escape</kbd> - Clear input / close dialogs</li>
+              <li><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Enter</kbd> - Send command</li>
+              <li><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Up/Down Arrow</kbd> - Command history</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">
+              Browser shortcuts like Ctrl+C, Ctrl+V, and Ctrl+A also remain functional.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </HelpLayout>
   );

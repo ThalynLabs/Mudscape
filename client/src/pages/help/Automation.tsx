@@ -136,6 +136,22 @@ end`}
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Commands</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>Toggle automation on or off while playing:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><code className="bg-muted px-1 rounded">/config triggers on|off</code> - Toggle trigger processing</li>
+              <li><code className="bg-muted px-1 rounded">/config aliases on|off</code> - Toggle alias expansion</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">
+              The command prefix (default <code className="bg-muted px-1 rounded">/</code>) can be customized in Settings.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </HelpLayout>
   );

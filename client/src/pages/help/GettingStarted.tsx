@@ -68,6 +68,8 @@ export default function GettingStarted() {
               <li>Press <kbd className="bg-muted px-2 py-0.5 rounded text-sm">F1</kbd> anytime to open this help</li>
               <li>Use <kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+1-9</kbd> to re-read recent lines</li>
               <li>Commands starting with <code className="bg-muted px-1 rounded">/</code> are Mudscape commands, not sent to the MUD</li>
+              <li>Configure settings with <code className="bg-muted px-1 rounded">/config</code> commands (e.g., <code className="bg-muted px-1 rounded">/config speech on</code>)</li>
+              <li>The command prefix can be changed via <code className="bg-muted px-1 rounded">/config prefix #</code> if your MUD uses <code className="bg-muted px-1 rounded">/</code></li>
             </ul>
           </CardContent>
         </Card>
@@ -87,6 +89,42 @@ export default function GettingStarted() {
               <li>Enter your character name and password</li>
               <li>Set login commands using placeholders like <code className="bg-muted px-1 rounded">{"{name}"}</code> and <code className="bg-muted px-1 rounded">{"{password}"}</code></li>
             </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>GMCP Support</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Mudscape supports GMCP (Generic MUD Communication Protocol) for receiving 
+              structured data from MUD servers that support it.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              GMCP provides data like character vitals, room information, and more - 
+              enabling richer automation and display options.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Migrating from Mudlet</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Coming from Mudlet? Mudscape can import your existing packages:
+            </p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Open the Package Manager while connected</li>
+              <li>Click "Import Mudlet Package"</li>
+              <li>Select your .mpackage, .zip, or .xml file</li>
+              <li>Preview and install the converted automation</li>
+            </ol>
+            <p className="text-sm text-muted-foreground mt-2">
+              Lua scripts are preserved since both clients use Lua.
+            </p>
           </CardContent>
         </Card>
       </div>
