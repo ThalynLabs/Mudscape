@@ -88,15 +88,15 @@ export default function Play() {
     return cls ? cls.active : true;
   }, [classes]);
   
-  const { speak, speakLine, cancel: cancelSpeech, togglePause, paused } = useSpeech({
+  const { speak, speakLine, cancel: cancelSpeech, togglePause, paused, voices } = useSpeech({
     enabled: settings.speechEnabled ?? false,
     rate: settings.speechRate ?? 1,
     volume: settings.speechVolume ?? 1,
     pitch: settings.speechPitch ?? 1,
     voiceURI: settings.speechVoice ?? undefined,
   });
-
-  // Scripting helpers
+  
+  // Scripting helpers - must be defined before handleClientCommand
   const sendCommand = useCallback((cmd: string) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const msg: WsClientMessage = { type: 'send', data: cmd };
@@ -107,6 +107,173 @@ export default function Play() {
   const echoLocal = useCallback((text: string) => {
     setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
   }, []);
+  
+  // Update profile settings helper (for in-game commands)
+  const updateProfileSetting = useCallback((key: keyof ProfileSettings, value: any) => {
+    if (!profile) return;
+    const newSettings = { ...(profile.settings as ProfileSettings || {}), [key]: value };
+    updateProfile.mutate({ id: profile.id, settings: newSettings });
+  }, [profile, updateProfile]);
+  
+  // Handle client-side commands (start with /)
+  const handleClientCommand = useCallback((cmd: string): boolean => {
+    const parts = cmd.trim().split(/\s+/);
+    const command = parts[0].toLowerCase();
+    const args = parts.slice(1);
+    
+    switch (command) {
+      case '/help':
+      case '/commands':
+        echoLocal('\x1b[32m=== Mudscape Commands ===\x1b[0m');
+        echoLocal('/speech on|off - Toggle text-to-speech');
+        echoLocal('/rate <0.5-2> - Set speech rate (e.g., /rate 1.5)');
+        echoLocal('/volume <0-100> - Set speech volume (e.g., /volume 80)');
+        echoLocal('/pitch <0.5-2> - Set speech pitch (e.g., /pitch 1.0)');
+        echoLocal('/voice - List available voices');
+        echoLocal('/voice <number> - Set voice by number');
+        echoLocal('/settings - Open settings panel');
+        echoLocal('/triggers on|off - Toggle trigger processing');
+        echoLocal('/aliases on|off - Toggle alias processing');
+        echoLocal('/reader on|off - Toggle reader mode');
+        return true;
+        
+      case '/speech':
+        if (args[0] === 'on') {
+          updateProfileSetting('speechEnabled', true);
+          echoLocal('\x1b[32mSpeech enabled\x1b[0m');
+          speak('Speech enabled', true);
+        } else if (args[0] === 'off') {
+          updateProfileSetting('speechEnabled', false);
+          cancelSpeech();
+          echoLocal('\x1b[33mSpeech disabled\x1b[0m');
+        } else {
+          echoLocal(`Speech is currently ${settings.speechEnabled ? 'on' : 'off'}`);
+          echoLocal('Usage: /speech on|off');
+        }
+        return true;
+        
+      case '/rate':
+        if (args[0]) {
+          const rate = parseFloat(args[0]);
+          if (!isNaN(rate) && rate >= 0.5 && rate <= 2) {
+            updateProfileSetting('speechRate', rate);
+            echoLocal(`\x1b[32mSpeech rate set to ${rate}x\x1b[0m`);
+            speak(`Rate set to ${rate}`, true);
+          } else {
+            echoLocal('\x1b[31mRate must be between 0.5 and 2\x1b[0m');
+          }
+        } else {
+          echoLocal(`Current speech rate: ${settings.speechRate ?? 1}x`);
+          echoLocal('Usage: /rate <0.5-2>');
+        }
+        return true;
+        
+      case '/volume':
+        if (args[0]) {
+          const vol = parseFloat(args[0]);
+          if (!isNaN(vol) && vol >= 0 && vol <= 100) {
+            updateProfileSetting('speechVolume', vol / 100);
+            echoLocal(`\x1b[32mSpeech volume set to ${vol}%\x1b[0m`);
+            speak(`Volume set to ${vol} percent`, true);
+          } else {
+            echoLocal('\x1b[31mVolume must be between 0 and 100\x1b[0m');
+          }
+        } else {
+          echoLocal(`Current speech volume: ${((settings.speechVolume ?? 1) * 100).toFixed(0)}%`);
+          echoLocal('Usage: /volume <0-100>');
+        }
+        return true;
+        
+      case '/pitch':
+        if (args[0]) {
+          const pitch = parseFloat(args[0]);
+          if (!isNaN(pitch) && pitch >= 0.5 && pitch <= 2) {
+            updateProfileSetting('speechPitch', pitch);
+            echoLocal(`\x1b[32mSpeech pitch set to ${pitch}\x1b[0m`);
+            speak(`Pitch set to ${pitch}`, true);
+          } else {
+            echoLocal('\x1b[31mPitch must be between 0.5 and 2\x1b[0m');
+          }
+        } else {
+          echoLocal(`Current speech pitch: ${settings.speechPitch ?? 1}`);
+          echoLocal('Usage: /pitch <0.5-2>');
+        }
+        return true;
+        
+      case '/voice':
+        if (args[0]) {
+          const idx = parseInt(args[0]) - 1;
+          if (!isNaN(idx) && idx >= 0 && idx < voices.length) {
+            const voice = voices[idx];
+            updateProfileSetting('speechVoice', voice.voiceURI);
+            echoLocal(`\x1b[32mVoice set to: ${voice.name}\x1b[0m`);
+            speak(`Voice set to ${voice.name}`, true);
+          } else {
+            echoLocal('\x1b[31mInvalid voice number. Use /voice to see available voices.\x1b[0m');
+          }
+        } else {
+          echoLocal('\x1b[32m=== Available Voices ===\x1b[0m');
+          voices.forEach((v, i) => {
+            const current = v.voiceURI === settings.speechVoice ? ' (current)' : '';
+            echoLocal(`${i + 1}. ${v.name}${current}`);
+          });
+          echoLocal('Usage: /voice <number>');
+        }
+        return true;
+        
+      case '/settings':
+        setSettingsOpen(true);
+        echoLocal('\x1b[32mOpening settings panel...\x1b[0m');
+        return true;
+        
+      case '/triggers':
+        if (args[0] === 'on') {
+          updateProfileSetting('triggersEnabled', true);
+          echoLocal('\x1b[32mTriggers enabled\x1b[0m');
+        } else if (args[0] === 'off') {
+          updateProfileSetting('triggersEnabled', false);
+          echoLocal('\x1b[33mTriggers disabled\x1b[0m');
+        } else {
+          echoLocal(`Triggers are currently ${settings.triggersEnabled !== false ? 'on' : 'off'}`);
+          echoLocal('Usage: /triggers on|off');
+        }
+        return true;
+        
+      case '/aliases':
+        if (args[0] === 'on') {
+          updateProfileSetting('aliasesEnabled', true);
+          echoLocal('\x1b[32mAliases enabled\x1b[0m');
+        } else if (args[0] === 'off') {
+          updateProfileSetting('aliasesEnabled', false);
+          echoLocal('\x1b[33mAliases disabled\x1b[0m');
+        } else {
+          echoLocal(`Aliases are currently ${settings.aliasesEnabled !== false ? 'on' : 'off'}`);
+          echoLocal('Usage: /aliases on|off');
+        }
+        return true;
+        
+      case '/reader':
+        if (args[0] === 'on') {
+          updateProfileSetting('readerMode', true);
+          echoLocal('\x1b[32mReader mode enabled - speech pauses until you press Enter\x1b[0m');
+        } else if (args[0] === 'off') {
+          updateProfileSetting('readerMode', false);
+          echoLocal('\x1b[32mReader mode disabled - speech plays immediately\x1b[0m');
+        } else {
+          echoLocal(`Reader mode is currently ${settings.readerMode ? 'on' : 'off'}`);
+          echoLocal('Usage: /reader on|off');
+        }
+        return true;
+        
+      default:
+        if (command.startsWith('/')) {
+          echoLocal(`\x1b[31mUnknown command: ${command}\x1b[0m`);
+          echoLocal('Type /help for available commands.');
+          return true;
+        }
+        return false;
+    }
+  }, [echoLocal, settings, updateProfileSetting, speak, cancelSpeech, voices, setSettingsOpen]);
 
   const variablesPersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -422,12 +589,26 @@ export default function Play() {
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!inputValue.trim() || !socketRef.current) return;
+    if (!inputValue.trim()) return;
 
     // Interrupt speech on send if enabled
     if (settings.interruptOnSend !== false) {
       cancelSpeech();
     }
+    
+    // Check for client-side commands (start with /)
+    if (inputValue.startsWith('/')) {
+      const handled = handleClientCommand(inputValue);
+      if (handled) {
+        setCommandHistory(prev => [inputValue, ...prev.filter(c => c !== inputValue)].slice(0, 50));
+        setHistoryIndex(-1);
+        setInputValue("");
+        return;
+      }
+    }
+    
+    // Need connection for MUD commands
+    if (!socketRef.current) return;
 
     // Process aliases first (if enabled)
     let commandToSend = inputValue;

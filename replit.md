@@ -102,7 +102,22 @@ Preferred communication style: Simple, everyday language.
 - **Profile Settings**: Per-MUD overrides stored in profiles.settings column
   - Null/undefined values inherit from global defaults
   - mergeSettings() function combines global + profile settings
-- **Settings UI**: /settings page with Global Defaults and Per-MUD tabs
+  - Override indicators show which settings are customized for this profile
+  - Reset button allows reverting to global default
+- **Settings UI**: /settings page with two main tabs:
+  - Global Defaults: Category tabs for Speech, Display, Automation, Connection, AI
+  - Per-MUD Settings: Select a profile, then configure with category tabs
+- **In-Game Commands**: Players can adjust settings while playing:
+  - /help - Show available commands
+  - /speech on|off - Toggle text-to-speech
+  - /rate <0.5-2> - Set speech rate
+  - /volume <0-100> - Set speech volume
+  - /pitch <0.5-2> - Set speech pitch
+  - /voice - List available voices or set by number
+  - /settings - Open settings panel
+  - /triggers on|off - Toggle trigger processing
+  - /aliases on|off - Toggle alias processing
+  - /reader on|off - Toggle reader mode
 
 ### GMCP Support
 - Generic MUD Communication Protocol for structured data from MUD servers
