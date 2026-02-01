@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Mudscape** is an accessible, screen-reader-first MUD (Multi-User Dungeon) client built as a web application with self-hosting capabilities. The project aims to match Mudlet-like features (profiles, triggers, aliases, scripting, GMCP support) while prioritizing accessibility for VoiceOver/NVDA/Orca users. The architecture follows a web-first approach with a Node.js backend that provides both the web interface and a WebSocket-to-TCP relay for connecting to MUD servers.
+Mudscape is an accessible, screen-reader-first MUD (Multi-User Dungeon) client designed as a web application with self-hosting capabilities. It aims to provide Mudlet-like features, including profiles, triggers, aliases, scripting, and GMCP support, with a strong focus on accessibility for screen reader users (VoiceOver/NVDA/Orca). The project utilizes a web-first approach with a Node.js backend serving both the web interface and a WebSocket-to-TCP relay for MUD server connections.
 
 ## User Preferences
 
@@ -10,214 +10,87 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React with TypeScript, using Vite as the build tool
-- **Routing**: Wouter for lightweight client-side routing
-- **State Management**: TanStack React Query for server state and data fetching
-- **UI Components**: shadcn/ui component library built on Radix UI primitives
-- **Styling**: Tailwind CSS with a custom cyber/terminal theme (Matrix green, sharp corners)
-- **Terminal Rendering**: react-virtuoso for virtualized scrolling of terminal output, anser for ANSI escape code parsing
-- **Accessibility**: Native HTML semantics prioritized, aria-live regions for screen readers, Web Speech API for text-to-speech
+### Frontend
+- **Framework**: React with TypeScript, Vite
+- **Routing**: Wouter
+- **State Management**: TanStack React Query
+- **UI Components**: shadcn/ui (built on Radix UI)
+- **Styling**: Tailwind CSS with a cyber/terminal theme
+- **Terminal**: react-virtuoso for virtualized scrolling, anser for ANSI parsing
+- **Accessibility**: Native HTML semantics, ARIA live regions, Web Speech API for text-to-speech.
+- **Terminal Features**: Multi-MUD support with tabbed interface, real-time connection status, unread counts, and connection management.
+- **Organization**: Collapsible class groups, search/filter, bulk actions for automation items.
 
-### Backend Architecture
+### Backend
 - **Runtime**: Node.js with Express
-- **Language**: TypeScript with tsx for development
-- **API Pattern**: REST endpoints defined in shared/routes.ts with Zod validation
-- **WebSocket Relay**: ws library provides WebSocket-to-TCP relay for browser clients to connect to MUD servers
-- **Build Process**: Custom build script using esbuild for server bundling and Vite for client
-- **Authentication**: Replit Auth using OpenID Connect (setupAuth before other routes)
-  - Multi-user support: Each user's profiles are isolated via userId column
-  - Profile routes protected with isAuthenticated middleware
-  - Ownership verified on get/update/delete operations
+- **Language**: TypeScript with tsx
+- **API**: REST endpoints (shared/routes.ts) with Zod validation
+- **WebSocket Relay**: `ws` library for WebSocket-to-TCP MUD connections
+- **Authentication**: Replit Auth (OpenID Connect) with multi-user and profile isolation.
 
 ### Data Storage
 - **Database**: PostgreSQL with Drizzle ORM
-- **Schema Location**: shared/schema.ts defines all tables and types
-- **Migrations**: Drizzle Kit with `db:push` command for schema synchronization
-- **Data Model**: Profiles table stores connection info, triggers, aliases, and scripts as JSONB columns
-
-### Profile Features
-- **Auto Connect**: Profiles can be configured to automatically connect when the app starts
-- **Character Settings**: Store character name and password for automatic login
-- **Login Commands**: Configure commands to send after connecting (e.g., "connect {name} {password}")
-- **Placeholder Support**: {name} and {password} placeholders in login commands are replaced with stored credentials
-
-### Connection Management
-- **Library Button**: Quick navigation back to profile list from play screen
-- **Disconnect Button**: Manually close connection without leaving the play screen
-- **Connection Status**: Real-time ONLINE/OFFLINE indicator with host:port display
-- **Multi-MUD (Planned)**: Future support for multiple simultaneous connections with tabbed interface
-
-### Organization Features
-- **Profile Import/Export**: Export entire profiles as .mudscape.json backup files, import to restore or share configurations
-- **Collapsible Class Groups**: Triggers and aliases are organized by class in collapsible folders with item counts
-- **Search/Filter**: Real-time search across triggers and aliases by pattern, script content, or class name
-- **Class Badges**: Visual indicators show class status (enabled/disabled) and item counts
-- **Bulk Actions**: Select multiple triggers or aliases to delete, enable/disable, or move to a class in one action
-
-### Shared Code Pattern
-- The `shared/` directory contains code used by both client and server
-- Schema definitions, API route contracts, and type definitions are shared
-- Path aliases: `@shared/*` maps to shared directory, `@/*` maps to client/src
+- **Schema**: Defined in shared/schema.ts
+- **Migrations**: Drizzle Kit
+- **Data Model**: Profiles table stores connection info, triggers, aliases, and scripts as JSONB.
 
 ### Scripting Engine
-- **Lua Engine**: User-defined triggers, aliases, timers, and keybindings execute Lua code via wasmoon (Lua 5.4 WebAssembly)
-- Scripts run in the browser context matching traditional MUD client behavior (like Mudlet)
-- Scripting context provides:
-  - Core: send(), echo(), print(), setVariable(), getVariable()
-  - Sound: playSound(), stopSound(), loopSound(), setSoundPosition()
-  - Text manipulation: gag(), replace(old, new) (trigger scripts only)
-  - Dynamic automation: tempTrigger(), tempAlias(), tempTimer(), killTrigger(), killAlias(), killTimer()
-  - Toggle: enableTrigger(), disableTrigger(), enableAlias(), disableAlias(), enableTimer(), disableTimer(), enableClass(), disableClass()
-  - Utility: expandAlias(), wait(seconds, callback)
-  - Notifications: notify(message, type) for toast popups
-  - Gauges: setGauge(name, current, max, color), clearGauge(name) for visual meters
-  - Cooldowns: cooldown(name, seconds) for spam prevention
-  - Movement: speedwalk(path) for automatic walking, queue(cmd1, cmd2, ...) for command sequences
-  - Logging: log(message), showLog(), clearLog() for session journaling
-  - Timing: startStopwatch(name), getElapsed(name), stopStopwatch(name)
-  - String helpers: extractNumber(), extractNumbers(), contains(), startsWith(), endsWith(), split(), trim(), lower(), upper()
-  - Named captures: captures.name for named regex groups like (?<name>\\w+)
-- Triggers: Pattern-based automation that runs on incoming MUD lines (regex patterns)
-- Aliases: Command macros that expand shortcuts with $1/$2 substitution or execute Lua scripts (isScript=true)
-- Timers: Scheduled Lua script execution (one-shot or repeating intervals), managed via TimersPanel
-- Keybindings: Custom keyboard shortcuts mapped to commands or Lua scripts, recorded via KeybindingsPanel
-- Buttons: On-screen clickable buttons for quick commands or Lua scripts, managed via ButtonsPanel
-- Classes: Organizational groups for automation items; toggling a class enables/disables all contained triggers/aliases/timers/keybindings/buttons
-- Variables: Persistent key-value store accessible via Lua; debounced (1 second) persistence to profile
+- **Language**: Lua 5.4 (via wasmoon WebAssembly)
+- **Features**: User-defined triggers (regex), aliases (macros/scripts), timers (scheduled scripts), keybindings, and on-screen buttons.
+- **Context API**: Extensive Lua API for MUD interaction, sound control, text manipulation, dynamic automation, notifications, gauges, cooldowns, movement, logging, and string helpers.
+- **Classes**: Organizational groups for automation items.
+- **Variables**: Persistent key-value store.
 
-### Package Manager
-- **Package System**: Bundle automation items (triggers, aliases, timers, keybindings, buttons, classes) into shareable packages
-- **Export**: Create packages from current profile's automation items, download as .mudpack.json files
-- **Import Mudscape**: Upload .mudpack.json files to add packages to library
-- **Import Mudlet**: Import .mpackage, .zip, or .xml files from Mudlet
-  - Parses Mudlet's XML format (TriggerPackage, AliasPackage, TimerPackage, KeyPackage, ActionPackage, ScriptPackage)
-  - Converts triggers, aliases, timers, keybindings, buttons to Mudscape's native format
-  - Preserves Lua scripts (both clients use Lua)
-  - ZIP extraction for .mpackage files via JSZip
-- **Import TinTin++**: Import .tt, .tin, .txt files from TinTin++
-  - Converts #action to triggers (%0-%9 wildcards to Lua)
-  - Converts #alias to aliases (%0 for all arguments)
-  - Converts #ticker to timers
-- **Import VIPMud**: Import .set, .cfg files from VIPMud
-  - Converts #TRIGGER to triggers
-  - Converts #ALIAS to aliases
-  - Converts #KEY to keybindings
-  - @variable syntax converted to getVariable() calls
-- **Install**: Apply package contents to current profile
-- **Library**: Store packages in database for reuse across profiles
+### Package Management
+- **Formats**: Supports import/export of custom .mudscape.json packages, and import from Mudlet (.mpackage, .zip, .xml), TinTin++ (.tt, .tin, .txt), and VIPMud (.set, .cfg) formats.
+- **Functionality**: Allows bundling, exporting, importing, and installing automation items across profiles.
 
 ### Sound System
-- **Web Audio API**: AudioContext with GainNode for master volume control
-- **Spatial Audio**: PannerNode with HRTF for 3D positional/directional sound (x, y, z coordinates)
-- **MSP Protocol**: Parses !!SOUND(name vol=50 loop=-1) and !!MUSIC() triggers from MUD output
-- **Soundpacks**: Upload/organize sound files; select active pack; sounds are preloaded on pack change
-- **Lua Sound API**: playSound(name, volume, loop), stopSound(name), loopSound(name, volume), setSoundPosition(name, x, y, z)
+- **API**: Web Audio API with spatial audio (PannerNode, HRTF)
+- **Protocol**: MSP protocol parsing for MUD-triggered sounds.
+- **Management**: Soundpacks for organizing and preloading audio files.
+- **Lua API**: Functions for playing, stopping, looping, and positioning sounds.
 
 ### AI Script Assistant
-- **Unified Chat Interface**: Single Script Assistant dialog accessible from Play screen toolbar (Wand icon)
-- **Conversational AI**: Describe scripting needs in plain language, AI generates complete Lua automation
-- **User API Key Required**: Users must provide their own OpenAI API key in Settings to use this feature
-- **Direct Creation**: Generated scripts can be added directly as triggers, aliases, timers, keybindings, or buttons
-- **Comprehensive Context**: System prompt includes full Lua API documentation, sound system, spatial audio
-- **Code Block Parsing**: AI outputs structured code blocks with metadata for one-click creation
-- **Server Endpoint**: /api/ai/script-assistant uses streaming SSE for real-time responses
-- **API Key Storage**: Settings page allows storing personal OpenAI API key
-  - Local storage (unencrypted, convenient)
-  - Password-encrypted (AES-GCM with PBKDF2, unlocked per session)
+- **Interface**: Unified chat dialog for generating Lua automation.
+- **Features**: Conversational AI generates triggers, aliases, timers, keybindings, or buttons from natural language descriptions. Requires user-provided OpenAI API key (stored locally or encrypted). Provides comprehensive context to the AI (Lua API, sound system).
 
-### Accessibility Keyboard Shortcuts
-- **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech
-- **Ctrl Ctrl (double-tap)**: Toggle pause/resume of speech synthesis (double-tap avoids conflicts with screen reader modifiers like VoiceOver's Ctrl+Option)
-- **Escape**: Clear the input line
-- **Keep Input on Send**: Optional setting to preserve input after pressing Enter (Escape clears it manually)
-- All interactive elements have proper ARIA labels for screen reader compatibility
-- **Strip Symbols Setting**: Removes decorative characters (box drawing, ASCII art) for cleaner screen reader output
-- **Speech Controls**: Rate, volume, and pitch adjustable via settings
-- **Speech Interruption Options**:
-  - Interrupt on keypress: Stop speech when typing
-  - Interrupt on send: Stop speech when pressing Enter (default on)
-  - Interrupt on incoming: Stop speech when new text arrives from MUD
-
-### Settings Architecture
-- **Global Settings**: App-wide defaults stored in global_settings table (single row)
-  - Speech: speechEnabled, speechRate, speechVolume, speechPitch, speechVoice
-  - Speech Interruption: interruptOnKeypress, interruptOnSend, interruptOnIncoming
-  - Display: fontScale, lineHeight, highContrast, readerMode, showInputEcho, stripSymbols
-  - Automation: triggersEnabled, aliasesEnabled
-  - Connection: autoReconnect, reconnectDelay, keepAlive, keepAliveInterval, gmcpEnabled
-- **Profile Settings**: Per-MUD overrides stored in profiles.settings column
-  - Null/undefined values inherit from global defaults
-  - mergeSettings() function combines global + profile settings
-  - Override indicators show which settings are customized for this profile
-  - Reset button allows reverting to global default
-- **Settings UI**: /settings page with two main tabs:
-  - Global Defaults: Category tabs for Speech, Display, Automation, Connection, AI
-  - Per-MUD Settings: Select a profile, then configure with category tabs
-- **In-Game Commands**: All config commands use `/config {feature} {option}` format:
-  - /help - Show quick reference guide (points to F1 for full wiki)
-  - /config speech on|off - Toggle text-to-speech
-  - /config rate <0.5-2> - Set speech rate
-  - /config volume <0-100> - Set speech volume
-  - /config pitch <0.5-2> - Set speech pitch
-  - /config voice - List available voices or set by number
-  - /config settings - Open settings panel
-  - /config triggers on|off - Toggle trigger processing
-  - /config aliases on|off - Toggle alias processing
-  - /config reader on|off - Toggle reader mode
-  - /config keep on|off - Toggle keeping input after Enter (use Escape to clear)
-  - /config prefix <char> - Change command prefix (e.g., # instead of /)
+### Accessibility & Settings
+- **Keyboard Shortcuts**: Ctrl+1-9 for reading recent lines, Ctrl+Ctrl for speech toggle, Escape to clear input.
+- **Text-to-Speech (TTS)**: Configurable rate, volume, pitch, and voice. Options for speech interruption.
+- **Display Settings**: Font scale, line height, high contrast, reader mode, input echo, strip symbols for screen readers.
+- **Global & Profile Settings**: App-wide defaults with per-profile overrides and merging logic.
+- **In-Game Commands**: `/config` commands for dynamic settings adjustment.
 
 ### Help System
-- **Quick Help (/help command)**: Brief in-terminal reference with key commands and shortcuts
-- **Help Wiki (F1 or /help page)**: Comprehensive documentation with:
-  - Getting Started guide
-  - Speech & TTS configuration
-  - Keyboard shortcuts reference
-  - Client commands reference
-  - Lua scripting documentation
-  - Triggers & aliases guide
-  - Sound system documentation
-  - Package manager guide
-  - AI Script Assistant usage
-  - Settings configuration
+- **Quick Help**: In-terminal reference (`/help`).
+- **Help Wiki**: Comprehensive documentation (`F1` or `/help page`) covering all features.
 
 ### GMCP Support
-- Generic MUD Communication Protocol for structured data from MUD servers
-- Telnet option negotiation (option 201) handled in WebSocket relay
-- Supports Core.Hello, Char.Vitals, Room.Info modules
-- GMCP data displayed in terminal and stored in gmcpData state for UI display
+- **Protocol**: Generic MUD Communication Protocol (Telnet option 201) for structured data.
+- **Modules**: Supports Core.Hello, Char.Vitals, Room.Info.
 
 ### Self-Hosting
-- **Install Wizard (/install)**: Interactive setup wizard that generates configuration files
-  - Form fields for database credentials, ports, and secrets
-  - Auto-generate buttons create secure passwords and session secrets
-  - Dynamic preview of docker-compose.yml or .env files based on user input
-  - Docker deployment path (recommended) generates complete Docker Compose config
-  - Node.js path generates .env file and database creation commands
-  - Copy-to-clipboard for all generated configuration
-- **Landing Page**: Home page for logged-out users promotes accessibility features and self-hosting option
+- **Install Wizard**: Interactive `/install` setup for database credentials, ports, and secrets.
+- **Deployment**: Generates `docker-compose.yml` (recommended) or `.env` files for Docker/Node.js deployments.
 
 ## External Dependencies
 
 ### Database
-- **PostgreSQL**: Primary data store, connection via DATABASE_URL environment variable
-- **Drizzle ORM**: Type-safe database access with drizzle-zod for schema validation
-- **connect-pg-simple**: Session storage in PostgreSQL
+- **PostgreSQL**: Main data store.
+- **Drizzle ORM**: Type-safe ORM.
+- **connect-pg-simple**: PostgreSQL session storage.
 
-### MUD Protocol Support
-- **WebSocket (ws)**: Server-side WebSocket for relay service
-- **net module**: Direct TCP connections from server to MUD servers
-- **GMCP (implemented)**: Generic MUD Communication Protocol via telnet option 201
-- Planned support for TLS, MCCP (compression)
+### MUD Protocol
+- **ws**: WebSocket server library.
+- **net module**: Node.js TCP connections.
 
 ### UI Framework
-- **Radix UI**: Accessible primitives for dialogs, dropdowns, forms, etc.
-- **shadcn/ui**: Pre-built component library using Radix + Tailwind
-- **Framer Motion**: Animations for UI elements
-- **Lucide React**: Icon library
+- **Radix UI**: Accessible UI primitives.
+- **shadcn/ui**: Component library.
+- **Framer Motion**: UI animations.
+- **Lucide React**: Icon library.
 
 ### Build & Development
-- **Vite**: Frontend build tool with HMR
-- **esbuild**: Server bundling for production
-- **Replit plugins**: Development banner, cartographer, and error overlay for Replit environment
+- **Vite**: Frontend build tool.
+- **esbuild**: Server bundling.

@@ -38,27 +38,32 @@ export function AddConnectionDialog({ open, onOpenChange, onSelectProfile, exist
                 : "All profiles are already connected."}
             </p>
           ) : (
-            availableProfiles.map((profile) => (
-              <button
-                key={profile.id}
-                onClick={() => {
-                  onSelectProfile(profile);
-                  onOpenChange(false);
-                }}
-                className="w-full p-3 rounded-lg border border-border text-left hover-elevate transition-colors"
-                data-testid={`select-profile-${profile.id}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Wifi className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <div className="font-medium">{profile.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {profile.host}:{profile.port}
+            <div role="listbox" aria-label="Available profiles">
+              {availableProfiles.map((profile) => (
+                <button
+                  key={profile.id}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onClick={() => {
+                    onSelectProfile(profile);
+                    onOpenChange(false);
+                  }}
+                  className="w-full p-3 rounded-lg border border-border text-left hover-elevate transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                  data-testid={`select-profile-${profile.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Wifi className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                    <div>
+                      <div className="font-medium">{profile.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {profile.host}:{profile.port}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            ))
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </DialogContent>

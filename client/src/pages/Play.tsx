@@ -104,7 +104,6 @@ export default function Play() {
   const [gmcpData, setGmcpData] = useState<Record<string, unknown>>({});
 
   // Refs
-  const socketRef = useRef<WebSocket | null>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const executeScriptRef = useRef<((script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>) => Promise<void>) | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -237,16 +236,27 @@ export default function Play() {
   });
   
   // Scripting helpers - must be defined before handleClientCommand
+  // Get the active connection's socket
+  const getActiveSocket = useCallback((): WebSocket | null => {
+    const activeConn = connections.find(c => c.id === activeConnectionId);
+    return activeConn?.socket || null;
+  }, [connections, activeConnectionId]);
+  
   const sendCommand = useCallback((cmd: string) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+    const socket = getActiveSocket();
+    if (socket && socket.readyState === WebSocket.OPEN) {
       const msg: WsClientMessage = { type: 'send', data: cmd };
-      socketRef.current.send(JSON.stringify(msg));
+      socket.send(JSON.stringify(msg));
     }
-  }, []);
+  }, [getActiveSocket]);
 
   const echoLocal = useCallback((text: string) => {
-    setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
-  }, []);
+    if (activeConnectionId) {
+      addLinesToConnection(activeConnectionId, [`\x1b[33m${text}\x1b[0m`]);
+    } else {
+      setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
+    }
+  }, [activeConnectionId, addLinesToConnection]);
   
   // Update profile settings helper (for in-game commands)
   const updateProfileSetting = useCallback((key: keyof ProfileSettings, value: any) => {
@@ -957,9 +967,8 @@ export default function Play() {
     
     const currentConnId = activeConnectionId;
     const ws = new WebSocket(wsUrl);
-    socketRef.current = ws;
     
-    // Store socket in connection state
+    // Store socket in connection state (not in ref since we use connection-aware getActiveSocket)
     updateConnectionState(currentConnId, { socket: ws });
 
     ws.onopen = () => {
@@ -1215,7 +1224,8 @@ export default function Play() {
     }
     
     // Need connection for MUD commands
-    if (!socketRef.current) return;
+    const socket = getActiveSocket();
+    if (!socket) return;
 
     // Process aliases first (if enabled)
     let commandToSend = inputValue;
@@ -1267,14 +1277,14 @@ export default function Play() {
     }
 
     // Send to server (if there's still a command after alias processing)
-    if (commandToSend) {
+    if (commandToSend && socket.readyState === WebSocket.OPEN) {
       const msg: WsClientMessage = { type: 'send', data: commandToSend };
-      socketRef.current.send(JSON.stringify(msg));
+      socket.send(JSON.stringify(msg));
     }
 
     // Echo locally (if enabled)
-    if (settings.showInputEcho !== false) {
-      setLines(prev => [...prev, `\x1b[36m${inputValue}\x1b[0m`]);
+    if (settings.showInputEcho !== false && activeConnectionId) {
+      addLinesToConnection(activeConnectionId, [`\x1b[36m${inputValue}\x1b[0m`]);
     }
     
     // History
