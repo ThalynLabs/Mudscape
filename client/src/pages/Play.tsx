@@ -53,6 +53,10 @@ export default function Play() {
   const tempAliasesRef = useRef<Array<{ id: string; pattern: string; script: string }>>([]);
   const tempTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   
+  // Multi-line trigger buffer - stores recent lines for pattern matching
+  const lineBufferRef = useRef<string[]>([]);
+  const MAX_LINE_BUFFER = 20; // Maximum lines to keep in buffer
+  
   // Line modification state for current trigger execution
   const lineModificationsRef = useRef<{ gagged: boolean; replacements: Array<{ old: string; new: string }> }>({ gagged: false, replacements: [] });
   
@@ -77,6 +81,7 @@ export default function Play() {
   // Refs
   const socketRef = useRef<WebSocket | null>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const executeScriptRef = useRef<((script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>) => Promise<void>) | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Fetch global settings
@@ -589,13 +594,16 @@ export default function Play() {
     updateProfile.mutate({ id: profile.id, classes: updatedClasses });
   }, [profile, classes, updateProfile]);
 
+  // Fire trigger by name - allows trigger chaining (declared as ref to avoid circular deps)
+  const fireTriggerByNameRef = useRef<(name: string, line?: string) => Promise<void>>();
+
   // Expand alias utility
   const expandAliasCommand = useCallback((command: string): string => {
     const result = processAlias(command, aliases, sendCommand, echoLocal);
     return result ?? command;
   }, [aliases, sendCommand, echoLocal]);
 
-  const executeScript = useCallback(async (script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>) => {
+  const executeScript = useCallback(async (script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>, isPrompt?: boolean) => {
     try {
       setScriptContext({
         send: sendCommand,
@@ -608,6 +616,7 @@ export default function Play() {
         setSoundPosition,
         line,
         matches,
+        isPrompt: isPrompt ?? false,
         // Extended API
         gag: gagLine,
         replace: replaceText,
@@ -626,6 +635,7 @@ export default function Play() {
         enableClass: enableClassByName,
         disableClass: disableClassByName,
         expandAlias: expandAliasCommand,
+        fireTrigger: (name: string, line?: string) => fireTriggerByNameRef.current?.(name, line),
         // User-friendly helpers
         notify: showNotification,
         setGauge: updateGauge,
@@ -655,6 +665,46 @@ export default function Play() {
     );
     updateProfile.mutate({ id: profile.id, timers: updatedTimers });
   }, [profile, timers, updateProfile]);
+
+  // Set up fireTriggerByName ref to avoid circular dependencies
+  useEffect(() => {
+    fireTriggerByNameRef.current = async (name: string, line?: string) => {
+      const trigger = triggers.find(t => 
+        (t.pattern === name || t.id === name) && t.active && isClassActive(t.classId)
+      );
+      if (!trigger) {
+        console.warn(`Trigger not found or inactive: ${name}`);
+        return;
+      }
+      
+      const testLine = line ?? '';
+      const cleanLine = stripAnsi(testLine);
+      
+      // Execute the trigger's script
+      if (trigger.script) {
+        let matches: string[] = [cleanLine];
+        let namedCaptures: Record<string, string> = {};
+        
+        if (trigger.type === 'regex') {
+          const re = new RegExp(trigger.pattern);
+          const match = re.exec(cleanLine);
+          if (match) {
+            matches = Array.from(match);
+            if (match.groups) {
+              namedCaptures = { ...match.groups };
+            }
+          }
+        }
+        
+        await executeScript(trigger.script, cleanLine, matches, namedCaptures);
+      }
+      
+      // Play sound if configured
+      if (trigger.soundFile) {
+        playSound(trigger.soundFile, trigger.soundVolume, trigger.soundLoop);
+      }
+    };
+  }, [triggers, isClassActive, executeScript, playSound]);
 
   useTimers({
     timers,
@@ -827,6 +877,23 @@ export default function Play() {
           const cleanLine = stripAnsi(processedContent);
           let displayLine = processedContent;
           
+          // Update line buffer for multi-line triggers
+          lineBufferRef.current.push(cleanLine);
+          if (lineBufferRef.current.length > MAX_LINE_BUFFER) {
+            lineBufferRef.current = lineBufferRef.current.slice(-MAX_LINE_BUFFER);
+          }
+          
+          // Check for prompt pattern match
+          let isPromptLine = false;
+          if (profileSettings.promptPattern) {
+            try {
+              const promptRe = new RegExp(profileSettings.promptPattern);
+              isPromptLine = promptRe.test(cleanLine);
+            } catch {
+              // Invalid regex, ignore
+            }
+          }
+          
           if (settings.triggersEnabled !== false) {
             // Process permanent triggers
             for (const trigger of triggers) {
@@ -834,24 +901,61 @@ export default function Play() {
               
               let matches: string[] | null = null;
               let namedCaptures: Record<string, string> = {};
-              if (trigger.type === 'regex') {
-                const re = new RegExp(trigger.pattern);
-                const match = re.exec(cleanLine);
-                if (match) {
-                  matches = Array.from(match);
-                  // Extract named capture groups
-                  if (match.groups) {
-                    namedCaptures = { ...match.groups };
+              
+              // Handle multi-line triggers
+              if (trigger.multiLine && trigger.lineCount && trigger.lineCount > 1) {
+                const numLines = Math.min(trigger.lineCount, lineBufferRef.current.length);
+                if (numLines >= trigger.lineCount) {
+                  const delimiter = trigger.lineDelimiter ?? '\n';
+                  const combinedLines = lineBufferRef.current.slice(-numLines).join(delimiter);
+                  
+                  if (trigger.type === 'regex') {
+                    const re = new RegExp(trigger.pattern, 's'); // 's' flag for dotall mode
+                    const match = re.exec(combinedLines);
+                    if (match) {
+                      matches = Array.from(match);
+                      if (match.groups) {
+                        namedCaptures = { ...match.groups };
+                      }
+                    }
+                  } else {
+                    if (combinedLines.includes(trigger.pattern)) {
+                      matches = [trigger.pattern];
+                    }
                   }
                 }
               } else {
-                if (cleanLine.includes(trigger.pattern)) {
-                  matches = [trigger.pattern];
+                // Single-line trigger (original logic)
+                if (trigger.type === 'regex') {
+                  const re = new RegExp(trigger.pattern);
+                  const match = re.exec(cleanLine);
+                  if (match) {
+                    matches = Array.from(match);
+                    if (match.groups) {
+                      namedCaptures = { ...match.groups };
+                    }
+                  }
+                } else {
+                  if (cleanLine.includes(trigger.pattern)) {
+                    matches = [trigger.pattern];
+                  }
                 }
               }
               
-              if (matches && trigger.script) {
-                executeScript(trigger.script, cleanLine, matches, namedCaptures);
+              if (matches) {
+                // Handle gag flag (no script needed)
+                if (trigger.gag) {
+                  lineModificationsRef.current.gagged = true;
+                }
+                
+                // Execute script if present
+                if (trigger.script) {
+                  const matchLine = trigger.multiLine 
+                    ? lineBufferRef.current.slice(-(trigger.lineCount || 1)).join(trigger.lineDelimiter ?? '\n')
+                    : cleanLine;
+                  executeScript(trigger.script, matchLine, matches, namedCaptures, isPromptLine);
+                }
+                
                 if (trigger.soundFile) {
                   playSound(trigger.soundFile, trigger.soundVolume, trigger.soundLoop);
                 }

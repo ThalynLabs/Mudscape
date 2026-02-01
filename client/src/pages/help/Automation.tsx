@@ -38,6 +38,48 @@ export default function Automation() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Advanced Trigger Options</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold">Multi-line Triggers</h4>
+              <p className="text-sm text-muted-foreground">
+                Match patterns that span multiple lines - perfect for room descriptions, inventory lists, or combat logs.
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm mt-2">
+                <li><strong>Line Count</strong> - How many lines to buffer (2-20)</li>
+                <li><strong>Line Delimiter</strong> - How to join lines for matching (default: newline)</li>
+              </ul>
+              <pre className="bg-muted p-2 rounded text-sm mt-2">
+{`-- Pattern to match a room with exits:
+-- Room Name
+-- Room description text
+-- Exits: north, south`}
+              </pre>
+            </div>
+            <div>
+              <h4 className="font-semibold">Gag (Hide Lines)</h4>
+              <p className="text-sm text-muted-foreground">
+                Enable "Hide matching lines" to automatically gag spam without writing a script.
+                The line won't appear in the terminal but triggers still process it.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold">Trigger Chaining</h4>
+              <p className="text-sm text-muted-foreground">
+                Use <code className="bg-muted px-1 rounded">fireTrigger("name")</code> to call another trigger from your script.
+              </p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">
+{`-- First trigger captures data
+setVariable("room_exits", matches[1])
+fireTrigger("process_room")  -- Chain to processing trigger`}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Trigger Examples</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

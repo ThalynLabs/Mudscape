@@ -170,6 +170,20 @@ export default function Scripting() {
               <pre className="bg-muted p-2 rounded text-sm mt-1">local expanded = expandAlias("tt hello")</pre>
             </div>
             <div>
+              <h4 className="font-semibold font-mono">fireTrigger(name, line)</h4>
+              <p className="text-sm text-muted-foreground">Execute another trigger by pattern or ID. Useful for trigger chaining.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">{`fireTrigger("process_combat")  -- Chain to another trigger
+fireTrigger("room_parser", line)  -- Pass current line`}</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">isPrompt()</h4>
+              <p className="text-sm text-muted-foreground">Check if the current line matches the prompt pattern (configure in per-MUD settings).</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">{`if isPrompt() then
+  -- End of command output
+  processBuffer()
+end`}</pre>
+            </div>
+            <div>
               <h4 className="font-semibold font-mono">wait(seconds, callback)</h4>
               <p className="text-sm text-muted-foreground">Execute code after a delay.</p>
               <pre className="bg-muted p-2 rounded text-sm mt-1">{`wait(2, function()

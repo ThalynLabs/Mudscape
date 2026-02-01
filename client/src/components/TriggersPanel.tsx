@@ -91,6 +91,51 @@ function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger,
             onChange={(e) => updateTrigger(trigger.id, { script: e.target.value })}
             className="font-mono text-sm min-h-[80px]"
           />
+          
+          <div className="flex items-center gap-4 border-t pt-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`gag-${trigger.id}`}
+                checked={trigger.gag || false}
+                onCheckedChange={(val) => updateTrigger(trigger.id, { gag: !!val })}
+              />
+              <Label htmlFor={`gag-${trigger.id}`} className="text-xs">Hide matching lines</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`multiline-${trigger.id}`}
+                checked={trigger.multiLine || false}
+                onCheckedChange={(val) => updateTrigger(trigger.id, { multiLine: !!val, lineCount: val ? 2 : undefined })}
+              />
+              <Label htmlFor={`multiline-${trigger.id}`} className="text-xs">Multi-line</Label>
+            </div>
+          </div>
+          
+          {trigger.multiLine && (
+            <div className="grid grid-cols-2 gap-2 bg-muted/50 p-2 rounded">
+              <div>
+                <Label className="text-xs">Line count (2-20)</Label>
+                <Input
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={trigger.lineCount || 2}
+                  onChange={(e) => updateTrigger(trigger.id, { lineCount: Math.max(2, Math.min(20, parseInt(e.target.value) || 2)) })}
+                  className="text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Line delimiter</Label>
+                <Input
+                  value={trigger.lineDelimiter || '\\n'}
+                  onChange={(e) => updateTrigger(trigger.id, { lineDelimiter: e.target.value })}
+                  placeholder="\n"
+                  className="text-sm mt-1"
+                />
+              </div>
+            </div>
+          )}
+          
           <Button
             variant="secondary"
             size="sm"
@@ -124,6 +169,8 @@ function TriggerCard({ trigger, classes, editingId, setEditingId, updateTrigger,
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               {trigger.type}
+              {trigger.multiLine && ` • Multi-line (${trigger.lineCount || 2} lines)`}
+              {trigger.gag && ' • Gag'}
               {trigger.soundFile && ` • Sound: ${trigger.soundFile}`}
             </div>
           </div>
@@ -264,6 +311,10 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
       script: newTrigger.script!,
       classId: newTrigger.classId,
       active: true,
+      gag: newTrigger.gag,
+      multiLine: newTrigger.multiLine,
+      lineCount: newTrigger.lineCount,
+      lineDelimiter: newTrigger.lineDelimiter,
       soundFile: newTrigger.soundFile,
       soundVolume: newTrigger.soundVolume,
       soundLoop: newTrigger.soundLoop,
@@ -393,6 +444,50 @@ export function TriggersPanel({ profile, open, onOpenChange }: TriggersPanelProp
                   className="font-mono text-sm min-h-[100px]"
                 />
               </div>
+
+              <div className="flex items-center gap-4 border-t pt-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="new-trigger-gag"
+                    checked={newTrigger.gag || false}
+                    onCheckedChange={(val) => setNewTrigger({ ...newTrigger, gag: !!val })}
+                  />
+                  <Label htmlFor="new-trigger-gag" className="text-xs">Hide matching lines</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="new-trigger-multiline"
+                    checked={newTrigger.multiLine || false}
+                    onCheckedChange={(val) => setNewTrigger({ ...newTrigger, multiLine: !!val, lineCount: val ? 2 : undefined })}
+                  />
+                  <Label htmlFor="new-trigger-multiline" className="text-xs">Multi-line</Label>
+                </div>
+              </div>
+              
+              {newTrigger.multiLine && (
+                <div className="grid grid-cols-2 gap-2 bg-muted/50 p-2 rounded">
+                  <div>
+                    <Label className="text-xs">Line count (2-20)</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={20}
+                      value={newTrigger.lineCount || 2}
+                      onChange={(e) => setNewTrigger({ ...newTrigger, lineCount: Math.max(2, Math.min(20, parseInt(e.target.value) || 2)) })}
+                      className="text-sm mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Line delimiter</Label>
+                    <Input
+                      value={newTrigger.lineDelimiter || '\\n'}
+                      onChange={(e) => setNewTrigger({ ...newTrigger, lineDelimiter: e.target.value })}
+                      placeholder="\n"
+                      className="text-sm mt-1"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-2">

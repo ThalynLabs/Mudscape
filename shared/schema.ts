@@ -139,6 +139,9 @@ export interface ProfileSettings {
   keepAlive?: boolean | null;
   keepAliveInterval?: number | null;
   
+  // Prompt detection - pattern that identifies the MUD's command prompt
+  promptPattern?: string | null;
+  
   // GMCP settings (null = use global)
   gmcpEnabled?: boolean | null;
 }
@@ -150,6 +153,12 @@ export interface MudTrigger {
   script: string; // Lua code to execute
   classId?: string; // Optional class grouping
   active: boolean;
+  // Multi-line trigger options
+  multiLine?: boolean; // Match across multiple lines
+  lineCount?: number; // Number of lines to buffer (2-20)
+  lineDelimiter?: string; // How to join lines for matching (default: "\n")
+  // Gag option
+  gag?: boolean; // Automatically hide matching lines (no script needed)
   // Sound options
   soundFile?: string; // Sound to play when triggered
   soundVolume?: number; // 0-1

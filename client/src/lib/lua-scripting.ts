@@ -36,6 +36,7 @@ export interface LuaScriptContext {
   
   // Utility
   expandAlias?: (command: string) => string;
+  fireTrigger?: (name: string, line?: string) => void;
   
   // User-friendly helpers
   notify?: (message: string, type?: 'info' | 'success' | 'warning' | 'danger') => void;
@@ -44,6 +45,10 @@ export interface LuaScriptContext {
   log?: (message: string) => void;
   getLog?: () => string[];
   clearLog?: () => void;
+  
+  // Prompt detection
+  onPrompt?: (callback: () => void) => void;
+  isPrompt?: boolean;
 }
 
 let luaEngine: LuaEngine | null = null;
@@ -189,6 +194,11 @@ export function setScriptContext(context: LuaScriptContext): void {
     return scriptContext?.expandAlias?.(command) ?? command;
   });
   
+  // Fire a trigger by name (for trigger chaining)
+  luaEngine.global.set('fireTrigger', (name: string, line?: string) => {
+    scriptContext?.fireTrigger?.(name, line);
+  });
+  
   // Wait function (using setTimeout under the hood)
   luaEngine.global.set('wait', (seconds: number, callback: () => void) => {
     setTimeout(() => {
@@ -313,6 +323,11 @@ export function setScriptContext(context: LuaScriptContext): void {
       entries.forEach(entry => scriptContext?.echo(entry));
       scriptContext?.echo('--- End of Log ---');
     }
+  });
+  
+  // Prompt detection - check if current line is a prompt
+  luaEngine.global.set('isPrompt', () => {
+    return scriptContext?.isPrompt ?? false;
   });
   
   // Stopwatch/Timer functions
@@ -505,6 +520,8 @@ export const LUA_SCRIPTING_HELP = `
 -- UTILITY:
 --   expandAlias(command)       - Run command through alias processing
 --   wait(seconds, callback)    - Execute code after delay
+--   fireTrigger(name, line)    - Execute another trigger by name (for chaining)
+--   isPrompt()                 - Check if current line matches prompt pattern
 
 -- AVAILABLE VARIABLES (in triggers):
 --   line     - The line that triggered the pattern

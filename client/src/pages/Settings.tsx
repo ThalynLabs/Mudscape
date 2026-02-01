@@ -587,6 +587,23 @@ function ConnectionSettingsCard({
             onCheckedChange={(checked) => updateSetting('gmcpEnabled', checked)}
           />
         </SettingRow>
+        
+        {isProfile && (
+          <SettingRow 
+            label="Prompt Pattern" 
+            description="Regex pattern to detect MUD prompt (e.g., ^> or HP:\\d+)"
+            isOverridden={isOverridden('promptPattern' as keyof GlobalSettings)}
+            onReset={() => onResetSetting?.('promptPattern' as keyof GlobalSettings)}
+          >
+            <Input
+              data-testid="input-prompt-pattern"
+              placeholder="^> $"
+              className="w-48 font-mono text-sm"
+              value={(settings as ProfileSettings).promptPattern ?? ''}
+              onChange={(e) => updateSetting('promptPattern' as keyof GlobalSettings, e.target.value || null)}
+            />
+          </SettingRow>
+        )}
       </CardContent>
     </Card>
   );
