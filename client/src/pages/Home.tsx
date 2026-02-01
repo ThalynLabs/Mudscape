@@ -2,7 +2,7 @@ import { useProfiles, useDeleteProfile, useCreateProfile } from "@/hooks/use-pro
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { useState, useEffect, useRef } from "react";
 import { Profile, InsertProfile } from "@shared/schema";
-import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload, HelpCircle, Keyboard, Volume2, Zap } from "lucide-react";
+import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload, HelpCircle, Keyboard, Volume2, Zap, LogIn, LogOut, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
@@ -10,9 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
-  const { data: profiles, isLoading, error } = useProfiles();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { data: profiles, isLoading: profilesLoading, error } = useProfiles();
   const deleteMutation = useDeleteProfile();
   const createMutation = useCreateProfile();
   const [, setLocation] = useLocation();
@@ -22,17 +25,19 @@ export default function Home() {
   
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  const isLoading = authLoading || (isAuthenticated && profilesLoading);
 
   // Auto-connect to first profile with autoConnect enabled
   useEffect(() => {
-    if (!isLoading && profiles && !autoConnectChecked.current) {
+    if (!isLoading && profiles && isAuthenticated && !autoConnectChecked.current) {
       autoConnectChecked.current = true;
       const autoConnectProfile = profiles.find(p => p.autoConnect);
       if (autoConnectProfile) {
         setLocation(`/play/${autoConnectProfile.id}`);
       }
     }
-  }, [profiles, isLoading, setLocation]);
+  }, [profiles, isLoading, isAuthenticated, setLocation]);
 
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
@@ -161,12 +166,123 @@ export default function Home() {
     );
   }
 
-  if (error) {
+  if (error && isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-destructive">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold">System Error</h2>
           <p>{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Landing page for logged out users
+  if (!isAuthenticated && !authLoading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground font-mono">
+        <div className="max-w-6xl mx-auto p-6 md:p-12 space-y-16">
+          {/* Landing Header */}
+          <header className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <TerminalSquare className="w-10 h-10 text-primary" />
+              <span className="text-2xl font-bold text-primary">Mudscape</span>
+            </div>
+            <div className="flex gap-3">
+              <Link href="/help">
+                <Button variant="ghost" data-testid="button-help">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  Help
+                </Button>
+              </Link>
+              <a href="/api/login">
+                <Button data-testid="button-login">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Log In
+                </Button>
+              </a>
+            </div>
+          </header>
+
+          {/* Hero Section */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-6 py-12"
+          >
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
+              Accessible <span className="text-primary">MUD Client</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Play text-based adventures with full screen reader support. 
+              VoiceOver, NVDA, and Orca compatible.
+            </p>
+            <div className="flex justify-center gap-4 pt-4">
+              <a href="/api/login">
+                <Button size="lg" className="shadow-lg shadow-primary/20" data-testid="button-get-started">
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Get Started Free
+                </Button>
+              </a>
+              <Link href="/help">
+                <Button size="lg" variant="outline" data-testid="button-learn-more">
+                  Learn More
+                </Button>
+              </Link>
+            </div>
+          </motion.section>
+
+          {/* Features Grid */}
+          <section className="grid md:grid-cols-3 gap-6">
+            <Card className="hover-elevate">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Volume2 className="w-5 h-5 text-primary" />
+                  Screen Reader First
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Built from the ground up for accessibility. Text-to-speech, keyboard navigation, and ARIA support throughout.
+              </CardContent>
+            </Card>
+            
+            <Card className="hover-elevate">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  Lua Scripting
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Powerful automation with triggers, aliases, timers, and keybindings. Compatible with Mudlet scripts.
+              </CardContent>
+            </Card>
+            
+            <Card className="hover-elevate">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Keyboard className="w-5 h-5 text-primary" />
+                  Keyboard Focused
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Navigate with F1 for help, Ctrl+1-9 to read lines, and customizable keybindings for any action.
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Self-hosting CTA */}
+          <section className="text-center border border-border rounded-lg p-8 bg-muted/30">
+            <h2 className="text-2xl font-bold mb-2">Self-Host Mudscape</h2>
+            <p className="text-muted-foreground mb-4">
+              Want to run your own instance? Our install wizard walks you through setup step by step.
+            </p>
+            <Link href="/install">
+              <Button variant="outline" data-testid="button-self-host">
+                Self-Hosting Guide
+              </Button>
+            </Link>
+          </section>
         </div>
       </div>
     );
@@ -188,7 +304,7 @@ export default function Home() {
               Mudscape
             </motion.h1>
             <p className="text-muted-foreground text-lg">
-              Accessible MUD Client
+              {user ? `Welcome back, ${user.firstName || user.email || 'User'}` : 'Accessible MUD Client'}
             </p>
           </div>
           
@@ -223,6 +339,39 @@ export default function Home() {
               <TerminalSquare className="mr-2 w-4 h-4" />
               New Connection
             </Button>
+            
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" data-testid="button-user-menu">
+                  {user?.profileImageUrl ? (
+                    <Avatar className="w-6 h-6">
+                      <AvatarImage src={user.profileImageUrl} alt={user.firstName || 'User'} />
+                      <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
+                  <span className="sr-only">User menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <div className="px-2 py-1.5 text-sm font-medium">
+                  {user?.firstName} {user?.lastName}
+                </div>
+                <div className="px-2 pb-1.5 text-xs text-muted-foreground">
+                  {user?.email}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a href="/api/logout" className="cursor-pointer" data-testid="menu-logout">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Log Out
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <CreateProfileDialog 
               open={dialogOpen} 
               onOpenChange={handleCreateOpen} 

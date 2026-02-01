@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Play from "@/pages/Play";
 import Settings from "@/pages/Settings";
+import Install from "@/pages/Install";
 import GettingStarted from "@/pages/help/GettingStarted";
 import Speech from "@/pages/help/Speech";
 import Keyboard from "@/pages/help/Keyboard";
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/play/:id" component={Play} />
       <Route path="/settings" component={Settings} />
+      <Route path="/install" component={Install} />
       <Route path="/help" component={GettingStarted} />
       <Route path="/help/speech" component={Speech} />
       <Route path="/help/keyboard" component={Keyboard} />
