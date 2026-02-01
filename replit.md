@@ -25,6 +25,10 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: REST endpoints defined in shared/routes.ts with Zod validation
 - **WebSocket Relay**: ws library provides WebSocket-to-TCP relay for browser clients to connect to MUD servers
 - **Build Process**: Custom build script using esbuild for server bundling and Vite for client
+- **Authentication**: Replit Auth using OpenID Connect (setupAuth before other routes)
+  - Multi-user support: Each user's profiles are isolated via userId column
+  - Profile routes protected with isAuthenticated middleware
+  - Ownership verified on get/update/delete operations
 
 ### Data Storage
 - **Database**: PostgreSQL with Drizzle ORM
@@ -177,6 +181,15 @@ Preferred communication style: Simple, everyday language.
 - Telnet option negotiation (option 201) handled in WebSocket relay
 - Supports Core.Hello, Char.Vitals, Room.Info modules
 - GMCP data displayed in terminal and stored in gmcpData state for UI display
+
+### Self-Hosting
+- **Install Wizard (/install)**: Step-by-step setup guide for non-technical users
+  - Docker deployment path (recommended) with Docker Compose
+  - Node.js manual deployment with full instructions
+  - Database setup guidance for PostgreSQL
+  - Environment configuration with .env examples
+  - Copy-to-clipboard for all code snippets
+- **Landing Page**: Home page for logged-out users promotes accessibility features and self-hosting option
 
 ## External Dependencies
 
