@@ -17,7 +17,8 @@ import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { ScriptAssistant } from "@/components/ScriptAssistant";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2 } from "lucide-react";
+import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2, Library, Unplug } from "lucide-react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
@@ -1200,6 +1201,16 @@ export default function Play() {
     setIsAutoScroll(true);
   }, [lines.length]);
 
+  const handleDisconnect = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+      setIsConnected(false);
+      setLines(prev => [...prev, `\x1b[33m>> Disconnected by user.\x1b[0m`]);
+      toast({ title: "Disconnected", description: `Closed connection to ${profile?.host}` });
+    }
+  }, [profile, toast]);
+
   if (!profile) return <div className="p-8 text-primary">Loading profile...</div>;
 
   return (
@@ -1207,10 +1218,28 @@ export default function Play() {
       {/* Top Bar */}
       <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card/50">
         <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-library">
+              <Library className="w-4 h-4 mr-2" />
+              Library
+            </Button>
+          </Link>
           <h2 className="font-bold text-primary tracking-wider">{profile.name}</h2>
           <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
             {isConnected ? (
-              <><Wifi className="w-3 h-3 text-green-500" /> ONLINE</>
+              <>
+                <Wifi className="w-3 h-3 text-green-500" /> ONLINE
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleDisconnect}
+                  className="text-xs h-6 px-2"
+                  data-testid="button-disconnect"
+                >
+                  <Unplug className="w-3 h-3 mr-1" />
+                  Disconnect
+                </Button>
+              </>
             ) : (
               <><WifiOff className="w-3 h-3 text-red-500" /> OFFLINE</>
             )}

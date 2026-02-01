@@ -42,6 +42,12 @@ Preferred communication style: Simple, everyday language.
 - **Login Commands**: Configure commands to send after connecting (e.g., "connect {name} {password}")
 - **Placeholder Support**: {name} and {password} placeholders in login commands are replaced with stored credentials
 
+### Connection Management
+- **Library Button**: Quick navigation back to profile list from play screen
+- **Disconnect Button**: Manually close connection without leaving the play screen
+- **Connection Status**: Real-time ONLINE/OFFLINE indicator with host:port display
+- **Multi-MUD (Planned)**: Future support for multiple simultaneous connections with tabbed interface
+
 ### Organization Features
 - **Profile Import/Export**: Export entire profiles as .mudscape.json backup files, import to restore or share configurations
 - **Collapsible Class Groups**: Triggers and aliases are organized by class in collapsible folders with item counts
