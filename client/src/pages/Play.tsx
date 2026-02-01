@@ -140,11 +140,13 @@ export default function Play() {
         echoLocal('\x1b[33mOther Commands:\x1b[0m');
         echoLocal('  /triggers on|off - Toggle automation triggers');
         echoLocal('  /aliases on|off  - Toggle command aliases');
+        echoLocal('  /keep on|off     - Toggle keeping input after Enter');
         echoLocal('  /settings        - Open settings panel');
         echoLocal('');
         echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
         echoLocal('  Ctrl+1-9      - Read recent lines aloud');
         echoLocal('  Ctrl Ctrl     - Double-tap to pause/resume speech');
+        echoLocal('  Escape        - Clear the input line');
         echoLocal('  F1            - Open detailed help wiki');
         echoLocal('');
         echoLocal('\x1b[32mPress F1 for the full help wiki with detailed documentation.\x1b[0m');
@@ -275,6 +277,22 @@ export default function Play() {
         } else {
           echoLocal(`Reader mode is currently ${settings.readerMode ? 'on' : 'off'}`);
           echoLocal('Usage: /reader on|off');
+        }
+        return true;
+        
+      case '/keep':
+        if (args[0] === 'on') {
+          updateProfileSetting('keepInputOnSend', true);
+          echoLocal('\x1b[32mKeep input enabled - input will stay after pressing Enter\x1b[0m');
+          echoLocal('\x1b[36mTip: Press Escape to clear the input line manually.\x1b[0m');
+        } else if (args[0] === 'off') {
+          updateProfileSetting('keepInputOnSend', false);
+          echoLocal('\x1b[32mKeep input disabled - input clears after pressing Enter\x1b[0m');
+        } else {
+          echoLocal(`Keep input is currently ${settings.keepInputOnSend ? 'on' : 'off'}`);
+          echoLocal('Usage: /keep on|off');
+          echoLocal('When on, the input line keeps your last command after pressing Enter.');
+          echoLocal('Press Escape to clear the input line.');
         }
         return true;
         
@@ -632,7 +650,9 @@ export default function Play() {
       if (handled) {
         setCommandHistory(prev => [inputValue, ...prev.filter(c => c !== inputValue)].slice(0, 50));
         setHistoryIndex(-1);
-        setInputValue("");
+        if (!settings.keepInputOnSend) {
+          setInputValue("");
+        }
         return;
       }
     }
@@ -680,7 +700,10 @@ export default function Play() {
     setCommandHistory(prev => [inputValue, ...prev.filter(c => c !== inputValue)].slice(0, 50));
     setHistoryIndex(-1);
     
-    setInputValue("");
+    // Clear input unless keepInputOnSend is enabled
+    if (!settings.keepInputOnSend) {
+      setInputValue("");
+    }
     
     // Force scroll to bottom on send
     setIsAutoScroll(true);
@@ -711,6 +734,10 @@ export default function Play() {
         setHistoryIndex(-1);
         setInputValue("");
       }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setInputValue("");
+      setHistoryIndex(-1);
     }
   };
 

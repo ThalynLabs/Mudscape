@@ -88,6 +88,7 @@ export interface GlobalSettings {
   highContrast?: boolean;
   readerMode?: boolean; // Default to reader mode or live mode
   showInputEcho?: boolean; // Show what the user types in the terminal
+  keepInputOnSend?: boolean; // Don't clear input field after sending command
   stripSymbols?: boolean; // Remove decorative symbols for screen readers
   
   // Automation settings
@@ -123,6 +124,7 @@ export interface ProfileSettings {
   highContrast?: boolean | null;
   readerMode?: boolean | null;
   showInputEcho?: boolean | null;
+  keepInputOnSend?: boolean | null;
   stripSymbols?: boolean | null;
   
   // Automation settings (null = use global)
@@ -265,6 +267,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   highContrast: false,
   readerMode: false,
   showInputEcho: true,
+  keepInputOnSend: false,
   stripSymbols: false,
   triggersEnabled: true,
   aliasesEnabled: true,

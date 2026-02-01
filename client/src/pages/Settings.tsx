@@ -331,6 +331,19 @@ function DisplaySettingsCard({
         </SettingRow>
 
         <SettingRow 
+          label="Keep Input on Send" 
+          description="Don't clear input after pressing Enter (use Escape to clear)"
+          isOverridden={isOverridden('keepInputOnSend')}
+          onReset={() => onResetSetting?.('keepInputOnSend')}
+        >
+          <Switch
+            data-testid="switch-keep-input"
+            checked={settings.keepInputOnSend ?? false}
+            onCheckedChange={(checked) => updateSetting('keepInputOnSend', checked)}
+          />
+        </SettingRow>
+
+        <SettingRow 
           label="High Contrast" 
           description="Increase contrast for better readability"
           isOverridden={isOverridden('highContrast')}

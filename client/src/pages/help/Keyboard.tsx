@@ -57,7 +57,11 @@ export default function Keyboard() {
                 </tr>
                 <tr>
                   <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Escape</kbd></td>
-                  <td className="py-2">Clear input / Close dialogs</td>
+                  <td className="py-2">Clear input line / Close dialogs</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Enter</kbd></td>
+                  <td className="py-2">Send command (clears input unless "Keep Input" is enabled)</td>
                 </tr>
               </tbody>
             </table>

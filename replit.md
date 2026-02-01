@@ -84,6 +84,8 @@ Preferred communication style: Simple, everyday language.
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech
 - **Ctrl Ctrl (double-tap)**: Toggle pause/resume of speech synthesis (double-tap avoids conflicts with screen reader modifiers like VoiceOver's Ctrl+Option)
+- **Escape**: Clear the input line
+- **Keep Input on Send**: Optional setting to preserve input after pressing Enter (Escape clears it manually)
 - All interactive elements have proper ARIA labels for screen reader compatibility
 - **Strip Symbols Setting**: Removes decorative characters (box drawing, ASCII art) for cleaner screen reader output
 - **Speech Controls**: Rate, volume, and pitch adjustable via settings
@@ -118,6 +120,7 @@ Preferred communication style: Simple, everyday language.
   - /triggers on|off - Toggle trigger processing
   - /aliases on|off - Toggle alias processing
   - /reader on|off - Toggle reader mode
+  - /keep on|off - Toggle keeping input after Enter (use Escape to clear)
 
 ### Help System
 - **Quick Help (/help command)**: Brief in-terminal reference with key commands and shortcuts
