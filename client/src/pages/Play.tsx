@@ -15,12 +15,14 @@ import { VariablesPanel } from "@/components/VariablesPanel";
 import { ClassesPanel } from "@/components/ClassesPanel";
 import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { ScriptAssistant } from "@/components/ScriptAssistant";
+import { ConnectionTabs } from "@/components/ConnectionTabs";
+import { AddConnectionDialog } from "@/components/AddConnectionDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2, Library, Unplug } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS, Profile } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
 import { processTriggers, processAlias } from "@/lib/scripting";
@@ -29,6 +31,7 @@ import { soundManager } from "@/lib/sound-manager";
 import { processLineForMSP } from "@/lib/msp-parser";
 import { useTimers } from "@/hooks/use-timers";
 import { useKeybindings } from "@/hooks/use-keybindings";
+import { ConnectionTab, createConnectionId } from "@/lib/connection-manager";
 
 // Hardcoded maximum lines to keep in buffer to prevent memory leaks
 const MAX_LINES = 5000;
@@ -38,14 +41,35 @@ function stripAnsi(text: string): string {
   return text.replace(/\x1b\[[0-9;]*m/g, "").trim();
 }
 
+interface ConnectionState {
+  id: string;
+  profileId: number;
+  profile: Profile;
+  lines: string[];
+  isConnected: boolean;
+  unreadCount: number;
+  socket: WebSocket | null;
+}
+
 export default function Play() {
   const [, params] = useRoute("/play/:id");
   const [, navigate] = useLocation();
-  const profileId = parseInt(params?.id || "0");
-  const { data: profile } = useProfile(profileId);
+  const initialProfileId = parseInt(params?.id || "0");
+  const { data: initialProfile } = useProfile(initialProfileId);
   const { toast } = useToast();
   
-  // Terminal State
+  // Multi-MUD connection state
+  const [connections, setConnections] = useState<ConnectionState[]>([]);
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+  const [addConnectionOpen, setAddConnectionOpen] = useState(false);
+  const initializedRef = useRef(false);
+  
+  // Get active connection
+  const activeConnection = connections.find(c => c.id === activeConnectionId);
+  const profile = activeConnection?.profile;
+  const profileId = activeConnection?.profileId ?? 0;
+  
+  // Terminal State (for active connection)
   const [lines, setLines] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   
@@ -101,6 +125,102 @@ export default function Play() {
   const [variables, setVariables] = useState<MudVariables>((profile?.variables || {}) as MudVariables);
   const activeSoundpackId = profile?.activeSoundpackId;
   const updateProfile = useUpdateProfile();
+
+  // Initialize first connection when profile loads
+  useEffect(() => {
+    if (initialProfile && !initializedRef.current) {
+      initializedRef.current = true;
+      const connId = createConnectionId(initialProfile.id);
+      setConnections([{
+        id: connId,
+        profileId: initialProfile.id,
+        profile: initialProfile,
+        lines: [],
+        isConnected: false,
+        unreadCount: 0,
+        socket: null,
+      }]);
+      setActiveConnectionId(connId);
+    }
+  }, [initialProfile]);
+
+  // Sync lines state with active connection
+  useEffect(() => {
+    if (activeConnection) {
+      setLines(activeConnection.lines);
+      setIsConnected(activeConnection.isConnected);
+      // Clear unread count when switching to this connection
+      setConnections(prev => prev.map(c => 
+        c.id === activeConnectionId ? { ...c, unreadCount: 0 } : c
+      ));
+    }
+  }, [activeConnectionId]);
+
+  // Add new connection
+  const addConnection = useCallback((newProfile: Profile) => {
+    const connId = createConnectionId(newProfile.id);
+    setConnections(prev => [...prev, {
+      id: connId,
+      profileId: newProfile.id,
+      profile: newProfile,
+      lines: [],
+      isConnected: false,
+      unreadCount: 0,
+      socket: null,
+    }]);
+    setActiveConnectionId(connId);
+  }, []);
+
+  // Close connection
+  const closeConnection = useCallback((connId: string) => {
+    setConnections(prev => {
+      const conn = prev.find(c => c.id === connId);
+      if (conn?.socket) {
+        conn.socket.close();
+      }
+      const remaining = prev.filter(c => c.id !== connId);
+      // If we closed the active connection, switch to another
+      if (connId === activeConnectionId && remaining.length > 0) {
+        setActiveConnectionId(remaining[0].id);
+      } else if (remaining.length === 0) {
+        // No connections left, go back to library
+        navigate('/');
+      }
+      return remaining;
+    });
+  }, [activeConnectionId, navigate]);
+
+  // Get tabs for UI
+  const connectionTabs: ConnectionTab[] = connections.map(c => ({
+    id: c.id,
+    profileId: c.profileId,
+    profileName: c.profile.name,
+    isConnected: c.isConnected,
+    unreadCount: c.unreadCount,
+  }));
+
+  // Update connection state helper
+  const updateConnectionState = useCallback((connId: string, updates: Partial<ConnectionState>) => {
+    setConnections(prev => prev.map(c => 
+      c.id === connId ? { ...c, ...updates } : c
+    ));
+  }, []);
+
+  // Add lines to a connection
+  const addLinesToConnection = useCallback((connId: string, newLines: string[]) => {
+    setConnections(prev => prev.map(c => {
+      if (c.id === connId) {
+        const updatedLines = [...c.lines, ...newLines].slice(-MAX_LINES);
+        const unreadCount = c.id === activeConnectionId ? 0 : c.unreadCount + newLines.length;
+        return { ...c, lines: updatedLines, unreadCount };
+      }
+      return c;
+    }));
+    // Also update local lines if this is the active connection
+    if (connId === activeConnectionId) {
+      setLines(prev => [...prev, ...newLines].slice(-MAX_LINES));
+    }
+  }, [activeConnectionId]);
   
   const isClassActive = useCallback((classId?: string) => {
     if (!classId) return true;
@@ -823,19 +943,28 @@ export default function Play() {
     };
   }, [lines, speakLine, togglePause, navigate]);
 
-  // Connect to WebSocket
+  // Connect to WebSocket for active connection
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !activeConnectionId) return;
+    
+    // Check if this connection already has a socket
+    const conn = connections.find(c => c.id === activeConnectionId);
+    if (conn?.socket) return; // Already connected
 
     // Build WS URL (uses same host as frontend, just wss protocol)
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     
+    const currentConnId = activeConnectionId;
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
+    
+    // Store socket in connection state
+    updateConnectionState(currentConnId, { socket: ws });
 
     ws.onopen = () => {
       setIsConnected(true);
+      updateConnectionState(currentConnId, { isConnected: true });
       // Send connect handshake
       const msg: WsClientMessage = {
         type: "connect",
@@ -845,12 +974,13 @@ export default function Play() {
         gmcp: settings.gmcpEnabled !== false
       };
       ws.send(JSON.stringify(msg));
-      setLines(prev => [...prev, `\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
+      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
     };
 
     ws.onclose = () => {
       setIsConnected(false);
-      setLines(prev => [...prev, `\x1b[31m>> Disconnected from Relay Server.\x1b[0m`]);
+      updateConnectionState(currentConnId, { isConnected: false, socket: null });
+      addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server.\x1b[0m`]);
     };
 
     ws.onmessage = (event) => {
@@ -1005,14 +1135,10 @@ export default function Play() {
           
           // Add line to display (unless gagged)
           if (!lineModificationsRef.current.gagged) {
-            setLines(prev => {
-              const next = [...prev, displayLine];
-              if (next.length > MAX_LINES) return next.slice(next.length - MAX_LINES);
-              return next;
-            });
+            addLinesToConnection(currentConnId, [displayLine]);
           }
         } else if (msg.type === 'connected') {
-          setLines(prev => [...prev, `\x1b[32m>> Connected to MUD.\x1b[0m`]);
+          addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to MUD.\x1b[0m`]);
           
           // Send login commands if configured
           if (profile.loginCommands) {
@@ -1031,9 +1157,9 @@ export default function Play() {
             });
           }
         } else if (msg.type === 'disconnected') {
-          setLines(prev => [...prev, `\x1b[31m>> Disconnected from MUD: ${msg.reason}\x1b[0m`]);
+          addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from MUD: ${msg.reason}\x1b[0m`]);
         } else if (msg.type === 'error') {
-          setLines(prev => [...prev, `\x1b[31m>> Error: ${msg.message}\x1b[0m`]);
+          addLinesToConnection(currentConnId, [`\x1b[31m>> Error: ${msg.message}\x1b[0m`]);
           toast({ variant: "destructive", title: "Connection Error", description: msg.message });
         } else if (msg.type === 'gmcp') {
           console.log('GMCP:', msg.module, msg.data);
@@ -1044,14 +1170,14 @@ export default function Play() {
             const vitalStr = Object.entries(vitals)
               .map(([k, v]) => `${k}: ${v}`)
               .join(' | ');
-            setLines(prev => [...prev, `\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
+            addLinesToConnection(currentConnId, [`\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
           } else if (msg.module === 'Room.Info' && typeof msg.data === 'object' && msg.data !== null) {
             const room = msg.data as Record<string, unknown>;
             const roomName = room.name || room.short || 'Unknown Room';
             const exits = Array.isArray(room.exits) ? room.exits.join(', ') : 
                           (typeof room.exits === 'object' && room.exits !== null) ? Object.keys(room.exits).join(', ') : '';
             const roomLine = exits ? `[Room] ${roomName} | Exits: ${exits}` : `[Room] ${roomName}`;
-            setLines(prev => [...prev, `\x1b[36m${roomLine}\x1b[0m`]);
+            addLinesToConnection(currentConnId, [`\x1b[36m${roomLine}\x1b[0m`]);
           } else if (msg.module.startsWith('Core.')) {
             console.log('GMCP Core module:', msg.module, msg.data);
           }
@@ -1064,7 +1190,7 @@ export default function Play() {
     return () => {
       ws.close();
     };
-  }, [profile, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);
+  }, [profile, activeConnectionId, connections, updateConnectionState, addLinesToConnection, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -1202,19 +1328,42 @@ export default function Play() {
   }, [lines.length]);
 
   const handleDisconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.close();
-      socketRef.current = null;
-      setIsConnected(false);
-      setLines(prev => [...prev, `\x1b[33m>> Disconnected by user.\x1b[0m`]);
-      toast({ title: "Disconnected", description: `Closed connection to ${profile?.host}` });
+    if (activeConnectionId) {
+      const conn = connections.find(c => c.id === activeConnectionId);
+      if (conn?.socket) {
+        conn.socket.close();
+        updateConnectionState(activeConnectionId, { socket: null, isConnected: false });
+        setIsConnected(false);
+        addLinesToConnection(activeConnectionId, [`\x1b[33m>> Disconnected by user.\x1b[0m`]);
+        toast({ title: "Disconnected", description: `Closed connection to ${profile?.host}` });
+      }
     }
-  }, [profile, toast]);
+  }, [activeConnectionId, connections, updateConnectionState, addLinesToConnection, profile, toast]);
 
-  if (!profile) return <div className="p-8 text-primary">Loading profile...</div>;
+  if (!profile && !initialProfile) return <div className="p-8 text-primary">Loading profile...</div>;
+  if (!profile) return <div className="p-8 text-primary">Loading connection...</div>;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden relative">
+      {/* Connection Tabs - Show when multiple connections */}
+      {connections.length > 1 && (
+        <ConnectionTabs
+          tabs={connectionTabs}
+          activeTabId={activeConnectionId}
+          onSelectTab={setActiveConnectionId}
+          onCloseTab={closeConnection}
+          onAddTab={() => setAddConnectionOpen(true)}
+        />
+      )}
+      
+      {/* Add Connection Dialog */}
+      <AddConnectionDialog
+        open={addConnectionOpen}
+        onOpenChange={setAddConnectionOpen}
+        onSelectProfile={addConnection}
+        existingProfileIds={connections.map(c => c.profileId)}
+      />
+      
       {/* Top Bar */}
       <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card/50">
         <div className="flex items-center gap-4">
@@ -1224,6 +1373,16 @@ export default function Play() {
               Library
             </Button>
           </Link>
+          {connections.length === 1 && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setAddConnectionOpen(true)}
+              data-testid="button-add-connection"
+            >
+              <span className="mr-1">+</span> Add MUD
+            </Button>
+          )}
           <h2 className="font-bold text-primary tracking-wider">{profile.name}</h2>
           <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
             {isConnected ? (
