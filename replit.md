@@ -58,7 +58,12 @@ Preferred communication style: Simple, everyday language.
 ### Package Manager
 - **Package System**: Bundle automation items (triggers, aliases, timers, keybindings, buttons, classes) into shareable packages
 - **Export**: Create packages from current profile's automation items, download as .mudpack.json files
-- **Import**: Upload .mudpack.json files to add packages to library
+- **Import Mudscape**: Upload .mudpack.json files to add packages to library
+- **Import Mudlet**: Import .mpackage, .zip, or .xml files from Mudlet
+  - Parses Mudlet's XML format (TriggerPackage, AliasPackage, TimerPackage, KeyPackage, ActionPackage, ScriptPackage)
+  - Converts triggers, aliases, timers, keybindings, buttons to Mudscape's native format
+  - Preserves Lua scripts (both clients use Lua)
+  - ZIP extraction for .mpackage files via JSZip
 - **Install**: Apply package contents to current profile
 - **Library**: Store packages in database for reuse across profiles
 

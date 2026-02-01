@@ -51,15 +51,41 @@ export default function Packages() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Importing a Package</CardTitle>
+            <CardTitle>Importing a Mudscape Package</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <ol className="list-decimal list-inside space-y-2">
               <li>Open the Package Manager</li>
-              <li>Click "Import Package"</li>
+              <li>Click "Import Mudscape"</li>
               <li>Select a <code className="bg-muted px-1 rounded">.mudpack.json</code> file</li>
               <li>The package appears in your library</li>
             </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Importing Mudlet Packages</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Mudscape can import packages created with Mudlet, making it easy to migrate 
+              your existing automation:
+            </p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Open the Package Manager</li>
+              <li>Click "Import Mudlet Package"</li>
+              <li>Select a <code className="bg-muted px-1 rounded">.mpackage</code>, 
+                  <code className="bg-muted px-1 rounded">.zip</code>, or 
+                  <code className="bg-muted px-1 rounded">.xml</code> file</li>
+              <li>Preview the imported contents</li>
+              <li>Choose to save to library or install directly</li>
+            </ol>
+            <p className="text-sm text-muted-foreground mt-2">
+              Mudlet packages are ZIP archives containing XML configuration files. 
+              Mudscape converts triggers, aliases, timers, keybindings, and buttons 
+              to its native format.
+            </p>
           </CardContent>
         </Card>
 

@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Package, Upload, Download, Trash2, FolderOpen, Plus, FileJson } from "lucide-react";
+import { Package, Upload, Download, Trash2, FolderOpen, Plus, FileJson, FileArchive } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { parseMudletPackage, getImportSummary } from "@/lib/mudlet-parser";
 import type { Profile, Package as PackageType, PackageContents } from "@shared/schema";
 
 interface PackageManagerProps {
@@ -22,7 +23,10 @@ interface PackageManagerProps {
 export function PackageManager({ profile, open, onOpenChange }: PackageManagerProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mudletInputRef = useRef<HTMLInputElement>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [mudletPreviewOpen, setMudletPreviewOpen] = useState(false);
+  const [mudletImportData, setMudletImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
   const [exportName, setExportName] = useState('');
   const [exportDescription, setExportDescription] = useState('');
   const [selectedItems, setSelectedItems] = useState<{
@@ -218,6 +222,62 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     }
   };
 
+  const handleMudletImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const result = await parseMudletPackage(file);
+    
+    if (!result.success || !result.contents) {
+      toast({ 
+        title: "Import failed", 
+        description: result.error || "Could not parse Mudlet package",
+        variant: "destructive" 
+      });
+    } else {
+      setMudletImportData({
+        name: result.name || file.name.replace(/\.(mpackage|zip|xml)$/i, ''),
+        contents: result.contents,
+      });
+      setMudletPreviewOpen(true);
+    }
+    
+    if (mudletInputRef.current) {
+      mudletInputRef.current.value = '';
+    }
+  };
+
+  const handleMudletSaveToLibrary = () => {
+    if (!mudletImportData) return;
+    
+    createPackageMutation.mutate({
+      name: mudletImportData.name,
+      description: 'Imported from Mudlet package',
+      version: "1.0.0",
+      author: "",
+      contents: mudletImportData.contents,
+    });
+    
+    setMudletPreviewOpen(false);
+    setMudletImportData(null);
+  };
+
+  const handleMudletInstallDirect = () => {
+    if (!mudletImportData) return;
+    
+    installPackageMutation.mutate({
+      id: 0,
+      name: mudletImportData.name,
+      description: null,
+      version: null,
+      author: null,
+      contents: mudletImportData.contents,
+    });
+    
+    setMudletPreviewOpen(false);
+    setMudletImportData(null);
+  };
+
   const countItems = (pkg: PackageType) => {
     const contents = pkg.contents as PackageContents;
     let count = 0;
@@ -263,23 +323,43 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
             </TabsList>
 
             <TabsContent value="library" className="space-y-4 mt-4">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1"
-                  data-testid="button-import-package"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import from File
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json,.mudpack.json"
-                  onChange={handleImportFile}
-                  className="hidden"
-                />
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1"
+                    data-testid="button-import-package"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import Mudscape
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.mudpack.json"
+                    onChange={handleImportFile}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => mudletInputRef.current?.click()}
+                    className="flex-1"
+                    data-testid="button-import-mudlet"
+                  >
+                    <FileArchive className="w-4 h-4 mr-2" />
+                    Import Mudlet Package
+                  </Button>
+                  <input
+                    ref={mudletInputRef}
+                    type="file"
+                    accept=".mpackage,.zip,.xml"
+                    onChange={handleMudletImport}
+                    className="hidden"
+                  />
+                </div>
               </div>
 
               {packages.length === 0 ? (
@@ -478,6 +558,77 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
             >
               <Download className="w-4 h-4 mr-2" />
               Download File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mudletPreviewOpen} onOpenChange={setMudletPreviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5" />
+              Import Mudlet Package
+            </DialogTitle>
+            <DialogDescription>
+              Preview the contents before importing.
+            </DialogDescription>
+          </DialogHeader>
+          {mudletImportData && (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label className="text-sm font-medium">Package Name</Label>
+                <p className="text-lg font-semibold">{mudletImportData.name}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Contents</Label>
+                <p className="text-sm text-muted-foreground">
+                  {getImportSummary(mudletImportData.contents)}
+                </p>
+              </div>
+              <Card className="bg-muted/50">
+                <CardContent className="py-3 text-sm space-y-1">
+                  {mudletImportData.contents.triggers?.length ? (
+                    <p>{mudletImportData.contents.triggers.length} triggers</p>
+                  ) : null}
+                  {mudletImportData.contents.aliases?.length ? (
+                    <p>{mudletImportData.contents.aliases.length} aliases</p>
+                  ) : null}
+                  {mudletImportData.contents.timers?.length ? (
+                    <p>{mudletImportData.contents.timers.length} timers</p>
+                  ) : null}
+                  {mudletImportData.contents.keybindings?.length ? (
+                    <p>{mudletImportData.contents.keybindings.length} keybindings</p>
+                  ) : null}
+                  {mudletImportData.contents.buttons?.length ? (
+                    <p>{mudletImportData.contents.buttons.length} buttons</p>
+                  ) : null}
+                  {mudletImportData.contents.scripts?.length ? (
+                    <p>{mudletImportData.contents.scripts.length} scripts</p>
+                  ) : null}
+                  {mudletImportData.contents.classes?.length ? (
+                    <p>{mudletImportData.contents.classes.length} classes</p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleMudletSaveToLibrary}
+              disabled={createPackageMutation.isPending}
+              data-testid="button-mudlet-save-library"
+            >
+              Save to Library
+            </Button>
+            <Button
+              onClick={handleMudletInstallDirect}
+              disabled={installPackageMutation.isPending}
+              data-testid="button-mudlet-install-direct"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Install to {profile.name}
             </Button>
           </DialogFooter>
         </DialogContent>
