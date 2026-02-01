@@ -115,6 +115,36 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === PACKAGE ROUTES ===
+  app.get(api.packages.list.path, async (req, res) => {
+    const packagesList = await storage.getPackages();
+    res.json(packagesList);
+  });
+
+  app.get(api.packages.get.path, async (req, res) => {
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+    res.json(pkg);
+  });
+
+  app.post(api.packages.create.path, async (req, res) => {
+    try {
+      const input = api.packages.create.input.parse(req.body);
+      const pkg = await storage.createPackage(input);
+      res.status(201).json(pkg);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
+      throw e;
+    }
+  });
+
+  app.delete(api.packages.delete.path, async (req, res) => {
+    await storage.deletePackage(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === GLOBAL SETTINGS ROUTES ===
   app.get(api.settings.get.path, async (req, res) => {
     const settings = await storage.getGlobalSettings();

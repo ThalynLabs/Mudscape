@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertProfileSchema, insertSoundpackSchema, profiles, soundpacks, GlobalSettings } from './schema';
+import { insertProfileSchema, insertSoundpackSchema, insertPackageSchema, profiles, soundpacks, packages, GlobalSettings } from './schema';
 
 // Zod schema for global settings validation
 const globalSettingsSchema = z.object({
@@ -119,6 +119,40 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/soundpacks/:id',
+      responses: {
+        204: z.void(),
+        404: z.object({ message: z.string() }),
+      },
+    },
+  },
+  packages: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/packages',
+      responses: {
+        200: z.array(z.custom<typeof packages.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/packages/:id',
+      responses: {
+        200: z.custom<typeof packages.$inferSelect>(),
+        404: z.object({ message: z.string() }),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/packages',
+      input: insertPackageSchema,
+      responses: {
+        201: z.custom<typeof packages.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/packages/:id',
       responses: {
         204: z.void(),
         404: z.object({ message: z.string() }),

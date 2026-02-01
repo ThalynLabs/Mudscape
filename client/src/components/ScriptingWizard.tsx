@@ -13,6 +13,8 @@ interface ScriptingWizardProps {
   onInsert?: (script: string) => void;
   context?: 'trigger' | 'alias' | 'timer' | 'keybinding';
   triggerButton?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const LUA_API_DOCS = `
@@ -31,9 +33,18 @@ Built-in variables available in triggers:
 - matches - Table of regex capture groups (matches[0] = full match, matches[1] = first group, etc.)
 `;
 
-export function ScriptingWizard({ onInsert, context = 'trigger', triggerButton }: ScriptingWizardProps) {
+export function ScriptingWizard({ onInsert, context = 'trigger', triggerButton, open: controlledOpen, onOpenChange }: ScriptingWizardProps) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (value: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
   const [description, setDescription] = useState('');
   const [generatedScript, setGeneratedScript] = useState('');
   const [isLoading, setIsLoading] = useState(false);

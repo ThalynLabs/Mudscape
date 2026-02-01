@@ -23,6 +23,7 @@ export const profiles = pgTable("profiles", {
   scripts: jsonb("scripts").$type<MudScript[]>().default([]),
   timers: jsonb("timers").$type<MudTimer[]>().default([]),
   keybindings: jsonb("keybindings").$type<MudKeybinding[]>().default([]),
+  buttons: jsonb("buttons").$type<MudButton[]>().default([]),
   classes: jsonb("classes").$type<MudClass[]>().default([]),
   variables: jsonb("variables").$type<MudVariables>().default({}),
   activeSoundpackId: text("active_soundpack_id"), // Currently active soundpack
@@ -35,6 +36,27 @@ export const soundpacks = pgTable("soundpacks", {
   description: text("description"),
   files: jsonb("files").$type<SoundpackFile[]>().default([]),
 });
+
+// Packages table for bundling automation items
+export const packages = pgTable("packages", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  version: text("version").default("1.0.0"),
+  author: text("author"),
+  contents: jsonb("contents").$type<PackageContents>().default({}),
+});
+
+// Package contents - what's bundled in a package
+export interface PackageContents {
+  triggers?: MudTrigger[];
+  aliases?: MudAlias[];
+  timers?: MudTimer[];
+  keybindings?: MudKeybinding[];
+  buttons?: MudButton[];
+  scripts?: MudScript[];
+  classes?: MudClass[];
+}
 
 // === TYPE DEFINITIONS ===
 
@@ -145,6 +167,17 @@ export interface MudKeybinding {
   active: boolean;
 }
 
+export interface MudButton {
+  id: string;
+  label: string; // Display text on button
+  command: string; // Command to send or Lua script
+  isScript: boolean; // If true, command is Lua; if false, it's a MUD command
+  color?: string; // Optional color class for styling
+  icon?: string; // Optional Lucide icon name
+  classId?: string;
+  active: boolean;
+}
+
 // Class for grouping triggers/aliases/scripts
 export interface MudClass {
   id: string;
@@ -177,6 +210,7 @@ export interface Soundpack {
 export const insertProfileSchema = createInsertSchema(profiles);
 export const insertGlobalSettingsSchema = createInsertSchema(globalSettings);
 export const insertSoundpackSchema = createInsertSchema(soundpacks);
+export const insertPackageSchema = createInsertSchema(packages);
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
@@ -186,6 +220,9 @@ export type InsertGlobalSettings = z.infer<typeof insertGlobalSettingsSchema>;
 
 export type SoundpackRow = typeof soundpacks.$inferSelect;
 export type InsertSoundpack = z.infer<typeof insertSoundpackSchema>;
+
+export type Package = typeof packages.$inferSelect;
+export type InsertPackage = z.infer<typeof insertPackageSchema>;
 
 // === API TYPES ===
 export type CreateProfileRequest = InsertProfile;

@@ -7,12 +7,16 @@ import { TerminalLine } from "@/components/TerminalLine";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { TimersPanel } from "@/components/TimersPanel";
 import { KeybindingsPanel } from "@/components/KeybindingsPanel";
+import { TriggersPanel } from "@/components/TriggersPanel";
+import { AliasesPanel } from "@/components/AliasesPanel";
+import { ButtonsPanel } from "@/components/ButtonsPanel";
+import { PackageManager } from "@/components/PackageManager";
 import { VariablesPanel } from "@/components/VariablesPanel";
 import { ClassesPanel } from "@/components/ClassesPanel";
 import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2 } from "lucide-react";
+import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
@@ -48,6 +52,10 @@ export default function Play() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [timersOpen, setTimersOpen] = useState(false);
   const [keybindingsOpen, setKeybindingsOpen] = useState(false);
+  const [triggersOpen, setTriggersOpen] = useState(false);
+  const [aliasesOpen, setAliasesOpen] = useState(false);
+  const [buttonsOpen, setButtonsOpen] = useState(false);
+  const [packagesOpen, setPackagesOpen] = useState(false);
   const [gmcpData, setGmcpData] = useState<Record<string, unknown>>({});
 
   // Refs
@@ -510,6 +518,26 @@ export default function Play() {
           <Button 
             variant="ghost" 
             size="icon" 
+            onClick={() => setTriggersOpen(true)}
+            aria-label="Triggers"
+            data-testid="button-triggers"
+          >
+            <Zap className="w-4 h-4" />
+            <span className="sr-only">Triggers</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setAliasesOpen(true)}
+            aria-label="Aliases"
+            data-testid="button-aliases"
+          >
+            <Terminal className="w-4 h-4" />
+            <span className="sr-only">Aliases</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setTimersOpen(true)}
             aria-label="Timers"
             data-testid="button-timers"
@@ -526,6 +554,26 @@ export default function Play() {
           >
             <Keyboard className="w-4 h-4" />
             <span className="sr-only">Keybindings</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setButtonsOpen(true)}
+            aria-label="Buttons"
+            data-testid="button-buttons"
+          >
+            <SquareMousePointer className="w-4 h-4" />
+            <span className="sr-only">Buttons</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setPackagesOpen(true)}
+            aria-label="Packages"
+            data-testid="button-packages"
+          >
+            <Package className="w-4 h-4" />
+            <span className="sr-only">Packages</span>
           </Button>
           <Button 
             variant="ghost" 
@@ -618,6 +666,30 @@ export default function Play() {
         profile={profile} 
         open={keybindingsOpen} 
         onOpenChange={setKeybindingsOpen} 
+      />
+
+      <TriggersPanel 
+        profile={profile} 
+        open={triggersOpen} 
+        onOpenChange={setTriggersOpen} 
+      />
+
+      <AliasesPanel 
+        profile={profile} 
+        open={aliasesOpen} 
+        onOpenChange={setAliasesOpen} 
+      />
+
+      <ButtonsPanel 
+        profile={profile} 
+        open={buttonsOpen} 
+        onOpenChange={setButtonsOpen} 
+      />
+
+      <PackageManager 
+        profile={profile} 
+        open={packagesOpen} 
+        onOpenChange={setPackagesOpen} 
       />
     </div>
   );

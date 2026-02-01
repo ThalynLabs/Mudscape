@@ -3,6 +3,7 @@ import {
   profiles,
   globalSettings,
   soundpacks,
+  packages,
   type Profile,
   type InsertProfile,
   type UpdateProfileRequest,
@@ -10,6 +11,8 @@ import {
   type GlobalSettingsRow,
   type SoundpackRow,
   type InsertSoundpack,
+  type Package,
+  type InsertPackage,
   DEFAULT_GLOBAL_SETTINGS,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -32,6 +35,12 @@ export interface IStorage {
   createSoundpack(soundpack: InsertSoundpack): Promise<SoundpackRow>;
   updateSoundpack(id: number, updates: Partial<InsertSoundpack>): Promise<SoundpackRow>;
   deleteSoundpack(id: number): Promise<void>;
+  
+  // Packages
+  getPackages(): Promise<Package[]>;
+  getPackage(id: number): Promise<Package | undefined>;
+  createPackage(pkg: InsertPackage): Promise<Package>;
+  deletePackage(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -124,6 +133,25 @@ export class DatabaseStorage implements IStorage {
   
   async deleteSoundpack(id: number): Promise<void> {
     await db.delete(soundpacks).where(eq(soundpacks.id, id));
+  }
+  
+  // Packages
+  async getPackages(): Promise<Package[]> {
+    return await db.select().from(packages).orderBy(packages.name);
+  }
+  
+  async getPackage(id: number): Promise<Package | undefined> {
+    const [pkg] = await db.select().from(packages).where(eq(packages.id, id));
+    return pkg;
+  }
+  
+  async createPackage(insertPackage: InsertPackage): Promise<Package> {
+    const [pkg] = await db.insert(packages).values(insertPackage as typeof packages.$inferInsert).returning();
+    return pkg;
+  }
+  
+  async deletePackage(id: number): Promise<void> {
+    await db.delete(packages).where(eq(packages.id, id));
   }
 }
 

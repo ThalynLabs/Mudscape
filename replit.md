@@ -45,8 +45,16 @@ Preferred communication style: Simple, everyday language.
 - Aliases: Command macros that expand shortcuts with $1/$2 substitution or execute Lua scripts (isScript=true)
 - Timers: Scheduled Lua script execution (one-shot or repeating intervals), managed via TimersPanel
 - Keybindings: Custom keyboard shortcuts mapped to commands or Lua scripts, recorded via KeybindingsPanel
-- Classes: Organizational groups for automation items; toggling a class enables/disables all contained triggers/aliases/timers/keybindings
+- Buttons: On-screen clickable buttons for quick commands or Lua scripts, managed via ButtonsPanel
+- Classes: Organizational groups for automation items; toggling a class enables/disables all contained triggers/aliases/timers/keybindings/buttons
 - Variables: Persistent key-value store accessible via Lua; debounced (1 second) persistence to profile
+
+### Package Manager
+- **Package System**: Bundle automation items (triggers, aliases, timers, keybindings, buttons, classes) into shareable packages
+- **Export**: Create packages from current profile's automation items, download as .mudpack.json files
+- **Import**: Upload .mudpack.json files to add packages to library
+- **Install**: Apply package contents to current profile
+- **Library**: Store packages in database for reuse across profiles
 
 ### Sound System
 - **Web Audio API**: AudioContext with GainNode for master volume control
