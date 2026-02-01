@@ -17,6 +17,10 @@ export const profiles = pgTable("profiles", {
   host: text("host").notNull(),
   port: integer("port").notNull(),
   encoding: text("encoding").default("ISO-8859-1"), // MUD default
+  autoConnect: boolean("auto_connect").default(false), // Connect on app start
+  characterName: text("character_name"), // Character name for login
+  characterPassword: text("character_password"), // Character password for login (encrypted in future)
+  loginCommands: text("login_commands"), // Commands to send after connecting (one per line)
   settings: jsonb("settings").$type<ProfileSettings>().default({}), // UI prefs, accessibility overrides
   triggers: jsonb("triggers").$type<MudTrigger[]>().default([]),
   aliases: jsonb("aliases").$type<MudAlias[]>().default([]),

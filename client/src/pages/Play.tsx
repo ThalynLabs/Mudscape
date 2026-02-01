@@ -365,6 +365,23 @@ export default function Play() {
           });
         } else if (msg.type === 'connected') {
           setLines(prev => [...prev, `\x1b[32m>> Connected to MUD.\x1b[0m`]);
+          
+          // Send login commands if configured
+          if (profile.loginCommands) {
+            const commands = profile.loginCommands.split('\n').filter(c => c.trim());
+            commands.forEach((cmd, index) => {
+              let processedCmd = cmd
+                .replace(/\{name\}/gi, profile.characterName || '')
+                .replace(/\{password\}/gi, profile.characterPassword || '');
+              
+              // Delay each command slightly to ensure they arrive in order
+              setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ type: 'send', data: processedCmd }));
+                }
+              }, index * 200);
+            });
+          }
         } else if (msg.type === 'disconnected') {
           setLines(prev => [...prev, `\x1b[31m>> Disconnected from MUD: ${msg.reason}\x1b[0m`]);
         } else if (msg.type === 'error') {

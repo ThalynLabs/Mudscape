@@ -32,6 +32,12 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Drizzle Kit with `db:push` command for schema synchronization
 - **Data Model**: Profiles table stores connection info, triggers, aliases, and scripts as JSONB columns
 
+### Profile Features
+- **Auto Connect**: Profiles can be configured to automatically connect when the app starts
+- **Character Settings**: Store character name and password for automatic login
+- **Login Commands**: Configure commands to send after connecting (e.g., "connect {name} {password}")
+- **Placeholder Support**: {name} and {password} placeholders in login commands are replaced with stored credentials
+
 ### Shared Code Pattern
 - The `shared/` directory contains code used by both client and server
 - Schema definitions, API route contracts, and type definitions are shared

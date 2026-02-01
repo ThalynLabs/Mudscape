@@ -1,19 +1,32 @@
 import { useProfiles, useDeleteProfile } from "@/hooks/use-profiles";
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { ProfileCard } from "@/components/ProfileCard";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Profile } from "@shared/schema";
 import { Loader2, TerminalSquare, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Home() {
   const { data: profiles, isLoading, error } = useProfiles();
   const deleteMutation = useDeleteProfile();
+  const [, setLocation] = useLocation();
+  const autoConnectChecked = useRef(false);
   
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Auto-connect to first profile with autoConnect enabled
+  useEffect(() => {
+    if (!isLoading && profiles && !autoConnectChecked.current) {
+      autoConnectChecked.current = true;
+      const autoConnectProfile = profiles.find(p => p.autoConnect);
+      if (autoConnectProfile) {
+        setLocation(`/play/${autoConnectProfile.id}`);
+      }
+    }
+  }, [profiles, isLoading, setLocation]);
 
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
@@ -77,6 +90,14 @@ export default function Home() {
                 <span className="sr-only">Global Settings</span>
               </Button>
             </Link>
+            <Button 
+              onClick={() => { setEditingProfile(null); setDialogOpen(true); }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
+              data-testid="button-new-connection"
+            >
+              <TerminalSquare className="mr-2 w-4 h-4" />
+              New Connection
+            </Button>
             <CreateProfileDialog 
               open={dialogOpen} 
               onOpenChange={handleCreateOpen} 
