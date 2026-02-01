@@ -70,6 +70,41 @@ export default function Keyboard() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Multi-MUD Tab Navigation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              When you have multiple MUD connections open, use these keys while focused on the tab bar:
+            </p>
+            <table className="w-full">
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Left Arrow</kbd></td>
+                  <td className="py-2">Switch to previous connection tab</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Right Arrow</kbd></td>
+                  <td className="py-2">Switch to next connection tab</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Home</kbd></td>
+                  <td className="py-2">Switch to first connection tab</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">End</kbd></td>
+                  <td className="py-2">Switch to last connection tab</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Delete</kbd></td>
+                  <td className="py-2">Close the focused connection tab</td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Custom Keybindings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

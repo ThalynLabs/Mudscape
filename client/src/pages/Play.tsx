@@ -292,6 +292,11 @@ export default function Play() {
       echoLocal(`  ${prefix}config prefix <char>   - Change command prefix (current: "${prefix}")`);
       echoLocal(`  ${prefix}config settings        - Open settings panel`);
       echoLocal('');
+      echoLocal('\x1b[33mMulti-MUD Connections:\x1b[0m');
+      echoLocal('  Click "+ Add MUD" to open additional MUD connections in tabs.');
+      echoLocal('  Click tabs to switch between connections.');
+      echoLocal('  Arrow keys navigate tabs when focused. Delete closes a tab.');
+      echoLocal('');
       echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
       echoLocal('  Ctrl+1-9      - Read recent lines aloud');
       echoLocal('  Ctrl Ctrl     - Double-tap to pause/resume speech');

@@ -94,6 +94,36 @@ export default function GettingStarted() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Multi-MUD Connections</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Connect to multiple MUDs simultaneously and switch between them with tabs.
+            </p>
+            <h4 className="font-semibold mt-2">Adding Connections</h4>
+            <ul className="list-disc list-inside space-y-1">
+              <li>With one connection: Click the "+ Add MUD" button in the top bar</li>
+              <li>With multiple connections: Click the "+" button in the tab bar</li>
+              <li>Select a profile from the list to open in a new tab</li>
+            </ul>
+            <h4 className="font-semibold mt-3">Switching Between Connections</h4>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Click on any tab to switch to that connection</li>
+              <li>Use Arrow Left/Right keys to navigate between tabs</li>
+              <li>Each tab shows connection status (green = online, red = offline)</li>
+              <li>Unread message count appears on inactive tabs when new lines arrive</li>
+            </ul>
+            <h4 className="font-semibold mt-3">Closing Connections</h4>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Click the X button on any tab to close that connection</li>
+              <li>Press Delete key while focused on a tab to close it</li>
+              <li>Use the Disconnect button to disconnect without closing the tab</li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>GMCP Support</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
