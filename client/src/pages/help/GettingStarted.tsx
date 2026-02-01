@@ -1,0 +1,95 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HelpLayout } from "@/components/HelpLayout";
+
+export default function GettingStarted() {
+  return (
+    <HelpLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Getting Started with Mudscape</h2>
+          <p className="text-muted-foreground">
+            Welcome to Mudscape, an accessibility-first MUD client designed for screen reader users.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>What is a MUD?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              A MUD (Multi-User Dungeon) is a text-based multiplayer game where you explore worlds, 
+              complete quests, and interact with other players - all through text commands.
+            </p>
+            <p>
+              Mudscape connects you to MUD servers and provides features like text-to-speech, 
+              automation scripting, and sound effects to enhance your experience.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Creating Your First Profile</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ol className="list-decimal list-inside space-y-2">
+              <li>From the home screen, click "New Profile"</li>
+              <li>Enter a name for this MUD connection</li>
+              <li>Enter the MUD server address (host) and port</li>
+              <li>Optionally add your character name and password for auto-login</li>
+              <li>Click "Save" to create the profile</li>
+            </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Connecting to a MUD</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Click "Connect" on any profile to open the play screen and connect to the MUD server.
+            </p>
+            <p>
+              Once connected, type commands in the input box at the bottom and press Enter to send them.
+              The MUD's responses appear in the terminal above.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Tips</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc list-inside space-y-2">
+              <li>Type <code className="bg-muted px-1 rounded">/help</code> while playing for quick command reference</li>
+              <li>Press <kbd className="bg-muted px-2 py-0.5 rounded text-sm">F1</kbd> anytime to open this help</li>
+              <li>Use <kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+1-9</kbd> to re-read recent lines</li>
+              <li>Commands starting with <code className="bg-muted px-1 rounded">/</code> are Mudscape commands, not sent to the MUD</li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Auto-Connect & Auto-Login</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              You can configure profiles to automatically connect when the app starts 
+              and automatically log in to your character.
+            </p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Edit your profile settings</li>
+              <li>Enable "Auto Connect" to connect on app startup</li>
+              <li>Enter your character name and password</li>
+              <li>Set login commands using placeholders like <code className="bg-muted px-1 rounded">{"{name}"}</code> and <code className="bg-muted px-1 rounded">{"{password}"}</code></li>
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
+    </HelpLayout>
+  );
+}

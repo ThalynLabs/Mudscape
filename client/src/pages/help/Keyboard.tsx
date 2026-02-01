@@ -1,0 +1,105 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HelpLayout } from "@/components/HelpLayout";
+
+export default function Keyboard() {
+  return (
+    <HelpLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Keyboard Shortcuts</h2>
+          <p className="text-muted-foreground">
+            Quick keyboard access to common features while playing.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Speech Controls</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full">
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+1</kbd> through <kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+9</kbd></td>
+                  <td className="py-2">Read the 1st through 9th most recent line</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl</kbd> (press alone)</td>
+                  <td className="py-2">Pause/resume speech</td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Navigation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full">
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">F1</kbd></td>
+                  <td className="py-2">Open this help wiki</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Up Arrow</kbd></td>
+                  <td className="py-2">Previous command in history</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Down Arrow</kbd></td>
+                  <td className="py-2">Next command in history</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Escape</kbd></td>
+                  <td className="py-2">Clear input / Close dialogs</td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Custom Keybindings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Create your own keyboard shortcuts in the Keybindings panel (accessible from the Play screen toolbar).
+            </p>
+            <p>
+              Keybindings can send commands or execute Lua scripts.
+            </p>
+            <h4 className="font-semibold mt-4">Creating a Keybinding</h4>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Open the Keybindings panel from the toolbar</li>
+              <li>Click "Add Keybinding"</li>
+              <li>Press the key combination you want to use</li>
+              <li>Enter the command or Lua script to execute</li>
+              <li>Save the keybinding</li>
+            </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Modifier Keys</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>Keybindings can use modifier key combinations:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Ctrl</strong> - Control key</li>
+              <li><strong>Alt</strong> - Alt/Option key</li>
+              <li><strong>Shift</strong> - Shift key</li>
+              <li><strong>Meta</strong> - Windows/Command key</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">
+              Combine modifiers for unique shortcuts, e.g., Ctrl+Shift+H
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </HelpLayout>
+  );
+}
