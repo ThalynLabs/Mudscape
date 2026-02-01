@@ -1,6 +1,10 @@
-import { pgTable, text, serial, jsonb, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, jsonb, boolean, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+
+// Re-export chat models for AI integration
+export * from "./models/chat";
 
 // === TABLE DEFINITIONS ===
 
