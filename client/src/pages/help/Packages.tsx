@@ -110,6 +110,55 @@ export default function Packages() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Importing TinTin++ Configs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Mudscape can import TinTin++ configuration files:
+            </p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Open the Package Manager</li>
+              <li>Click "Import TinTin++"</li>
+              <li>Select a <code className="bg-muted px-1 rounded">.tt</code>, 
+                  <code className="bg-muted px-1 rounded">.tin</code>, or 
+                  <code className="bg-muted px-1 rounded">.txt</code> file</li>
+              <li>Preview the imported contents</li>
+              <li>Choose to save to library or install directly</li>
+            </ol>
+            <p className="text-sm text-muted-foreground mt-2">
+              Supported TinTin++ commands: #action (triggers), #alias, #ticker (timers).
+              For triggers, wildcards %0-%9 are fully supported (%0 = full line, %1-%9 = capture groups).
+              For aliases, %0 captures all arguments; individual word capture (%1-%9) is not available.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Importing VIPMud Configs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Mudscape can import VIPMud .SET configuration files:
+            </p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Open the Package Manager</li>
+              <li>Click "Import VIPMud"</li>
+              <li>Select a <code className="bg-muted px-1 rounded">.set</code> or
+                  <code className="bg-muted px-1 rounded">.cfg</code> file</li>
+              <li>Preview the imported contents</li>
+              <li>Choose to save to library or install directly</li>
+            </ol>
+            <p className="text-sm text-muted-foreground mt-2">
+              Supported VIPMud commands: #TRIGGER, #ALIAS, #KEY.
+              The * wildcard is converted to regex and @variable references 
+              are converted to getVariable() calls.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Installing a Package</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

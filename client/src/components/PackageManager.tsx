@@ -12,6 +12,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { parseMudletPackage, getImportSummary } from "@/lib/mudlet-parser";
+import { parseTinTinConfig, getTinTinImportSummary } from "@/lib/tintin-parser";
+import { parseVipMudConfig, getVipMudImportSummary } from "@/lib/vipmud-parser";
 import type { Profile, Package as PackageType, PackageContents } from "@shared/schema";
 
 interface PackageManagerProps {
@@ -24,9 +26,15 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mudletInputRef = useRef<HTMLInputElement>(null);
+  const tintinInputRef = useRef<HTMLInputElement>(null);
+  const vipmudInputRef = useRef<HTMLInputElement>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [mudletPreviewOpen, setMudletPreviewOpen] = useState(false);
+  const [tintinPreviewOpen, setTintinPreviewOpen] = useState(false);
+  const [vipmudPreviewOpen, setVipmudPreviewOpen] = useState(false);
   const [mudletImportData, setMudletImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
+  const [tintinImportData, setTintinImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
+  const [vipmudImportData, setVipmudImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
   const [exportName, setExportName] = useState('');
   const [exportDescription, setExportDescription] = useState('');
   const [selectedItems, setSelectedItems] = useState<{
@@ -278,6 +286,126 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     setMudletImportData(null);
   };
 
+  const handleTintinImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const contents = parseTinTinConfig(content);
+        setTintinImportData({
+          name: file.name.replace(/\.(tt|tin|tintin)$/i, ''),
+          contents,
+        });
+        setTintinPreviewOpen(true);
+      } catch (err) {
+        toast({ 
+          title: "Import failed", 
+          description: "Could not parse TinTin++ config file",
+          variant: "destructive" 
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    if (tintinInputRef.current) {
+      tintinInputRef.current.value = '';
+    }
+  };
+
+  const handleTintinSaveToLibrary = () => {
+    if (!tintinImportData) return;
+    
+    createPackageMutation.mutate({
+      name: tintinImportData.name,
+      description: 'Imported from TinTin++ config',
+      version: "1.0.0",
+      author: "",
+      contents: tintinImportData.contents,
+    });
+    
+    setTintinPreviewOpen(false);
+    setTintinImportData(null);
+  };
+
+  const handleTintinInstallDirect = () => {
+    if (!tintinImportData) return;
+    
+    installPackageMutation.mutate({
+      id: 0,
+      name: tintinImportData.name,
+      description: null,
+      version: null,
+      author: null,
+      contents: tintinImportData.contents,
+    });
+    
+    setTintinPreviewOpen(false);
+    setTintinImportData(null);
+  };
+
+  const handleVipmudImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const contents = parseVipMudConfig(content);
+        setVipmudImportData({
+          name: file.name.replace(/\.(set|cfg)$/i, ''),
+          contents,
+        });
+        setVipmudPreviewOpen(true);
+      } catch (err) {
+        toast({ 
+          title: "Import failed", 
+          description: "Could not parse VIPMud config file",
+          variant: "destructive" 
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    if (vipmudInputRef.current) {
+      vipmudInputRef.current.value = '';
+    }
+  };
+
+  const handleVipmudSaveToLibrary = () => {
+    if (!vipmudImportData) return;
+    
+    createPackageMutation.mutate({
+      name: vipmudImportData.name,
+      description: 'Imported from VIPMud config',
+      version: "1.0.0",
+      author: "",
+      contents: vipmudImportData.contents,
+    });
+    
+    setVipmudPreviewOpen(false);
+    setVipmudImportData(null);
+  };
+
+  const handleVipmudInstallDirect = () => {
+    if (!vipmudImportData) return;
+    
+    installPackageMutation.mutate({
+      id: 0,
+      name: vipmudImportData.name,
+      description: null,
+      version: null,
+      author: null,
+      contents: vipmudImportData.contents,
+    });
+    
+    setVipmudPreviewOpen(false);
+    setVipmudImportData(null);
+  };
+
   const countItems = (pkg: PackageType) => {
     const contents = pkg.contents as PackageContents;
     let count = 0;
@@ -357,6 +485,42 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
                     type="file"
                     accept=".mpackage,.zip,.xml"
                     onChange={handleMudletImport}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => tintinInputRef.current?.click()}
+                    className="flex-1"
+                    data-testid="button-import-tintin"
+                  >
+                    <FileArchive className="w-4 h-4 mr-2" />
+                    Import TinTin++
+                  </Button>
+                  <input
+                    ref={tintinInputRef}
+                    type="file"
+                    accept=".tt,.tin,.tintin,.txt"
+                    onChange={handleTintinImport}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => vipmudInputRef.current?.click()}
+                    className="flex-1"
+                    data-testid="button-import-vipmud"
+                  >
+                    <FileArchive className="w-4 h-4 mr-2" />
+                    Import VIPMud
+                  </Button>
+                  <input
+                    ref={vipmudInputRef}
+                    type="file"
+                    accept=".set,.cfg,.txt"
+                    onChange={handleVipmudImport}
                     className="hidden"
                   />
                 </div>
@@ -626,6 +790,130 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
               onClick={handleMudletInstallDirect}
               disabled={installPackageMutation.isPending}
               data-testid="button-mudlet-install-direct"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Install to {profile.name}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tintinPreviewOpen} onOpenChange={setTintinPreviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5" />
+              Import TinTin++ Config
+            </DialogTitle>
+            <DialogDescription>
+              Preview the contents before importing.
+            </DialogDescription>
+          </DialogHeader>
+          {tintinImportData && (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label className="text-sm font-medium">File Name</Label>
+                <p className="text-lg font-semibold">{tintinImportData.name}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Contents</Label>
+                <p className="text-sm text-muted-foreground">
+                  {getTinTinImportSummary(tintinImportData.contents)}
+                </p>
+              </div>
+              <Card className="bg-muted/50">
+                <CardContent className="py-3 text-sm space-y-1">
+                  {tintinImportData.contents.triggers?.length ? (
+                    <p>{tintinImportData.contents.triggers.length} triggers</p>
+                  ) : null}
+                  {tintinImportData.contents.aliases?.length ? (
+                    <p>{tintinImportData.contents.aliases.length} aliases</p>
+                  ) : null}
+                  {tintinImportData.contents.timers?.length ? (
+                    <p>{tintinImportData.contents.timers.length} timers</p>
+                  ) : null}
+                  {tintinImportData.contents.classes?.length ? (
+                    <p>{tintinImportData.contents.classes.length} classes</p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleTintinSaveToLibrary}
+              disabled={createPackageMutation.isPending}
+              data-testid="button-tintin-save-library"
+            >
+              Save to Library
+            </Button>
+            <Button
+              onClick={handleTintinInstallDirect}
+              disabled={installPackageMutation.isPending}
+              data-testid="button-tintin-install-direct"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Install to {profile.name}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={vipmudPreviewOpen} onOpenChange={setVipmudPreviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5" />
+              Import VIPMud Config
+            </DialogTitle>
+            <DialogDescription>
+              Preview the contents before importing.
+            </DialogDescription>
+          </DialogHeader>
+          {vipmudImportData && (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label className="text-sm font-medium">File Name</Label>
+                <p className="text-lg font-semibold">{vipmudImportData.name}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Contents</Label>
+                <p className="text-sm text-muted-foreground">
+                  {getVipMudImportSummary(vipmudImportData.contents)}
+                </p>
+              </div>
+              <Card className="bg-muted/50">
+                <CardContent className="py-3 text-sm space-y-1">
+                  {vipmudImportData.contents.triggers?.length ? (
+                    <p>{vipmudImportData.contents.triggers.length} triggers</p>
+                  ) : null}
+                  {vipmudImportData.contents.aliases?.length ? (
+                    <p>{vipmudImportData.contents.aliases.length} aliases</p>
+                  ) : null}
+                  {vipmudImportData.contents.keybindings?.length ? (
+                    <p>{vipmudImportData.contents.keybindings.length} keybindings</p>
+                  ) : null}
+                  {vipmudImportData.contents.classes?.length ? (
+                    <p>{vipmudImportData.contents.classes.length} classes</p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleVipmudSaveToLibrary}
+              disabled={createPackageMutation.isPending}
+              data-testid="button-vipmud-save-library"
+            >
+              Save to Library
+            </Button>
+            <Button
+              onClick={handleVipmudInstallDirect}
+              disabled={installPackageMutation.isPending}
+              data-testid="button-vipmud-install-direct"
             >
               <Plus className="w-4 h-4 mr-2" />
               Install to {profile.name}

@@ -4,6 +4,36 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
+function escapeLuaString(str: string): string {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+
+function buildLuaSendCommand(cmd: string, wildcardReplacer: (num: number) => string): string {
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const regex = /%(\d)/g;
+  let match;
+  
+  while ((match = regex.exec(cmd)) !== null) {
+    if (match.index > lastIndex) {
+      const textPart = cmd.slice(lastIndex, match.index);
+      parts.push(`"${escapeLuaString(textPart)}"`);
+    }
+    parts.push(wildcardReplacer(parseInt(match[1])));
+    lastIndex = match.index + match[0].length;
+  }
+  
+  if (lastIndex < cmd.length) {
+    parts.push(`"${escapeLuaString(cmd.slice(lastIndex))}"`);
+  }
+  
+  if (parts.length === 0) {
+    return 'send("")';
+  }
+  
+  return `send(${parts.join(' .. ')})`;
+}
+
 interface ParseContext {
   classes: MudClass[];
   classPathMap: Map<string, string>;
@@ -70,21 +100,27 @@ function parseTinTinLine(line: string, context: ParseContext): {
           .replace(/%(\d)/g, '(.+)')
           .replace(/\*/g, '.*');
         
-        const convertedCommand = command.content
-          .replace(/%(\d)/g, (_, num) => `matches[${parseInt(num) + 1}]`)
-          .replace(/;/g, '\nsend("') + '")';
+        const hasVariables = /%\d/.test(command.content);
+        const commands = command.content.split(';').filter(c => c.trim());
         
-        const isLuaScript = command.content.includes('#') || 
-                           command.content.includes('$') ||
-                           command.content.includes('%');
+        let script: string;
+        if (hasVariables) {
+          const luaCommands = commands.map(cmd => 
+            buildLuaSendCommand(cmd.trim(), (num) => {
+              if (num === 0) return '(line or "")';
+              return `(matches[${num}] or "")`;
+            })
+          );
+          script = `-- Converted from TinTin++\n-- Original: ${escapeLuaString(command.content)}\n${luaCommands.join('\n')}`;
+        } else {
+          script = `-- Converted from TinTin++\n${commands.map(c => `send("${escapeLuaString(c.trim())}")`).join('\n')}`;
+        }
         
         triggers.push({
           id: generateId(),
           pattern: convertedPattern,
           type: 'regex',
-          script: isLuaScript 
-            ? `-- Converted from TinTin++\n-- Original: ${command.content}\nlocal cmd = "${command.content}"\nsend(cmd)` 
-            : `-- Converted from TinTin++\nsend("${command.content.replace(/;/g, '")\nsend("')}")`,
+          script,
           active: true,
           classId: undefined,
         });
@@ -103,14 +139,26 @@ function parseTinTinLine(line: string, context: ParseContext): {
       if (command) {
         const convertedPattern = `^${name.content}(?:\\s+(.*))?$`;
         
-        const hasVariables = command.content.includes('%') || command.content.includes('$');
+        const hasVariables = /%\d/.test(command.content);
+        const commands = command.content.split(';').filter(c => c.trim());
+        
+        let commandValue: string;
+        if (hasVariables) {
+          const luaCommands = commands.map(cmd => 
+            buildLuaSendCommand(cmd.trim(), (num) => {
+              if (num === 0) return '(matches[1] or "")';
+              return `(matches[${num + 1}] or "")`;
+            })
+          );
+          commandValue = `-- Converted from TinTin++\n-- Original: ${escapeLuaString(command.content)}\n${luaCommands.join('\n')}`;
+        } else {
+          commandValue = commands.map(c => c.trim()).join('\n');
+        }
         
         aliases.push({
           id: generateId(),
           pattern: convertedPattern,
-          command: hasVariables 
-            ? `-- Converted from TinTin++\n-- Original: ${command.content}\nlocal args = matches[2] or ""\nsend("${command.content.replace(/%0/g, '" .. args .. "').replace(/;/g, '")\nsend("')}")`
-            : command.content.replace(/;/g, '\n'),
+          command: commandValue,
           isScript: hasVariables,
           active: true,
           classId: undefined,
@@ -132,11 +180,14 @@ function parseTinTinLine(line: string, context: ParseContext): {
         const interval = extractBraces(afterCmd, 0);
         const intervalSeconds = interval ? parseInt(interval.content) : 60;
         
+        const timerCommands = command.content.split(';').filter(c => c.trim());
+        const timerScript = `-- Converted from TinTin++\n${timerCommands.map(c => `send("${escapeLuaString(c.trim())}")`).join('\n')}`;
+        
         timers.push({
           id: generateId(),
           name: name.content,
           interval: intervalSeconds * 1000,
-          script: `-- Converted from TinTin++\nsend("${command.content.replace(/;/g, '")\nsend("')}")`,
+          script: timerScript,
           oneShot: false,
           active: true,
           classId: undefined,

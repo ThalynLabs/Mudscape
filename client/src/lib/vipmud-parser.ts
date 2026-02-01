@@ -4,6 +4,36 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
+function escapeLuaString(str: string): string {
+  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+
+function buildVipMudSendCommand(cmd: string): string {
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const regex = /@(\w+)/g;
+  let match;
+  
+  while ((match = regex.exec(cmd)) !== null) {
+    if (match.index > lastIndex) {
+      const textPart = cmd.slice(lastIndex, match.index);
+      parts.push(`"${escapeLuaString(textPart)}"`);
+    }
+    parts.push(`getVariable("${match[1]}")`);
+    lastIndex = match.index + match[0].length;
+  }
+  
+  if (lastIndex < cmd.length) {
+    parts.push(`"${escapeLuaString(cmd.slice(lastIndex))}"`);
+  }
+  
+  if (parts.length === 0) {
+    return 'send("")';
+  }
+  
+  return `send(${parts.join(' .. ')})`;
+}
+
 interface ParseContext {
   classes: MudClass[];
   classPathMap: Map<string, string>;
@@ -70,19 +100,22 @@ function parseVipMudLine(line: string, context: ParseContext): {
           .replace(/\*/g, '.*')
           .replace(/@(\w+)/g, '(.+)');
         
-        const convertedCommand = command.content
-          .replace(/@(\w+)/g, (_, name) => `getVariable("${name}")`)
-          .replace(/;/g, '\n');
+        const hasVariables = /@\w+/.test(command.content);
+        const commands = command.content.split(';').filter(c => c.trim());
         
-        const isScript = command.content.includes('#') || command.content.includes('@');
+        let script: string;
+        if (hasVariables) {
+          const luaCommands = commands.map(cmd => buildVipMudSendCommand(cmd.trim()));
+          script = `-- Converted from VIPMud\n-- Original: ${escapeLuaString(command.content)}\n${luaCommands.join('\n')}`;
+        } else {
+          script = `-- Converted from VIPMud\n${commands.map(c => `send("${escapeLuaString(c.trim())}")`).join('\n')}`;
+        }
         
         triggers.push({
           id: generateId(),
           pattern: convertedPattern,
           type: 'regex',
-          script: isScript 
-            ? `-- Converted from VIPMud\n-- Original: ${command.content}\n${convertedCommand.split('\n').map(c => `send("${c}")`).join('\n')}`
-            : `-- Converted from VIPMud\nsend("${command.content.replace(/;/g, '")\nsend("')}")`,
+          script,
           active: true,
           classId: undefined,
         });
@@ -112,14 +145,21 @@ function parseVipMudLine(line: string, context: ParseContext): {
     
     if (name) {
       const convertedPattern = `^${name}(?:\\s+(.*))?$`;
-      const hasVariables = commandContent.includes('@') || commandContent.includes('#');
+      const hasVariables = /@\w+/.test(commandContent);
+      const commands = commandContent.split(';').filter(c => c.trim());
+      
+      let commandValue: string;
+      if (hasVariables) {
+        const luaCommands = commands.map(cmd => buildVipMudSendCommand(cmd.trim()));
+        commandValue = `-- Converted from VIPMud\n-- Original: ${escapeLuaString(commandContent)}\n${luaCommands.join('\n')}`;
+      } else {
+        commandValue = commands.map(c => c.trim()).join('\n');
+      }
       
       aliases.push({
         id: generateId(),
         pattern: convertedPattern,
-        command: hasVariables 
-          ? `-- Converted from VIPMud\n-- Original: ${commandContent}\nsend("${commandContent.replace(/@(\w+)/g, '" .. getVariable("$1") .. "').replace(/;/g, '")\nsend("')}")`
-          : commandContent.replace(/;/g, '\n'),
+        command: commandValue,
         isScript: hasVariables,
         active: true,
         classId: undefined,
@@ -154,14 +194,21 @@ function parseVipMudLine(line: string, context: ParseContext): {
     };
     
     const webKey = keyMap[keyName.toUpperCase()] || keyName;
-    const hasVariables = commandContent.includes('@') || commandContent.includes('#');
+    const hasVariables = /@\w+/.test(commandContent);
+    const commands = commandContent.split(';').filter(c => c.trim());
+    
+    let commandValue: string;
+    if (hasVariables) {
+      const luaCommands = commands.map(cmd => buildVipMudSendCommand(cmd.trim()));
+      commandValue = `-- Converted from VIPMud\n-- Original: ${escapeLuaString(commandContent)}\n${luaCommands.join('\n')}`;
+    } else {
+      commandValue = commands.map(c => c.trim()).join('\n');
+    }
     
     keybindings.push({
       id: generateId(),
       key: webKey,
-      command: hasVariables 
-        ? `-- Converted from VIPMud\nsend("${commandContent.replace(/;/g, '")\nsend("')}")`
-        : commandContent.replace(/;/g, '\n'),
+      command: commandValue,
       isScript: hasVariables,
       active: true,
       classId: undefined,
