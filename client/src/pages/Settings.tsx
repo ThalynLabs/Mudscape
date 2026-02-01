@@ -462,6 +462,26 @@ function AutomationSettingsCard({
             onCheckedChange={(checked) => updateSetting('aliasesEnabled', checked)}
           />
         </SettingRow>
+
+        <SettingRow 
+          label="Command Prefix" 
+          description="Prefix for client commands (e.g., /config)"
+          isOverridden={isOverridden('commandPrefix')}
+          onReset={() => onResetSetting?.('commandPrefix')}
+        >
+          <Input
+            data-testid="input-command-prefix"
+            className="w-16 text-center"
+            value={settings.commandPrefix ?? '/'}
+            maxLength={1}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val.length <= 1) {
+                updateSetting('commandPrefix', val || '/');
+              }
+            }}
+          />
+        </SettingRow>
       </CardContent>
     </Card>
   );

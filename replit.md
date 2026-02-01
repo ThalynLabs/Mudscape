@@ -109,18 +109,19 @@ Preferred communication style: Simple, everyday language.
 - **Settings UI**: /settings page with two main tabs:
   - Global Defaults: Category tabs for Speech, Display, Automation, Connection, AI
   - Per-MUD Settings: Select a profile, then configure with category tabs
-- **In-Game Commands**: Players can adjust settings while playing:
+- **In-Game Commands**: All config commands use `/config {feature} {option}` format:
   - /help - Show quick reference guide (points to F1 for full wiki)
-  - /speech on|off - Toggle text-to-speech
-  - /rate <0.5-2> - Set speech rate
-  - /volume <0-100> - Set speech volume
-  - /pitch <0.5-2> - Set speech pitch
-  - /voice - List available voices or set by number
-  - /settings - Open settings panel
-  - /triggers on|off - Toggle trigger processing
-  - /aliases on|off - Toggle alias processing
-  - /reader on|off - Toggle reader mode
-  - /keep on|off - Toggle keeping input after Enter (use Escape to clear)
+  - /config speech on|off - Toggle text-to-speech
+  - /config rate <0.5-2> - Set speech rate
+  - /config volume <0-100> - Set speech volume
+  - /config pitch <0.5-2> - Set speech pitch
+  - /config voice - List available voices or set by number
+  - /config settings - Open settings panel
+  - /config triggers on|off - Toggle trigger processing
+  - /config aliases on|off - Toggle alias processing
+  - /config reader on|off - Toggle reader mode
+  - /config keep on|off - Toggle keeping input after Enter (use Escape to clear)
+  - /config prefix <char> - Change command prefix (e.g., # instead of /)
 
 ### Help System
 - **Quick Help (/help command)**: Brief in-terminal reference with key commands and shortcuts

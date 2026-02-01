@@ -118,192 +118,241 @@ export default function Play() {
   
   // Handle client-side commands (start with /)
   const handleClientCommand = useCallback((cmd: string): boolean => {
+    const prefix = settings.commandPrefix ?? '/';
     const parts = cmd.trim().split(/\s+/);
     const command = parts[0].toLowerCase();
+    
+    // Check if this is a client command (starts with prefix)
+    if (!command.startsWith(prefix)) {
+      return false;
+    }
+    
+    // Remove prefix from command
+    const baseCommand = command.slice(prefix.length);
     const args = parts.slice(1);
     
-    switch (command) {
-      case '/help':
-      case '/commands':
-        echoLocal('\x1b[36m=== Mudscape Quick Help ===\x1b[0m');
-        echoLocal('');
-        echoLocal('\x1b[33mGetting Started:\x1b[0m');
-        echoLocal('Type commands in the input box below and press Enter to send to the MUD.');
-        echoLocal('Commands starting with / are Mudscape commands, not sent to the MUD.');
-        echoLocal('');
-        echoLocal('\x1b[33mSpeech Commands:\x1b[0m');
-        echoLocal('  /speech on|off  - Toggle text-to-speech');
-        echoLocal('  /rate <0.5-2>   - Adjust speech speed');
-        echoLocal('  /volume <0-100> - Adjust speech volume');
-        echoLocal('  /voice          - List or set voice');
-        echoLocal('');
-        echoLocal('\x1b[33mOther Commands:\x1b[0m');
-        echoLocal('  /triggers on|off - Toggle automation triggers');
-        echoLocal('  /aliases on|off  - Toggle command aliases');
-        echoLocal('  /keep on|off     - Toggle keeping input after Enter');
-        echoLocal('  /settings        - Open settings panel');
-        echoLocal('');
-        echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
-        echoLocal('  Ctrl+1-9      - Read recent lines aloud');
-        echoLocal('  Ctrl Ctrl     - Double-tap to pause/resume speech');
-        echoLocal('  Escape        - Clear the input line');
-        echoLocal('  F1            - Open detailed help wiki');
-        echoLocal('');
-        echoLocal('\x1b[32mPress F1 for the full help wiki with detailed documentation.\x1b[0m');
-        return true;
-        
-      case '/speech':
-        if (args[0] === 'on') {
-          updateProfileSetting('speechEnabled', true);
-          echoLocal('\x1b[32mSpeech enabled\x1b[0m');
-          speak('Speech enabled', true);
-        } else if (args[0] === 'off') {
-          updateProfileSetting('speechEnabled', false);
-          cancelSpeech();
-          echoLocal('\x1b[33mSpeech disabled\x1b[0m');
-        } else {
-          echoLocal(`Speech is currently ${settings.speechEnabled ? 'on' : 'off'}`);
-          echoLocal('Usage: /speech on|off');
-        }
-        return true;
-        
-      case '/rate':
-        if (args[0]) {
-          const rate = parseFloat(args[0]);
-          if (!isNaN(rate) && rate >= 0.5 && rate <= 2) {
-            updateProfileSetting('speechRate', rate);
-            echoLocal(`\x1b[32mSpeech rate set to ${rate}x\x1b[0m`);
-            speak(`Rate set to ${rate}`, true);
-          } else {
-            echoLocal('\x1b[31mRate must be between 0.5 and 2\x1b[0m');
-          }
-        } else {
-          echoLocal(`Current speech rate: ${settings.speechRate ?? 1}x`);
-          echoLocal('Usage: /rate <0.5-2>');
-        }
-        return true;
-        
-      case '/volume':
-        if (args[0]) {
-          const vol = parseFloat(args[0]);
-          if (!isNaN(vol) && vol >= 0 && vol <= 100) {
-            updateProfileSetting('speechVolume', vol / 100);
-            echoLocal(`\x1b[32mSpeech volume set to ${vol}%\x1b[0m`);
-            speak(`Volume set to ${vol} percent`, true);
-          } else {
-            echoLocal('\x1b[31mVolume must be between 0 and 100\x1b[0m');
-          }
-        } else {
-          echoLocal(`Current speech volume: ${((settings.speechVolume ?? 1) * 100).toFixed(0)}%`);
-          echoLocal('Usage: /volume <0-100>');
-        }
-        return true;
-        
-      case '/pitch':
-        if (args[0]) {
-          const pitch = parseFloat(args[0]);
-          if (!isNaN(pitch) && pitch >= 0.5 && pitch <= 2) {
-            updateProfileSetting('speechPitch', pitch);
-            echoLocal(`\x1b[32mSpeech pitch set to ${pitch}\x1b[0m`);
-            speak(`Pitch set to ${pitch}`, true);
-          } else {
-            echoLocal('\x1b[31mPitch must be between 0.5 and 2\x1b[0m');
-          }
-        } else {
-          echoLocal(`Current speech pitch: ${settings.speechPitch ?? 1}`);
-          echoLocal('Usage: /pitch <0.5-2>');
-        }
-        return true;
-        
-      case '/voice':
-        if (args[0]) {
-          const idx = parseInt(args[0]) - 1;
-          if (!isNaN(idx) && idx >= 0 && idx < voices.length) {
-            const voice = voices[idx];
-            updateProfileSetting('speechVoice', voice.voiceURI);
-            echoLocal(`\x1b[32mVoice set to: ${voice.name}\x1b[0m`);
-            speak(`Voice set to ${voice.name}`, true);
-          } else {
-            echoLocal('\x1b[31mInvalid voice number. Use /voice to see available voices.\x1b[0m');
-          }
-        } else {
-          echoLocal('\x1b[32m=== Available Voices ===\x1b[0m');
-          voices.forEach((v, i) => {
-            const current = v.voiceURI === settings.speechVoice ? ' (current)' : '';
-            echoLocal(`${i + 1}. ${v.name}${current}`);
-          });
-          echoLocal('Usage: /voice <number>');
-        }
-        return true;
-        
-      case '/settings':
-        setSettingsOpen(true);
-        echoLocal('\x1b[32mOpening settings panel...\x1b[0m');
-        return true;
-        
-      case '/triggers':
-        if (args[0] === 'on') {
-          updateProfileSetting('triggersEnabled', true);
-          echoLocal('\x1b[32mTriggers enabled\x1b[0m');
-        } else if (args[0] === 'off') {
-          updateProfileSetting('triggersEnabled', false);
-          echoLocal('\x1b[33mTriggers disabled\x1b[0m');
-        } else {
-          echoLocal(`Triggers are currently ${settings.triggersEnabled !== false ? 'on' : 'off'}`);
-          echoLocal('Usage: /triggers on|off');
-        }
-        return true;
-        
-      case '/aliases':
-        if (args[0] === 'on') {
-          updateProfileSetting('aliasesEnabled', true);
-          echoLocal('\x1b[32mAliases enabled\x1b[0m');
-        } else if (args[0] === 'off') {
-          updateProfileSetting('aliasesEnabled', false);
-          echoLocal('\x1b[33mAliases disabled\x1b[0m');
-        } else {
-          echoLocal(`Aliases are currently ${settings.aliasesEnabled !== false ? 'on' : 'off'}`);
-          echoLocal('Usage: /aliases on|off');
-        }
-        return true;
-        
-      case '/reader':
-        if (args[0] === 'on') {
-          updateProfileSetting('readerMode', true);
-          echoLocal('\x1b[32mReader mode enabled - speech pauses until you press Enter\x1b[0m');
-        } else if (args[0] === 'off') {
-          updateProfileSetting('readerMode', false);
-          echoLocal('\x1b[32mReader mode disabled - speech plays immediately\x1b[0m');
-        } else {
-          echoLocal(`Reader mode is currently ${settings.readerMode ? 'on' : 'off'}`);
-          echoLocal('Usage: /reader on|off');
-        }
-        return true;
-        
-      case '/keep':
-        if (args[0] === 'on') {
-          updateProfileSetting('keepInputOnSend', true);
-          echoLocal('\x1b[32mKeep input enabled - input will stay after pressing Enter\x1b[0m');
-          echoLocal('\x1b[36mTip: Press Escape to clear the input line manually.\x1b[0m');
-        } else if (args[0] === 'off') {
-          updateProfileSetting('keepInputOnSend', false);
-          echoLocal('\x1b[32mKeep input disabled - input clears after pressing Enter\x1b[0m');
-        } else {
-          echoLocal(`Keep input is currently ${settings.keepInputOnSend ? 'on' : 'off'}`);
-          echoLocal('Usage: /keep on|off');
-          echoLocal('When on, the input line keeps your last command after pressing Enter.');
-          echoLocal('Press Escape to clear the input line.');
-        }
-        return true;
-        
-      default:
-        if (command.startsWith('/')) {
-          echoLocal(`\x1b[31mUnknown command: ${command}\x1b[0m`);
-          echoLocal('Type /help for available commands.');
-          return true;
-        }
-        return false;
+    // Helper to show help text with current prefix
+    const showHelp = () => {
+      echoLocal('\x1b[36m=== Mudscape Quick Help ===\x1b[0m');
+      echoLocal('');
+      echoLocal('\x1b[33mGetting Started:\x1b[0m');
+      echoLocal(`Type commands in the input box below and press Enter to send to the MUD.`);
+      echoLocal(`Commands starting with "${prefix}config" are Mudscape commands, not sent to the MUD.`);
+      echoLocal('');
+      echoLocal('\x1b[33mConfiguration Commands:\x1b[0m');
+      echoLocal(`  ${prefix}config speech on|off   - Toggle text-to-speech`);
+      echoLocal(`  ${prefix}config rate <0.5-2>    - Adjust speech speed`);
+      echoLocal(`  ${prefix}config volume <0-100>  - Adjust speech volume`);
+      echoLocal(`  ${prefix}config voice           - List or set voice`);
+      echoLocal(`  ${prefix}config triggers on|off - Toggle automation triggers`);
+      echoLocal(`  ${prefix}config aliases on|off  - Toggle command aliases`);
+      echoLocal(`  ${prefix}config keep on|off     - Toggle keeping input after Enter`);
+      echoLocal(`  ${prefix}config reader on|off   - Toggle reader mode`);
+      echoLocal(`  ${prefix}config prefix <char>   - Change command prefix (current: "${prefix}")`);
+      echoLocal(`  ${prefix}config settings        - Open settings panel`);
+      echoLocal('');
+      echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
+      echoLocal('  Ctrl+1-9      - Read recent lines aloud');
+      echoLocal('  Ctrl Ctrl     - Double-tap to pause/resume speech');
+      echoLocal('  Escape        - Clear the input line');
+      echoLocal('  F1            - Open detailed help wiki');
+      echoLocal('');
+      echoLocal('\x1b[32mPress F1 for the full help wiki with detailed documentation.\x1b[0m');
+    };
+    
+    // Handle help command (works with just prefix + help)
+    if (baseCommand === 'help' || baseCommand === 'commands') {
+      showHelp();
+      return true;
     }
+    
+    // Handle config command
+    if (baseCommand === 'config') {
+      const feature = args[0]?.toLowerCase();
+      const option = args[1];
+      const extraArgs = args.slice(2);
+      
+      if (!feature) {
+        showHelp();
+        return true;
+      }
+      
+      switch (feature) {
+        case 'help':
+          showHelp();
+          return true;
+          
+        case 'speech':
+          if (option === 'on') {
+            updateProfileSetting('speechEnabled', true);
+            echoLocal('\x1b[32mSpeech enabled\x1b[0m');
+            speak('Speech enabled', true);
+          } else if (option === 'off') {
+            updateProfileSetting('speechEnabled', false);
+            cancelSpeech();
+            echoLocal('\x1b[33mSpeech disabled\x1b[0m');
+          } else {
+            echoLocal(`Speech is currently ${settings.speechEnabled ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config speech on|off`);
+          }
+          return true;
+          
+        case 'rate':
+          if (option) {
+            const rate = parseFloat(option);
+            if (!isNaN(rate) && rate >= 0.5 && rate <= 2) {
+              updateProfileSetting('speechRate', rate);
+              echoLocal(`\x1b[32mSpeech rate set to ${rate}x\x1b[0m`);
+              speak(`Rate set to ${rate}`, true);
+            } else {
+              echoLocal('\x1b[31mRate must be between 0.5 and 2\x1b[0m');
+            }
+          } else {
+            echoLocal(`Current speech rate: ${settings.speechRate ?? 1}x`);
+            echoLocal(`Usage: ${prefix}config rate <0.5-2>`);
+          }
+          return true;
+          
+        case 'volume':
+          if (option) {
+            const vol = parseFloat(option);
+            if (!isNaN(vol) && vol >= 0 && vol <= 100) {
+              updateProfileSetting('speechVolume', vol / 100);
+              echoLocal(`\x1b[32mSpeech volume set to ${vol}%\x1b[0m`);
+              speak(`Volume set to ${vol} percent`, true);
+            } else {
+              echoLocal('\x1b[31mVolume must be between 0 and 100\x1b[0m');
+            }
+          } else {
+            echoLocal(`Current speech volume: ${((settings.speechVolume ?? 1) * 100).toFixed(0)}%`);
+            echoLocal(`Usage: ${prefix}config volume <0-100>`);
+          }
+          return true;
+          
+        case 'pitch':
+          if (option) {
+            const pitch = parseFloat(option);
+            if (!isNaN(pitch) && pitch >= 0.5 && pitch <= 2) {
+              updateProfileSetting('speechPitch', pitch);
+              echoLocal(`\x1b[32mSpeech pitch set to ${pitch}\x1b[0m`);
+              speak(`Pitch set to ${pitch}`, true);
+            } else {
+              echoLocal('\x1b[31mPitch must be between 0.5 and 2\x1b[0m');
+            }
+          } else {
+            echoLocal(`Current speech pitch: ${settings.speechPitch ?? 1}`);
+            echoLocal(`Usage: ${prefix}config pitch <0.5-2>`);
+          }
+          return true;
+          
+        case 'voice':
+          if (option) {
+            const idx = parseInt(option) - 1;
+            if (!isNaN(idx) && idx >= 0 && idx < voices.length) {
+              const voice = voices[idx];
+              updateProfileSetting('speechVoice', voice.voiceURI);
+              echoLocal(`\x1b[32mVoice set to: ${voice.name}\x1b[0m`);
+              speak(`Voice set to ${voice.name}`, true);
+            } else {
+              echoLocal(`\x1b[31mInvalid voice number. Use ${prefix}config voice to see available voices.\x1b[0m`);
+            }
+          } else {
+            echoLocal('\x1b[32m=== Available Voices ===\x1b[0m');
+            voices.forEach((v, i) => {
+              const current = v.voiceURI === settings.speechVoice ? ' (current)' : '';
+              echoLocal(`${i + 1}. ${v.name}${current}`);
+            });
+            echoLocal(`Usage: ${prefix}config voice <number>`);
+          }
+          return true;
+          
+        case 'settings':
+          setSettingsOpen(true);
+          echoLocal('\x1b[32mOpening settings panel...\x1b[0m');
+          return true;
+          
+        case 'triggers':
+          if (option === 'on') {
+            updateProfileSetting('triggersEnabled', true);
+            echoLocal('\x1b[32mTriggers enabled\x1b[0m');
+          } else if (option === 'off') {
+            updateProfileSetting('triggersEnabled', false);
+            echoLocal('\x1b[33mTriggers disabled\x1b[0m');
+          } else {
+            echoLocal(`Triggers are currently ${settings.triggersEnabled !== false ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config triggers on|off`);
+          }
+          return true;
+          
+        case 'aliases':
+          if (option === 'on') {
+            updateProfileSetting('aliasesEnabled', true);
+            echoLocal('\x1b[32mAliases enabled\x1b[0m');
+          } else if (option === 'off') {
+            updateProfileSetting('aliasesEnabled', false);
+            echoLocal('\x1b[33mAliases disabled\x1b[0m');
+          } else {
+            echoLocal(`Aliases are currently ${settings.aliasesEnabled !== false ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config aliases on|off`);
+          }
+          return true;
+          
+        case 'reader':
+          if (option === 'on') {
+            updateProfileSetting('readerMode', true);
+            echoLocal('\x1b[32mReader mode enabled - speech pauses until you press Enter\x1b[0m');
+          } else if (option === 'off') {
+            updateProfileSetting('readerMode', false);
+            echoLocal('\x1b[32mReader mode disabled - speech plays immediately\x1b[0m');
+          } else {
+            echoLocal(`Reader mode is currently ${settings.readerMode ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config reader on|off`);
+          }
+          return true;
+          
+        case 'keep':
+          if (option === 'on') {
+            updateProfileSetting('keepInputOnSend', true);
+            echoLocal('\x1b[32mKeep input enabled - input will stay after pressing Enter\x1b[0m');
+            echoLocal('\x1b[36mTip: Press Escape to clear the input line manually.\x1b[0m');
+          } else if (option === 'off') {
+            updateProfileSetting('keepInputOnSend', false);
+            echoLocal('\x1b[32mKeep input disabled - input clears after pressing Enter\x1b[0m');
+          } else {
+            echoLocal(`Keep input is currently ${settings.keepInputOnSend ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config keep on|off`);
+            echoLocal('When on, the input line keeps your last command after pressing Enter.');
+            echoLocal('Press Escape to clear the input line.');
+          }
+          return true;
+          
+        case 'prefix':
+          if (option) {
+            if (option.length === 1) {
+              updateProfileSetting('commandPrefix', option);
+              echoLocal(`\x1b[32mCommand prefix changed to "${option}"\x1b[0m`);
+              echoLocal(`\x1b[36mNow use ${option}config to access configuration commands.\x1b[0m`);
+            } else {
+              echoLocal('\x1b[31mPrefix must be a single character.\x1b[0m');
+            }
+          } else {
+            echoLocal(`Current command prefix: "${prefix}"`);
+            echoLocal(`Usage: ${prefix}config prefix <character>`);
+            echoLocal('Example: /config prefix # (then use #config speech on)');
+          }
+          return true;
+          
+        default:
+          echoLocal(`\x1b[31mUnknown config option: ${feature}\x1b[0m`);
+          echoLocal(`Type ${prefix}config for available options.`);
+          return true;
+      }
+    }
+    
+    // Unknown command starting with prefix
+    echoLocal(`\x1b[31mUnknown command: ${command}\x1b[0m`);
+    echoLocal(`Type ${prefix}help for available commands.`);
+    return true;
   }, [echoLocal, settings, updateProfileSetting, speak, cancelSpeech, voices, setSettingsOpen]);
 
   const variablesPersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);

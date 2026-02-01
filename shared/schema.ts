@@ -94,6 +94,7 @@ export interface GlobalSettings {
   // Automation settings
   triggersEnabled?: boolean;
   aliasesEnabled?: boolean;
+  commandPrefix?: string; // Prefix for client commands (default: '/')
   
   // Connection settings (defaults for new profiles)
   autoReconnect?: boolean;
@@ -130,6 +131,7 @@ export interface ProfileSettings {
   // Automation settings (null = use global)
   triggersEnabled?: boolean | null;
   aliasesEnabled?: boolean | null;
+  commandPrefix?: string | null;
   
   // Connection settings (null = use global)
   autoReconnect?: boolean | null;
@@ -271,6 +273,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   stripSymbols: false,
   triggersEnabled: true,
   aliasesEnabled: true,
+  commandPrefix: '/',
   autoReconnect: true,
   reconnectDelay: 5,
   keepAlive: false,
