@@ -17,6 +17,7 @@ import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { ScriptAssistant } from "@/components/ScriptAssistant";
 import { ConnectionTabs } from "@/components/ConnectionTabs";
 import { AddConnectionDialog } from "@/components/AddConnectionDialog";
+import { ScreenReaderAnnouncer } from "@/components/ScreenReaderAnnouncer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2, Library, Unplug } from "lucide-react";
@@ -289,6 +290,7 @@ export default function Play() {
       echoLocal(`  ${prefix}config aliases on|off  - Toggle command aliases`);
       echoLocal(`  ${prefix}config keep on|off     - Toggle keeping input after Enter`);
       echoLocal(`  ${prefix}config reader on|off   - Toggle reader mode`);
+      echoLocal(`  ${prefix}config screenreader on|off - Toggle NVDA/JAWS announcements`);
       echoLocal(`  ${prefix}config prefix <char>   - Change command prefix (current: "${prefix}")`);
       echoLocal(`  ${prefix}config settings        - Open settings panel`);
       echoLocal('');
@@ -453,6 +455,23 @@ export default function Play() {
           } else {
             echoLocal(`Reader mode is currently ${settings.readerMode ? 'on' : 'off'}`);
             echoLocal(`Usage: ${prefix}config reader on|off`);
+          }
+          return true;
+          
+        case 'screenreader':
+        case 'sr':
+        case 'nvda':
+        case 'jaws':
+          if (option === 'on') {
+            updateProfileSetting('screenReaderAnnounce', true);
+            echoLocal('\x1b[32mScreen reader announcements enabled - NVDA/JAWS will auto-speak new lines\x1b[0m');
+          } else if (option === 'off') {
+            updateProfileSetting('screenReaderAnnounce', false);
+            echoLocal('\x1b[32mScreen reader announcements disabled\x1b[0m');
+          } else {
+            echoLocal(`Screen reader announcements: ${settings.screenReaderAnnounce ? 'on' : 'off'}`);
+            echoLocal(`Usage: ${prefix}config screenreader on|off`);
+            echoLocal('Aliases: sr, nvda, jaws');
           }
           return true;
           
@@ -1542,6 +1561,12 @@ export default function Play() {
           })}
         </div>
       )}
+
+      {/* Screen Reader ARIA Live Region for NVDA/JAWS */}
+      <ScreenReaderAnnouncer 
+        lines={lines} 
+        enabled={settings.screenReaderAnnounce ?? false} 
+      />
 
       {/* Terminal Area */}
       <div 

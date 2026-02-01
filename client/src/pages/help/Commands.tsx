@@ -84,6 +84,10 @@ export default function Commands() {
                   <td className="py-2 pr-4 font-mono text-sm">/config keep on|off</td>
                   <td className="py-2">Keep input after pressing Enter (use Escape to clear)</td>
                 </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-mono text-sm">/config screenreader on|off</td>
+                  <td className="py-2">NVDA/JAWS auto-speak via ARIA (aliases: sr, nvda, jaws)</td>
+                </tr>
               </tbody>
             </table>
           </CardContent>

@@ -91,6 +91,33 @@ export default function Speech() {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>NVDA/JAWS Screen Reader Support</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              If you use NVDA or JAWS, Mudscape can announce new lines through your 
+              screen reader instead of (or in addition to) browser speech.
+            </p>
+            <h4 className="font-semibold mt-2">Enabling Screen Reader Announcements</h4>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Type <code className="bg-muted px-1 rounded">/config screenreader on</code></li>
+              <li>Or go to Settings and enable "Screen Reader Announcements"</li>
+              <li>Aliases: <code className="bg-muted px-1 rounded">/config sr on</code>, <code className="bg-muted px-1 rounded">/config nvda on</code>, <code className="bg-muted px-1 rounded">/config jaws on</code></li>
+            </ul>
+            <h4 className="font-semibold mt-3">How It Works</h4>
+            <p>
+              This uses ARIA live regions to send new MUD lines to your screen reader. 
+              NVDA and JAWS will automatically speak new content as it arrives.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              You can use this alongside browser speech, or disable browser speech 
+              (<code className="bg-muted px-1 rounded">/config speech off</code>) to only hear your screen reader.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </HelpLayout>
   );

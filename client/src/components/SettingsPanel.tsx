@@ -191,13 +191,25 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
               <div className="space-y-0.5">
-                <Label htmlFor="reader-mode">Screen Reader Mode</Label>
-                <p className="text-xs text-muted-foreground">Optimizes aria-live regions for NVDA/JAWS</p>
+                <Label htmlFor="reader-mode">Reader Mode</Label>
+                <p className="text-xs text-muted-foreground">Queue speech until you press Enter</p>
               </div>
               <Switch
                 id="reader-mode"
                 checked={settings.readerMode ?? false}
                 onCheckedChange={(val) => updateSetting('readerMode', val)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="screen-reader-announce">Screen Reader Announcements</Label>
+                <p className="text-xs text-muted-foreground">Use ARIA live regions for NVDA/JAWS auto-speaking</p>
+              </div>
+              <Switch
+                id="screen-reader-announce"
+                checked={settings.screenReaderAnnounce ?? false}
+                onCheckedChange={(val) => updateSetting('screenReaderAnnounce', val)}
               />
             </div>
 

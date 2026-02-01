@@ -94,6 +94,7 @@ export interface GlobalSettings {
   showInputEcho?: boolean; // Show what the user types in the terminal
   keepInputOnSend?: boolean; // Don't clear input field after sending command
   stripSymbols?: boolean; // Remove decorative symbols for screen readers
+  screenReaderAnnounce?: boolean; // Use ARIA live regions for NVDA/JAWS announcements
   
   // Automation settings
   triggersEnabled?: boolean;
@@ -131,6 +132,7 @@ export interface ProfileSettings {
   showInputEcho?: boolean | null;
   keepInputOnSend?: boolean | null;
   stripSymbols?: boolean | null;
+  screenReaderAnnounce?: boolean | null; // Use ARIA live regions for NVDA/JAWS announcements
   
   // Automation settings (null = use global)
   triggersEnabled?: boolean | null;
