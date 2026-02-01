@@ -55,6 +55,17 @@ Preferred communication style: Simple, everyday language.
 - **Soundpacks**: Upload/organize sound files; select active pack; sounds are preloaded on pack change
 - **Lua Sound API**: playSound(name, volume, loop), stopSound(name), loopSound(name, volume), setSoundPosition(name, x, y, z)
 
+### AI Scripting Assistant
+- **API Key Storage**: Settings page allows storing OpenAI API key with two options:
+  - Local storage (unencrypted, convenient)
+  - Password-encrypted (AES-GCM with PBKDF2, unlocked per session)
+- **Encryption**: Uses Web Crypto API for secure key encryption (client/src/lib/crypto-utils.ts)
+- **Script Wizard**: Describe what you want in plain language, AI generates Lua code
+  - Context-aware prompts for triggers, aliases, timers, keybindings
+  - Integrated into TimersPanel and KeybindingsPanel
+  - Insert generated script directly into editor or copy to clipboard
+- **Server Endpoint**: /api/ai/generate-script proxies requests to OpenAI with user's own key
+
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech
 - **Ctrl (alone)**: Toggle pause/resume of speech synthesis

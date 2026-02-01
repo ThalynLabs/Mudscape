@@ -143,7 +143,7 @@ export function CreateProfileDialog({ existingProfile, open, onOpenChange }: Cre
                 <FormItem>
                   <FormLabel>Encoding</FormLabel>
                   <FormControl>
-                    <Input placeholder="ISO-8859-1" {...field} className="bg-background font-mono" />
+                    <Input placeholder="ISO-8859-1" {...field} value={field.value ?? ''} className="bg-background font-mono" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

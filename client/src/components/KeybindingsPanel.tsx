@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Keyboard } from "lucide-react";
+import { Plus, Trash2, Keyboard, Wand2 } from "lucide-react";
+import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudKeybinding } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
 import { nanoid } from 'nanoid';
@@ -133,16 +134,30 @@ export function KeybindingsPanel({ profile, open, onOpenChange }: KeybindingsPan
                   checked={newBinding.isScript}
                   onCheckedChange={(checked) => setNewBinding({ ...newBinding, isScript: checked })}
                 />
-                <Label>Execute as JavaScript (instead of MUD command)</Label>
+                <Label>Execute as Lua script (instead of MUD command)</Label>
               </div>
               <div className="space-y-2">
-                <Label>{newBinding.isScript ? 'Script (JavaScript)' : 'Command'}</Label>
+                <div className="flex items-center justify-between">
+                  <Label>{newBinding.isScript ? 'Lua Script' : 'Command'}</Label>
+                  {newBinding.isScript && (
+                    <ScriptingWizard 
+                      context="keybinding" 
+                      onInsert={(script) => setNewBinding({ ...newBinding, command: script })}
+                      triggerButton={
+                        <Button variant="ghost" size="sm" data-testid="button-keybinding-wizard">
+                          <Wand2 className="w-4 h-4 mr-1" />
+                          AI Wizard
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
                 {newBinding.isScript ? (
                   <Textarea
                     data-testid="textarea-keybinding-command"
                     value={newBinding.command}
                     onChange={(e) => setNewBinding({ ...newBinding, command: e.target.value })}
-                    placeholder="send('attack');"
+                    placeholder="send('attack')"
                     className="font-mono text-sm"
                     rows={3}
                   />

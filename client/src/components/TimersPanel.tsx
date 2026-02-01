@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Clock, Play } from "lucide-react";
+import { Plus, Trash2, Clock, Play, Wand2 } from "lucide-react";
+import { ScriptingWizard } from "@/components/ScriptingWizard";
 import type { Profile, MudTimer } from "@shared/schema";
 import { useUpdateProfile } from "@/hooks/use-profiles";
 import { nanoid } from 'nanoid';
@@ -120,12 +121,24 @@ export function TimersPanel({ profile, open, onOpenChange }: TimersPanelProps) {
                 <Label>One-shot (fires once then disables)</Label>
               </div>
               <div className="space-y-2">
-                <Label>Script (JavaScript)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Lua Script</Label>
+                  <ScriptingWizard 
+                    context="timer" 
+                    onInsert={(script) => setNewTimer({ ...newTimer, script })}
+                    triggerButton={
+                      <Button variant="ghost" size="sm" data-testid="button-timer-wizard">
+                        <Wand2 className="w-4 h-4 mr-1" />
+                        AI Wizard
+                      </Button>
+                    }
+                  />
+                </div>
                 <Textarea
                   data-testid="textarea-timer-script"
                   value={newTimer.script}
                   onChange={(e) => setNewTimer({ ...newTimer, script: e.target.value })}
-                  placeholder="send('heal me');"
+                  placeholder="send('heal me')"
                   className="font-mono text-sm"
                   rows={3}
                 />

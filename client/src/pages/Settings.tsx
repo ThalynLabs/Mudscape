@@ -9,9 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalSettings, Profile, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
-import { ArrowLeft, Settings as SettingsIcon, Volume2, Eye, Zap, Wifi, Loader2 } from "lucide-react";
+import { ArrowLeft, Settings as SettingsIcon, Volume2, Eye, Zap, Wifi, Loader2, Bot, Key, Lock, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  encryptApiKey, 
+  decryptApiKey, 
+  storeApiKeyLocal, 
+  getApiKeyLocal, 
+  clearApiKey, 
+  getStorageMode, 
+  type StorageMode 
+} from "@/lib/crypto-utils";
 
 function useGlobalSettings() {
   return useQuery<GlobalSettings>({
@@ -256,7 +266,217 @@ function GlobalSettingsTab() {
           </SettingRow>
         </CardContent>
       </Card>
+
+      <AIKeySettings />
     </div>
+  );
+}
+
+function AIKeySettings() {
+  const { toast } = useToast();
+  const [storageMode, setStorageMode] = useState<StorageMode>('none');
+  const [apiKey, setApiKey] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<'local' | 'encrypted'>('local');
+
+  useEffect(() => {
+    const mode = getStorageMode();
+    setStorageMode(mode);
+    if (mode === 'local') {
+      const key = getApiKeyLocal();
+      if (key) {
+        setApiKey(key);
+        setIsUnlocked(true);
+      }
+    }
+  }, []);
+
+  const handleSaveLocal = () => {
+    if (!apiKey.trim()) {
+      toast({ title: "Error", description: "Please enter an API key", variant: "destructive" });
+      return;
+    }
+    storeApiKeyLocal(apiKey);
+    setStorageMode('local');
+    setIsUnlocked(true);
+    toast({ title: "API Key Saved", description: "Your key is stored locally in your browser." });
+  };
+
+  const handleSaveEncrypted = async () => {
+    if (!apiKey.trim()) {
+      toast({ title: "Error", description: "Please enter an API key", variant: "destructive" });
+      return;
+    }
+    if (!password || password.length < 4) {
+      toast({ title: "Error", description: "Password must be at least 4 characters", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    
+    await encryptApiKey(apiKey, password);
+    setStorageMode('encrypted');
+    setIsUnlocked(true);
+    setPassword('');
+    setConfirmPassword('');
+    toast({ title: "API Key Encrypted", description: "Your key is encrypted and stored securely." });
+  };
+
+  const handleUnlock = async () => {
+    const key = await decryptApiKey(unlockPassword);
+    if (key) {
+      setApiKey(key);
+      setIsUnlocked(true);
+      setUnlockPassword('');
+      toast({ title: "Unlocked", description: "Your API key is now available for this session." });
+    } else {
+      toast({ title: "Error", description: "Incorrect password", variant: "destructive" });
+    }
+  };
+
+  const handleClear = () => {
+    clearApiKey();
+    setStorageMode('none');
+    setApiKey('');
+    setPassword('');
+    setConfirmPassword('');
+    setUnlockPassword('');
+    setIsUnlocked(false);
+    toast({ title: "API Key Removed", description: "Your stored key has been deleted." });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bot className="w-5 h-5" />
+          AI Scripting Assistant
+        </CardTitle>
+        <CardDescription>
+          Store your OpenAI API key to enable AI-powered script generation
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {storageMode === 'none' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="api-key">OpenAI API Key</Label>
+              <Input
+                id="api-key"
+                type="password"
+                placeholder="sk-..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                data-testid="input-ai-api-key"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Storage Method</Label>
+              <Select value={selectedMode} onValueChange={(v) => setSelectedMode(v as 'local' | 'encrypted')}>
+                <SelectTrigger data-testid="select-storage-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4" />
+                      Local Storage (convenient)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="encrypted">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4" />
+                      Password Protected (secure)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {selectedMode === 'local' 
+                  ? "Key stored unencrypted in browser. Convenient but accessible if someone has your device."
+                  : "Key encrypted with a password. You'll need to enter the password each session."}
+              </p>
+            </div>
+
+            {selectedMode === 'encrypted' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Encryption Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Choose a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  data-testid="input-encryption-password"
+                />
+                <Input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  data-testid="input-confirm-password"
+                />
+              </div>
+            )}
+
+            <Button 
+              onClick={selectedMode === 'local' ? handleSaveLocal : handleSaveEncrypted}
+              data-testid="button-save-api-key"
+            >
+              Save API Key
+            </Button>
+          </>
+        )}
+
+        {storageMode === 'encrypted' && !isUnlocked && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Lock className="w-4 h-4" />
+              Your API key is encrypted
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unlock-password">Enter Password to Unlock</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="unlock-password"
+                  type="password"
+                  placeholder="Password"
+                  value={unlockPassword}
+                  onChange={(e) => setUnlockPassword(e.target.value)}
+                  data-testid="input-unlock-password"
+                />
+                <Button onClick={handleUnlock} data-testid="button-unlock">Unlock</Button>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleClear} data-testid="button-clear-key">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Remove Key
+            </Button>
+          </div>
+        )}
+
+        {(storageMode === 'local' || (storageMode === 'encrypted' && isUnlocked)) && isUnlocked && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <Key className="w-4 h-4" />
+              API key {storageMode === 'encrypted' ? 'unlocked for this session' : 'saved locally'}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleClear} data-testid="button-clear-key">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove Key
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

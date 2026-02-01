@@ -134,6 +134,89 @@ export async function registerRoutes(
     }
   });
 
+  // === AI SCRIPT GENERATION ===
+  app.post('/api/ai/generate-script', async (req, res) => {
+    try {
+      const { description, context, apiKey } = req.body;
+      
+      if (!description || !apiKey) {
+        return res.status(400).json({ message: 'Description and API key are required' });
+      }
+
+      const contextHints: Record<string, string> = {
+        trigger: `This is a trigger script that runs when incoming MUD text matches a pattern.
+The 'line' variable contains the matched text.
+The 'matches' table contains regex capture groups (matches[0] = full match, matches[1] = first capture, etc.).`,
+        alias: `This is an alias script that runs when the user types a command matching a pattern.
+The 'line' variable contains the user's original input.
+The 'matches' table contains regex capture groups.`,
+        timer: `This is a timer script that runs at regular intervals.
+No line or matches variables are available.
+Good for periodic automation like auto-healing.`,
+        keybinding: `This is a keybinding script that runs when the user presses a key combination.
+No line or matches variables are available.
+Good for quick commands.`,
+      };
+
+      const systemPrompt = `You are a Lua scripting assistant for MUD (Multi-User Dungeon) games.
+You write scripts for the Mudscape MUD client which uses Lua 5.4.
+
+Available API functions:
+- send(command) - Send a command to the MUD server
+- echo(text) - Display text locally in the terminal (shown in yellow)
+- setVariable(name, value) - Store a persistent variable (string, number, boolean, or nil)
+- getVariable(name) - Retrieve a stored variable
+- playSound(name, volume, loop) - Play a sound (volume 0-1, loop is boolean)
+- stopSound(name) - Stop a playing sound
+- loopSound(name, volume) - Start looping a sound
+- setSoundPosition(name, x, y, z) - Set 3D position for spatial audio
+
+${contextHints[context] || contextHints.trigger}
+
+Guidelines:
+- Write clean, minimal Lua code
+- Use only the available API functions
+- Don't include unnecessary comments
+- Match patterns using Lua string patterns if needed
+- Return only the Lua code, no explanations`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: description },
+          ],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ 
+          message: error.error?.message || 'OpenAI API error' 
+        });
+      }
+
+      const data = await response.json();
+      let script = data.choices[0]?.message?.content || '';
+      
+      // Clean up the response - remove markdown code blocks if present
+      script = script.replace(/^```lua\n?/i, '').replace(/^```\n?/, '').replace(/\n?```$/g, '').trim();
+
+      res.json({ script });
+    } catch (e) {
+      console.error('AI script generation error:', e);
+      res.status(500).json({ message: 'Failed to generate script' });
+    }
+  });
+
   // === WEBSOCKET RELAY ===
   const wss = new WebSocketServer({ noServer: true });
 
