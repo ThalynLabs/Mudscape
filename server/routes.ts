@@ -71,6 +71,50 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === SOUNDPACKS ROUTES ===
+  app.get(api.soundpacks.list.path, async (req, res) => {
+    const soundpacksList = await storage.getSoundpacks();
+    res.json(soundpacksList);
+  });
+
+  app.get(api.soundpacks.get.path, async (req, res) => {
+    const soundpack = await storage.getSoundpack(Number(req.params.id));
+    if (!soundpack) return res.status(404).json({ message: "Soundpack not found" });
+    res.json(soundpack);
+  });
+
+  app.post(api.soundpacks.create.path, async (req, res) => {
+    try {
+      const input = api.soundpacks.create.input.parse(req.body);
+      const soundpack = await storage.createSoundpack(input);
+      res.status(201).json(soundpack);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
+      throw e;
+    }
+  });
+
+  app.put(api.soundpacks.update.path, async (req, res) => {
+    try {
+      const input = api.soundpacks.update.input.parse(req.body);
+      const soundpack = await storage.updateSoundpack(Number(req.params.id), input);
+      if (!soundpack) return res.status(404).json({ message: "Soundpack not found" });
+      res.json(soundpack);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
+      throw e;
+    }
+  });
+
+  app.delete(api.soundpacks.delete.path, async (req, res) => {
+    await storage.deleteSoundpack(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === GLOBAL SETTINGS ROUTES ===
   app.get(api.settings.get.path, async (req, res) => {
     const settings = await storage.getGlobalSettings();

@@ -23,6 +23,17 @@ export const profiles = pgTable("profiles", {
   scripts: jsonb("scripts").$type<MudScript[]>().default([]),
   timers: jsonb("timers").$type<MudTimer[]>().default([]),
   keybindings: jsonb("keybindings").$type<MudKeybinding[]>().default([]),
+  classes: jsonb("classes").$type<MudClass[]>().default([]),
+  variables: jsonb("variables").$type<MudVariables>().default({}),
+  activeSoundpackId: text("active_soundpack_id"), // Currently active soundpack
+});
+
+// Soundpacks table for storing sound collections
+export const soundpacks = pgTable("soundpacks", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  files: jsonb("files").$type<SoundpackFile[]>().default([]),
 });
 
 // === TYPE DEFINITIONS ===
@@ -89,21 +100,29 @@ export interface MudTrigger {
   id: string;
   pattern: string;
   type: 'regex' | 'plain';
-  script: string; // JavaScript code to execute
+  script: string; // Lua code to execute
+  classId?: string; // Optional class grouping
   active: boolean;
+  // Sound options
+  soundFile?: string; // Sound to play when triggered
+  soundVolume?: number; // 0-1
+  soundLoop?: boolean;
 }
 
 export interface MudAlias {
   id: string;
   pattern: string; // e.g. "^tt (.*)$"
-  command: string; // "tell target $1"
+  command: string; // "tell target $1" or Lua script
+  isScript?: boolean; // If true, command is Lua script
+  classId?: string; // Optional class grouping
   active: boolean;
 }
 
 export interface MudScript {
   id: string;
   name: string;
-  content: string;
+  content: string; // Lua code
+  classId?: string;
   active: boolean;
 }
 
@@ -112,27 +131,61 @@ export interface MudTimer {
   name: string;
   interval: number; // milliseconds
   oneShot: boolean; // if true, fires once then disables
-  script: string; // JavaScript code to execute
+  script: string; // Lua code to execute
+  classId?: string;
   active: boolean;
 }
 
 export interface MudKeybinding {
   id: string;
   key: string; // e.g. "F1", "Ctrl+Shift+A"
-  command: string; // Command to send or script to execute
-  isScript: boolean; // If true, command is JavaScript; if false, it's a MUD command
+  command: string; // Command to send or Lua script
+  isScript: boolean; // If true, command is Lua; if false, it's a MUD command
+  classId?: string;
   active: boolean;
+}
+
+// Class for grouping triggers/aliases/scripts
+export interface MudClass {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+// Variables stored per-profile for scripting
+export interface MudVariables {
+  [key: string]: string | number | boolean | null;
+}
+
+// Soundpack for audio
+export interface SoundpackFile {
+  id: string;
+  name: string; // MSP name mapping, e.g. "sword_hit"
+  filename: string; // actual file path
+  category: 'effect' | 'music' | 'ambient';
+  volume: number; // default volume 0-1
+  loop: boolean; // default loop setting
+}
+
+export interface Soundpack {
+  id: string;
+  name: string;
+  files: SoundpackFile[];
 }
 
 // === SCHEMAS ===
 export const insertProfileSchema = createInsertSchema(profiles);
 export const insertGlobalSettingsSchema = createInsertSchema(globalSettings);
+export const insertSoundpackSchema = createInsertSchema(soundpacks);
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 
 export type GlobalSettingsRow = typeof globalSettings.$inferSelect;
 export type InsertGlobalSettings = z.infer<typeof insertGlobalSettingsSchema>;
+
+export type SoundpackRow = typeof soundpacks.$inferSelect;
+export type InsertSoundpack = z.infer<typeof insertSoundpackSchema>;
 
 // === API TYPES ===
 export type CreateProfileRequest = InsertProfile;

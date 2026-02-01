@@ -7,14 +7,20 @@ import { TerminalLine } from "@/components/TerminalLine";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { TimersPanel } from "@/components/TimersPanel";
 import { KeybindingsPanel } from "@/components/KeybindingsPanel";
+import { VariablesPanel } from "@/components/VariablesPanel";
+import { ClassesPanel } from "@/components/ClassesPanel";
+import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard } from "lucide-react";
+import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
-import { createScriptingContext, processTriggers, processAlias } from "@/lib/scripting";
+import { processTriggers, processAlias } from "@/lib/scripting";
+import { initLuaEngine, setScriptContext, executeLuaScript, destroyLuaEngine } from "@/lib/lua-scripting";
+import { soundManager } from "@/lib/sound-manager";
+import { processLineForMSP } from "@/lib/msp-parser";
 import { useTimers } from "@/hooks/use-timers";
 import { useKeybindings } from "@/hooks/use-keybindings";
 
@@ -61,7 +67,16 @@ export default function Play() {
   const aliases = (profile?.aliases || []) as MudAlias[];
   const timers = (profile?.timers || []) as MudTimer[];
   const keybindings = (profile?.keybindings || []) as MudKeybinding[];
+  const classes = (profile?.classes || []) as MudClass[];
+  const [variables, setVariables] = useState<MudVariables>((profile?.variables || {}) as MudVariables);
+  const activeSoundpackId = profile?.activeSoundpackId;
   const updateProfile = useUpdateProfile();
+  
+  const isClassActive = useCallback((classId?: string) => {
+    if (!classId) return true;
+    const cls = classes.find(c => c.id === classId);
+    return cls ? cls.active : true;
+  }, [classes]);
   
   const { speak, speakLine, togglePause, paused } = useSpeech({
     enabled: settings.speechEnabled ?? false,
@@ -81,16 +96,76 @@ export default function Play() {
     setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
   }, []);
 
-  const executeScript = useCallback((script: string) => {
-    const ctx = createScriptingContext(sendCommand, echoLocal);
+  const variablesPersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const setVariable = useCallback((name: string, value: string | number | boolean | null) => {
+    const currentProfileId = profile?.id;
+    setVariables(prev => {
+      const newVars = { ...prev, [name]: value };
+      
+      if (variablesPersistTimeoutRef.current) {
+        clearTimeout(variablesPersistTimeoutRef.current);
+      }
+      variablesPersistTimeoutRef.current = setTimeout(() => {
+        if (currentProfileId && profile?.id === currentProfileId) {
+          updateProfile.mutate({ id: currentProfileId, variables: newVars });
+        }
+      }, 1000);
+      
+      return newVars;
+    });
+  }, [profile, updateProfile]);
+  
+  // Clear pending variable persistence on profile change
+  useEffect(() => {
+    if (variablesPersistTimeoutRef.current) {
+      clearTimeout(variablesPersistTimeoutRef.current);
+      variablesPersistTimeoutRef.current = null;
+    }
+  }, [profile?.id]);
+
+  const getVariable = useCallback((name: string) => {
+    return variables[name];
+  }, [variables]);
+
+  const playSound = useCallback((name: string, volume?: number, loop?: boolean) => {
+    soundManager.resume();
+    soundManager.play(name, volume ?? 1, loop ?? false);
+  }, []);
+
+  const stopSound = useCallback((name: string) => {
+    soundManager.stop(name);
+  }, []);
+
+  const loopSound = useCallback((name: string, volume?: number) => {
+    soundManager.resume();
+    soundManager.loop(name, volume ?? 1);
+  }, []);
+
+  const setSoundPosition = useCallback((name: string, x: number, y: number, z?: number) => {
+    soundManager.setPosition(name, x, y, z ?? 0);
+  }, []);
+
+  const executeScript = useCallback(async (script: string, line?: string, matches?: string[]) => {
     try {
-      const fn = new Function('send', 'echo', 'setVariable', 'getVariable', script);
-      fn(ctx.send, ctx.echo, ctx.setVariable, ctx.getVariable);
+      setScriptContext({
+        send: sendCommand,
+        echo: echoLocal,
+        setVariable,
+        getVariable,
+        playSound,
+        stopSound,
+        loopSound,
+        setSoundPosition,
+        line,
+        matches,
+      });
+      await executeLuaScript(script, line, matches);
     } catch (err) {
-      console.error('Script execution error:', err);
+      console.error('Lua script execution error:', err);
       echoLocal(`[Script Error] ${err}`);
     }
-  }, [sendCommand, echoLocal]);
+  }, [sendCommand, echoLocal, setVariable, getVariable, playSound, stopSound, loopSound, setSoundPosition]);
 
   const disableTimer = useCallback((timerId: string) => {
     if (!profile) return;
@@ -104,6 +179,7 @@ export default function Play() {
     timers,
     onExecute: executeScript,
     onDisableTimer: disableTimer,
+    isClassActive,
     enabled: isConnected,
   });
 
@@ -111,11 +187,49 @@ export default function Play() {
     keybindings,
     onSend: sendCommand,
     onExecuteScript: executeScript,
+    isClassActive,
     enabled: isConnected,
   });
 
   // Track if only Ctrl was pressed (no other keys)
   const ctrlOnlyRef = useRef(true);
+
+  // Fetch active soundpack
+  const { data: activeSoundpack } = useQuery<SoundpackRow>({
+    queryKey: ['/api/soundpacks', activeSoundpackId],
+    enabled: !!activeSoundpackId,
+  });
+
+  // Initialize Lua engine and sound manager
+  useEffect(() => {
+    initLuaEngine().then(() => {
+      console.log('Lua scripting engine ready');
+    }).catch(err => {
+      console.error('Failed to initialize Lua engine:', err);
+    });
+    
+    soundManager.init().then(() => {
+      console.log('Sound manager ready');
+    });
+    
+    return () => {
+      destroyLuaEngine();
+      soundManager.stopAll();
+      if (variablesPersistTimeoutRef.current) {
+        clearTimeout(variablesPersistTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Load soundpack when it changes
+  useEffect(() => {
+    if (activeSoundpack && activeSoundpack.files) {
+      soundManager.setSoundpack(activeSoundpack.files);
+      soundManager.preloadSoundpack(activeSoundpack.files).then(() => {
+        console.log('Soundpack loaded:', activeSoundpack.name);
+      });
+    }
+  }, [activeSoundpack]);
 
   // Global keyboard shortcuts (Ctrl+1-9 to read lines, Ctrl alone to toggle pause)
   useEffect(() => {
@@ -195,21 +309,43 @@ export default function Play() {
         const msg = JSON.parse(event.data) as WsServerMessage;
         
         if (msg.type === 'data') {
+          // Process MSP sound triggers
+          const processedContent = processLineForMSP(msg.content);
+          
           // Speak if enabled
           if (settings.speechEnabled) {
-            const cleanText = stripAnsi(msg.content);
+            const cleanText = stripAnsi(processedContent);
             speak(cleanText);
           }
 
-          // Run triggers synchronously (if enabled)
+          // Run triggers (if enabled)
           if (triggers.length > 0 && settings.triggersEnabled !== false) {
-            const cleanLine = stripAnsi(msg.content);
-            const context = createScriptingContext(sendCommand, echoLocal, [], cleanLine);
-            processTriggers(msg.content, triggers, context);
+            const cleanLine = stripAnsi(processedContent);
+            for (const trigger of triggers) {
+              if (!trigger.active || !isClassActive(trigger.classId)) continue;
+              
+              let matches: string[] | null = null;
+              if (trigger.type === 'regex') {
+                const re = new RegExp(trigger.pattern);
+                const match = re.exec(cleanLine);
+                if (match) matches = Array.from(match);
+              } else {
+                if (cleanLine.includes(trigger.pattern)) {
+                  matches = [trigger.pattern];
+                }
+              }
+              
+              if (matches && trigger.script) {
+                executeScript(trigger.script, cleanLine, matches);
+                if (trigger.soundFile) {
+                  playSound(trigger.soundFile, trigger.soundVolume, trigger.soundLoop);
+                }
+              }
+            }
           }
 
           setLines(prev => {
-            const next = [...prev, msg.content];
+            const next = [...prev, processedContent];
             if (next.length > MAX_LINES) return next.slice(next.length - MAX_LINES);
             return next;
           });
@@ -251,20 +387,40 @@ export default function Play() {
     };
   }, [profile, toast, speak, settings.speechEnabled, triggers, sendCommand, echoLocal]);
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim() || !socketRef.current) return;
 
     // Process aliases first (if enabled)
     let commandToSend = inputValue;
+    
     if (settings.aliasesEnabled !== false) {
-      const aliasResult = processAlias(inputValue, aliases, sendCommand, echoLocal);
-      commandToSend = aliasResult || inputValue;
+      for (const alias of aliases) {
+        if (!alias.active || !isClassActive(alias.classId)) continue;
+        
+        const re = new RegExp(alias.pattern);
+        const match = re.exec(inputValue);
+        
+        if (match) {
+          if (alias.isScript) {
+            await executeScript(alias.command, inputValue, Array.from(match));
+            commandToSend = '';
+          } else {
+            commandToSend = alias.command;
+            for (let i = 1; i < match.length; i++) {
+              commandToSend = commandToSend.replace(new RegExp(`\\$${i}`, 'g'), match[i] || '');
+            }
+          }
+          break;
+        }
+      }
     }
 
-    // Send to server
-    const msg: WsClientMessage = { type: 'send', data: commandToSend };
-    socketRef.current.send(JSON.stringify(msg));
+    // Send to server (if there's still a command after alias processing)
+    if (commandToSend) {
+      const msg: WsClientMessage = { type: 'send', data: commandToSend };
+      socketRef.current.send(JSON.stringify(msg));
+    }
 
     // Echo locally (if enabled)
     if (settings.showInputEcho !== false) {
@@ -326,6 +482,31 @@ export default function Play() {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <VariablesPanel 
+            variables={variables}
+            onUpdate={(vars) => {
+              setVariables(vars);
+              if (profile) {
+                updateProfile.mutate({ id: profile.id, variables: vars });
+              }
+            }}
+          />
+          <ClassesPanel 
+            classes={classes}
+            onUpdate={(cls) => {
+              if (profile) {
+                updateProfile.mutate({ id: profile.id, classes: cls });
+              }
+            }}
+          />
+          <SoundpackPanel 
+            activeSoundpackId={activeSoundpackId}
+            onSelectSoundpack={(id) => {
+              if (profile) {
+                updateProfile.mutate({ id: profile.id, activeSoundpackId: id });
+              }
+            }}
+          />
           <Button 
             variant="ghost" 
             size="icon" 

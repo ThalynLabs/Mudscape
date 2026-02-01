@@ -2,11 +2,14 @@ import { db } from "./db";
 import {
   profiles,
   globalSettings,
+  soundpacks,
   type Profile,
   type InsertProfile,
   type UpdateProfileRequest,
   type GlobalSettings,
   type GlobalSettingsRow,
+  type SoundpackRow,
+  type InsertSoundpack,
   DEFAULT_GLOBAL_SETTINGS,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -22,6 +25,13 @@ export interface IStorage {
   // Global Settings
   getGlobalSettings(): Promise<GlobalSettings>;
   updateGlobalSettings(updates: Partial<GlobalSettings>): Promise<GlobalSettings>;
+  
+  // Soundpacks
+  getSoundpacks(): Promise<SoundpackRow[]>;
+  getSoundpack(id: number): Promise<SoundpackRow | undefined>;
+  createSoundpack(soundpack: InsertSoundpack): Promise<SoundpackRow>;
+  updateSoundpack(id: number, updates: Partial<InsertSoundpack>): Promise<SoundpackRow>;
+  deleteSoundpack(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,6 +96,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(globalSettings.id, row.id))
       .returning();
     return updated.settings ?? merged;
+  }
+  
+  // Soundpacks
+  async getSoundpacks(): Promise<SoundpackRow[]> {
+    return await db.select().from(soundpacks).orderBy(soundpacks.name);
+  }
+  
+  async getSoundpack(id: number): Promise<SoundpackRow | undefined> {
+    const [soundpack] = await db.select().from(soundpacks).where(eq(soundpacks.id, id));
+    return soundpack;
+  }
+  
+  async createSoundpack(insertSoundpack: InsertSoundpack): Promise<SoundpackRow> {
+    const [soundpack] = await db.insert(soundpacks).values(insertSoundpack as typeof soundpacks.$inferInsert).returning();
+    return soundpack;
+  }
+  
+  async updateSoundpack(id: number, updates: Partial<InsertSoundpack>): Promise<SoundpackRow> {
+    const [soundpack] = await db
+      .update(soundpacks)
+      .set(updates as Partial<typeof soundpacks.$inferInsert>)
+      .where(eq(soundpacks.id, id))
+      .returning();
+    return soundpack;
+  }
+  
+  async deleteSoundpack(id: number): Promise<void> {
+    await db.delete(soundpacks).where(eq(soundpacks.id, id));
   }
 }
 

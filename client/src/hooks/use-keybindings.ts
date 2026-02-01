@@ -6,6 +6,7 @@ interface UseKeybindingsOptions {
   keybindings: MudKeybinding[];
   onSend: (command: string) => void;
   onExecuteScript: (script: string) => void;
+  isClassActive?: (classId?: string) => boolean;
   enabled?: boolean;
 }
 
@@ -13,6 +14,7 @@ export function useKeybindings({
   keybindings,
   onSend,
   onExecuteScript,
+  isClassActive,
   enabled = true
 }: UseKeybindingsOptions) {
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -26,7 +28,9 @@ export function useKeybindings({
     const pressedCombo = parseKeyCombo(event);
     
     const binding = keybindings.find(
-      (kb) => kb.active && kb.key.toLowerCase() === pressedCombo.toLowerCase()
+      (kb) => kb.active && 
+              kb.key.toLowerCase() === pressedCombo.toLowerCase() &&
+              (!isClassActive || isClassActive(kb.classId))
     );
 
     if (binding) {
@@ -43,7 +47,7 @@ export function useKeybindings({
         onSend(binding.command);
       }
     }
-  }, [keybindings, onSend, onExecuteScript, enabled]);
+  }, [keybindings, onSend, onExecuteScript, isClassActive, enabled]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);

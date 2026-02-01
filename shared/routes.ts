@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertProfileSchema, profiles, GlobalSettings } from './schema';
+import { insertProfileSchema, insertSoundpackSchema, profiles, soundpacks, GlobalSettings } from './schema';
 
 // Zod schema for global settings validation
 const globalSettingsSchema = z.object({
@@ -17,6 +17,8 @@ const globalSettingsSchema = z.object({
   reconnectDelay: z.number().optional(),
   keepAlive: z.boolean().optional(),
   keepAliveInterval: z.number().optional(),
+  stripSymbols: z.boolean().optional(),
+  gmcpEnabled: z.boolean().optional(),
 });
 
 export const api = {
@@ -74,6 +76,49 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/profiles/:id',
+      responses: {
+        204: z.void(),
+        404: z.object({ message: z.string() }),
+      },
+    },
+  },
+  soundpacks: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/soundpacks',
+      responses: {
+        200: z.array(z.custom<typeof soundpacks.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/soundpacks/:id',
+      responses: {
+        200: z.custom<typeof soundpacks.$inferSelect>(),
+        404: z.object({ message: z.string() }),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/soundpacks',
+      input: insertSoundpackSchema,
+      responses: {
+        201: z.custom<typeof soundpacks.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/soundpacks/:id',
+      input: insertSoundpackSchema.partial(),
+      responses: {
+        200: z.custom<typeof soundpacks.$inferSelect>(),
+        404: z.object({ message: z.string() }),
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/soundpacks/:id',
       responses: {
         204: z.void(),
         404: z.object({ message: z.string() }),

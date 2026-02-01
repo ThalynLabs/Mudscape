@@ -38,13 +38,22 @@ Preferred communication style: Simple, everyday language.
 - Path aliases: `@shared/*` maps to shared directory, `@/*` maps to client/src
 
 ### Scripting Engine
-- User-defined triggers and aliases execute JavaScript code
-- Scripts run in the browser context (not sandboxed) matching traditional MUD client behavior
-- Scripting context provides send(), echo(), setVariable(), and getVariable() functions
-- Triggers: Pattern-based automation that runs on incoming MUD lines (supports plain text and regex)
-- Aliases: Command macros that expand shortcuts into full commands with optional scripting
-- Timers: Scheduled script execution (one-shot or repeating intervals), managed via TimersPanel
-- Keybindings: Custom keyboard shortcuts mapped to commands or scripts, recorded via KeybindingsPanel
+- **Lua Engine**: User-defined triggers, aliases, timers, and keybindings execute Lua code via wasmoon (Lua 5.4 WebAssembly)
+- Scripts run in the browser context matching traditional MUD client behavior (like Mudlet)
+- Scripting context provides: send(), echo(), setVariable(), getVariable(), playSound(), stopSound(), loopSound(), setSoundPosition()
+- Triggers: Pattern-based automation that runs on incoming MUD lines (regex patterns)
+- Aliases: Command macros that expand shortcuts with $1/$2 substitution or execute Lua scripts (isScript=true)
+- Timers: Scheduled Lua script execution (one-shot or repeating intervals), managed via TimersPanel
+- Keybindings: Custom keyboard shortcuts mapped to commands or Lua scripts, recorded via KeybindingsPanel
+- Classes: Organizational groups for automation items; toggling a class enables/disables all contained triggers/aliases/timers/keybindings
+- Variables: Persistent key-value store accessible via Lua; debounced (1 second) persistence to profile
+
+### Sound System
+- **Web Audio API**: AudioContext with GainNode for master volume control
+- **Spatial Audio**: PannerNode with HRTF for 3D positional/directional sound (x, y, z coordinates)
+- **MSP Protocol**: Parses !!SOUND(name vol=50 loop=-1) and !!MUSIC() triggers from MUD output
+- **Soundpacks**: Upload/organize sound files; select active pack; sounds are preloaded on pack change
+- **Lua Sound API**: playSound(name, volume, loop), stopSound(name), loopSound(name, volume), setSoundPosition(name, x, y, z)
 
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech

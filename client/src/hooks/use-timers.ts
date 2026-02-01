@@ -5,10 +5,11 @@ interface UseTimersOptions {
   timers: MudTimer[];
   onExecute: (script: string) => void;
   onDisableTimer?: (id: string) => void;
+  isClassActive?: (classId?: string) => boolean;
   enabled?: boolean;
 }
 
-export function useTimers({ timers, onExecute, onDisableTimer, enabled = true }: UseTimersOptions) {
+export function useTimers({ timers, onExecute, onDisableTimer, isClassActive, enabled = true }: UseTimersOptions) {
   const intervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const clearAllTimers = useCallback(() => {
@@ -25,6 +26,7 @@ export function useTimers({ timers, onExecute, onDisableTimer, enabled = true }:
 
     timers.forEach((timer) => {
       if (!timer.active) return;
+      if (isClassActive && !isClassActive(timer.classId)) return;
 
       const execute = () => {
         try {
@@ -48,7 +50,7 @@ export function useTimers({ timers, onExecute, onDisableTimer, enabled = true }:
     });
 
     return clearAllTimers;
-  }, [timers, onExecute, onDisableTimer, enabled, clearAllTimers]);
+  }, [timers, onExecute, onDisableTimer, isClassActive, enabled, clearAllTimers]);
 
   return { clearAllTimers };
 }
