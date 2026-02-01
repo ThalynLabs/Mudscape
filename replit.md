@@ -183,12 +183,13 @@ Preferred communication style: Simple, everyday language.
 - GMCP data displayed in terminal and stored in gmcpData state for UI display
 
 ### Self-Hosting
-- **Install Wizard (/install)**: Step-by-step setup guide for non-technical users
-  - Docker deployment path (recommended) with Docker Compose
-  - Node.js manual deployment with full instructions
-  - Database setup guidance for PostgreSQL
-  - Environment configuration with .env examples
-  - Copy-to-clipboard for all code snippets
+- **Install Wizard (/install)**: Interactive setup wizard that generates configuration files
+  - Form fields for database credentials, ports, and secrets
+  - Auto-generate buttons create secure passwords and session secrets
+  - Dynamic preview of docker-compose.yml or .env files based on user input
+  - Docker deployment path (recommended) generates complete Docker Compose config
+  - Node.js path generates .env file and database creation commands
+  - Copy-to-clipboard for all generated configuration
 - **Landing Page**: Home page for logged-out users promotes accessibility features and self-hosting option
 
 ## External Dependencies
