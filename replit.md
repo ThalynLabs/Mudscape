@@ -72,21 +72,14 @@ Preferred communication style: Simple, everyday language.
 ### AI Script Assistant
 - **Unified Chat Interface**: Single Script Assistant dialog accessible from Play screen toolbar (Wand icon)
 - **Conversational AI**: Describe scripting needs in plain language, AI generates complete Lua automation
-- **Replit AI Integration**: Uses Replit's built-in AI Integrations (no API key required, billed to credits)
-- **Self-Hosted Fallback**: When running outside Replit, uses server-side OPENAI_API_KEY environment variable
+- **User API Key Required**: Users must provide their own OpenAI API key in Settings to use this feature
 - **Direct Creation**: Generated scripts can be added directly as triggers, aliases, timers, keybindings, or buttons
 - **Comprehensive Context**: System prompt includes full Lua API documentation, sound system, spatial audio
 - **Code Block Parsing**: AI outputs structured code blocks with metadata for one-click creation
 - **Server Endpoint**: /api/ai/script-assistant uses streaming SSE for real-time responses
-  - Detects Replit AI integration availability automatically
-  - Falls back to server-side OPENAI_API_KEY (gpt-4o model) for self-hosted deployments
-  - GET /api/ai/status endpoint to check AI availability
-
-### Legacy Script Wizard (Deprecated)
-- **API Key Storage**: Settings page allows storing personal OpenAI API key (for legacy/fallback)
+- **API Key Storage**: Settings page allows storing personal OpenAI API key
   - Local storage (unencrypted, convenient)
   - Password-encrypted (AES-GCM with PBKDF2, unlocked per session)
-- **Server Endpoint**: /api/ai/generate-script proxies requests to OpenAI with user's own key
 
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech

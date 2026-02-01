@@ -248,56 +248,24 @@ Guidelines:
     }
   });
 
-  // === AI STATUS CHECK ===
-  // Check if AI is available (Replit integration or server-side OPENAI_API_KEY)
-  app.get('/api/ai/status', (_req, res) => {
-    const hasReplitIntegration = !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
-    const hasServerApiKey = !!process.env.OPENAI_API_KEY;
-    
-    res.json({
-      available: hasReplitIntegration || hasServerApiKey,
-      provider: hasReplitIntegration ? 'replit' : (hasServerApiKey ? 'openai' : 'none'),
-    });
-  });
-
   // === AI SCRIPT ASSISTANT (Conversational) ===
-  // Supports Replit AI integration when available, falls back to server-side OPENAI_API_KEY for self-hosted deployments
+  // Users provide their own OpenAI API key to use the wizard
   app.post('/api/ai/script-assistant', async (req, res) => {
     try {
-      const { messages, systemPrompt } = req.body;
+      const { messages, systemPrompt, apiKey } = req.body;
       
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ message: 'Messages array is required' });
       }
 
-      // Use Replit AI integration if available, otherwise use server-side OPENAI_API_KEY
-      const hasReplitIntegration = process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-      const hasServerApiKey = process.env.OPENAI_API_KEY;
-      
-      let openaiConfig: { apiKey: string; baseURL?: string };
-      let model: string;
-      
-      if (hasReplitIntegration) {
-        // Use Replit AI integration (billed to credits)
-        openaiConfig = {
-          apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
-          baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-        };
-        model = 'gpt-5.1';
-      } else if (hasServerApiKey) {
-        // Use server-side OPENAI_API_KEY for self-hosted deployments
-        openaiConfig = {
-          apiKey: process.env.OPENAI_API_KEY!,
-        };
-        model = 'gpt-4o'; // Use standard OpenAI model
-      } else {
-        return res.status(503).json({ 
-          message: 'AI service not available. Server administrator needs to configure OPENAI_API_KEY environment variable.',
-          aiUnavailable: true,
+      if (!apiKey) {
+        return res.status(400).json({ 
+          message: 'API key required. Please add your OpenAI API key in Settings to use the Script Assistant.',
+          needsApiKey: true,
         });
       }
 
-      const openai = new OpenAI(openaiConfig);
+      const openai = new OpenAI({ apiKey });
 
       // Set up SSE
       res.setHeader('Content-Type', 'text/event-stream');
@@ -305,7 +273,7 @@ Guidelines:
       res.setHeader('Connection', 'keep-alive');
 
       const stream = await openai.chat.completions.create({
-        model,
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,

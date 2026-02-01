@@ -3,10 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Wand2, Send, Loader2, Copy, Check, Plus, Code, Zap, Timer, Keyboard, SquareMousePointer, AlertCircle } from 'lucide-react';
+import { Wand2, Send, Loader2, Copy, Check, Plus, Code, Zap, Timer, Keyboard, SquareMousePointer, AlertCircle, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton } from '@shared/schema';
+import { getApiKeyLocal, decryptApiKey, getStorageMode } from '@/lib/crypto-utils';
 
 interface Message {
   id: string;
@@ -130,9 +133,38 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [needsApiKey, setNeedsApiKey] = useState(false);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [password, setPassword] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const getApiKey = async (): Promise<string | null> => {
+    const mode = getStorageMode();
+    if (mode === 'none') {
+      return null;
+    }
+    if (mode === 'local') {
+      return getApiKeyLocal();
+    }
+    if (mode === 'encrypted') {
+      if (!password) {
+        setNeedsPassword(true);
+        return null;
+      }
+      try {
+        return await decryptApiKey(password);
+      } catch {
+        toast({
+          title: 'Decryption Failed',
+          description: 'Incorrect password or corrupted data',
+          variant: 'destructive',
+        });
+        return null;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -149,6 +181,15 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Get API key first
+    const apiKey = await getApiKey();
+    if (!apiKey) {
+      if (!needsPassword) {
+        setNeedsApiKey(true);
+      }
+      return;
+    }
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -158,7 +199,7 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    setAiUnavailable(false);
+    setNeedsApiKey(false);
 
     try {
       const chatHistory = messages.map(m => ({
@@ -172,15 +213,16 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
         body: JSON.stringify({
           messages: [...chatHistory, { role: 'user', content: userMessage.content }],
           systemPrompt: SYSTEM_PROMPT,
+          apiKey,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        if (errorData.aiUnavailable) {
-          setAiUnavailable(true);
+        if (errorData.needsApiKey) {
+          setNeedsApiKey(true);
           setMessages(prev => prev.slice(0, -1)); // Remove the user message
-          throw new Error('AI service not configured on this server.');
+          throw new Error('Please add your OpenAI API key in Settings.');
         }
         throw new Error(errorData.message || 'Failed to get response');
       }
@@ -384,8 +426,11 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground py-12">
               <Wand2 className="w-12 h-12 mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">How can I help you script?</h3>
-              <p className="text-sm max-w-md mb-6">
+              <p className="text-sm max-w-md mb-4">
                 Describe what you want your MUD automation to do. I can create triggers, aliases, timers, keybindings, and buttons with Lua scripting.
+              </p>
+              <p className="text-xs text-muted-foreground mb-6">
+                Note: You need an OpenAI API key to use this assistant. Add it in Settings.
               </p>
               <div className="text-sm text-left space-y-2 max-w-lg">
                 <p className="font-medium">Example requests:</p>
@@ -410,13 +455,40 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
         </ScrollArea>
 
         <div className="px-6 py-4 border-t space-y-3">
-          {aiUnavailable && (
-            <Alert variant="destructive">
+          {needsApiKey && (
+            <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                AI service not configured. For self-hosted deployments, the server administrator needs to set the OPENAI_API_KEY environment variable.
+                You need an OpenAI API key to use the Script Assistant. Go to Settings to add your key.
               </AlertDescription>
             </Alert>
+          )}
+          
+          {needsPassword && (
+            <div className="flex items-center gap-2">
+              <Key className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="api-password" className="sr-only">Enter password to unlock API key</Label>
+              <Input
+                id="api-password"
+                type="password"
+                placeholder="Enter password to unlock API key..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="flex-1"
+                data-testid="input-api-password"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setNeedsPassword(false);
+                  handleSend();
+                }}
+                data-testid="button-unlock-key"
+              >
+                Unlock
+              </Button>
+            </div>
           )}
           
           <div className="flex gap-2">
