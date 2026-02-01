@@ -14,11 +14,12 @@ import { PackageManager } from "@/components/PackageManager";
 import { VariablesPanel } from "@/components/VariablesPanel";
 import { ClassesPanel } from "@/components/ClassesPanel";
 import { SoundpackPanel } from "@/components/SoundpackPanel";
+import { ScriptAssistant } from "@/components/ScriptAssistant";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package } from "lucide-react";
+import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
+import { WsClientMessage, WsServerMessage, GlobalSettings, ProfileSettings, MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton, MudClass, MudVariables, SoundpackRow, mergeSettings, DEFAULT_GLOBAL_SETTINGS } from "@shared/schema";
 import { clsx } from "clsx";
 import { useSpeech } from "@/hooks/use-speech";
 import { processTriggers, processAlias } from "@/lib/scripting";
@@ -56,6 +57,7 @@ export default function Play() {
   const [aliasesOpen, setAliasesOpen] = useState(false);
   const [buttonsOpen, setButtonsOpen] = useState(false);
   const [packagesOpen, setPackagesOpen] = useState(false);
+  const [scriptAssistantOpen, setScriptAssistantOpen] = useState(false);
   const [gmcpData, setGmcpData] = useState<Record<string, unknown>>({});
 
   // Refs
@@ -612,6 +614,16 @@ export default function Play() {
           <Button 
             variant="ghost" 
             size="icon" 
+            onClick={() => setScriptAssistantOpen(true)}
+            aria-label="Script Assistant"
+            data-testid="button-script-assistant"
+          >
+            <Wand2 className="w-4 h-4" />
+            <span className="sr-only">Script Assistant</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setSettingsOpen(true)}
             aria-label="Settings"
             data-testid="button-settings"
@@ -724,6 +736,37 @@ export default function Play() {
         profile={profile} 
         open={packagesOpen} 
         onOpenChange={setPackagesOpen} 
+      />
+
+      <ScriptAssistant
+        open={scriptAssistantOpen}
+        onOpenChange={setScriptAssistantOpen}
+        onCreateTrigger={(trigger) => {
+          if (!profile) return;
+          const newTriggers = [...triggers, trigger as MudTrigger];
+          updateProfile.mutate({ id: profile.id, triggers: newTriggers });
+        }}
+        onCreateAlias={(alias) => {
+          if (!profile) return;
+          const newAliases = [...aliases, alias as MudAlias];
+          updateProfile.mutate({ id: profile.id, aliases: newAliases });
+        }}
+        onCreateTimer={(timer) => {
+          if (!profile) return;
+          const newTimers = [...timers, timer as MudTimer];
+          updateProfile.mutate({ id: profile.id, timers: newTimers });
+        }}
+        onCreateKeybinding={(keybinding) => {
+          if (!profile) return;
+          const newKeybindings = [...keybindings, keybinding as MudKeybinding];
+          updateProfile.mutate({ id: profile.id, keybindings: newKeybindings });
+        }}
+        onCreateButton={(button) => {
+          if (!profile) return;
+          const buttons = (profile.buttons || []) as MudButton[];
+          const newButtons = [...buttons, button as MudButton];
+          updateProfile.mutate({ id: profile.id, buttons: newButtons });
+        }}
       />
     </div>
   );

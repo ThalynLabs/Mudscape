@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
+import OpenAI from "openai";
 
 // Telnet constants
 const IAC = 255;
@@ -244,6 +245,55 @@ Guidelines:
     } catch (e) {
       console.error('AI script generation error:', e);
       res.status(500).json({ message: 'Failed to generate script' });
+    }
+  });
+
+  // === AI SCRIPT ASSISTANT (Conversational) ===
+  app.post('/api/ai/script-assistant', async (req, res) => {
+    try {
+      const { messages, systemPrompt } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ message: 'Messages array is required' });
+      }
+
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      // Set up SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const stream = await openai.chat.completions.create({
+        model: 'gpt-5.1',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages,
+        ],
+        stream: true,
+        max_completion_tokens: 4096,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (e) {
+      console.error('AI script assistant error:', e);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: 'Failed to get response' })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ message: 'Failed to process request' });
+      }
     }
   });
 

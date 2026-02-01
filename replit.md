@@ -69,15 +69,19 @@ Preferred communication style: Simple, everyday language.
 - **Soundpacks**: Upload/organize sound files; select active pack; sounds are preloaded on pack change
 - **Lua Sound API**: playSound(name, volume, loop), stopSound(name), loopSound(name, volume), setSoundPosition(name, x, y, z)
 
-### AI Scripting Assistant
-- **API Key Storage**: Settings page allows storing OpenAI API key with two options:
+### AI Script Assistant
+- **Unified Chat Interface**: Single Script Assistant dialog accessible from Play screen toolbar (Wand icon)
+- **Conversational AI**: Describe scripting needs in plain language, AI generates complete Lua automation
+- **Replit AI Integration**: Uses Replit's built-in AI Integrations (no API key required, billed to credits)
+- **Direct Creation**: Generated scripts can be added directly as triggers, aliases, timers, keybindings, or buttons
+- **Comprehensive Context**: System prompt includes full Lua API documentation, sound system, spatial audio
+- **Code Block Parsing**: AI outputs structured code blocks with metadata for one-click creation
+- **Server Endpoint**: /api/ai/script-assistant uses streaming SSE for real-time responses
+
+### Legacy Script Wizard (Deprecated)
+- **API Key Storage**: Settings page allows storing personal OpenAI API key (for legacy/fallback)
   - Local storage (unencrypted, convenient)
   - Password-encrypted (AES-GCM with PBKDF2, unlocked per session)
-- **Encryption**: Uses Web Crypto API for secure key encryption (client/src/lib/crypto-utils.ts)
-- **Script Wizard**: Describe what you want in plain language, AI generates Lua code
-  - Context-aware prompts for triggers, aliases, timers, keybindings
-  - Integrated into TimersPanel and KeybindingsPanel
-  - Insert generated script directly into editor or copy to clipboard
 - **Server Endpoint**: /api/ai/generate-script proxies requests to OpenAI with user's own key
 
 ### Accessibility Keyboard Shortcuts
