@@ -53,6 +53,14 @@ Preferred communication style: Simple, everyday language.
   - Dynamic automation: tempTrigger(), tempAlias(), tempTimer(), killTrigger(), killAlias(), killTimer()
   - Toggle: enableTrigger(), disableTrigger(), enableAlias(), disableAlias(), enableTimer(), disableTimer(), enableClass(), disableClass()
   - Utility: expandAlias(), wait(seconds, callback)
+  - Notifications: notify(message, type) for toast popups
+  - Gauges: setGauge(name, current, max, color), clearGauge(name) for visual meters
+  - Cooldowns: cooldown(name, seconds) for spam prevention
+  - Movement: speedwalk(path) for automatic walking, queue(cmd1, cmd2, ...) for command sequences
+  - Logging: log(message), showLog(), clearLog() for session journaling
+  - Timing: startStopwatch(name), getElapsed(name), stopStopwatch(name)
+  - String helpers: extractNumber(), extractNumbers(), contains(), startsWith(), endsWith(), split(), trim(), lower(), upper()
+  - Named captures: captures.name for named regex groups like (?<name>\\w+)
 - Triggers: Pattern-based automation that runs on incoming MUD lines (regex patterns)
 - Aliases: Command macros that expand shortcuts with $1/$2 substitution or execute Lua scripts (isScript=true)
 - Timers: Scheduled Lua script execution (one-shot or repeating intervals), managed via TimersPanel

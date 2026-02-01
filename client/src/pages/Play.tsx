@@ -55,6 +55,11 @@ export default function Play() {
   
   // Line modification state for current trigger execution
   const lineModificationsRef = useRef<{ gagged: boolean; replacements: Array<{ old: string; new: string }> }>({ gagged: false, replacements: [] });
+  
+  // User-friendly helper state
+  const [gauges, setGauges] = useState<Map<string, { current: number; max: number; color?: string }>>(new Map());
+  const sessionLogRef = useRef<string[]>([]);
+  
   const [inputValue, setInputValue] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -418,14 +423,48 @@ export default function Play() {
     lineModificationsRef.current.gagged = true;
   }, []);
 
-  const highlightText = useCallback((pattern: string, fgColor: string, bgColor?: string) => {
-    // For now, we just echo a message since we can't modify ANSI mid-stream
-    // Future: implement actual highlighting in TerminalLine component
-    echoLocal(`[Highlight] Pattern "${pattern}" with ${fgColor}${bgColor ? ` on ${bgColor}` : ''}`);
-  }, [echoLocal]);
 
   const replaceText = useCallback((oldText: string, newText: string) => {
     lineModificationsRef.current.replacements.push({ old: oldText, new: newText });
+  }, []);
+
+  // User-friendly helper callbacks
+  const showNotification = useCallback((message: string, type?: 'info' | 'success' | 'warning' | 'danger') => {
+    const variant = type === 'danger' ? 'destructive' : 'default';
+    toast({
+      title: type === 'danger' ? 'Alert' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Info',
+      description: message,
+      variant,
+    });
+  }, [toast]);
+
+  const updateGauge = useCallback((name: string, current: number, max: number, color?: string) => {
+    setGauges(prev => {
+      const next = new Map(prev);
+      next.set(name, { current, max, color });
+      return next;
+    });
+  }, []);
+
+  const removeGauge = useCallback((name: string) => {
+    setGauges(prev => {
+      const next = new Map(prev);
+      next.delete(name);
+      return next;
+    });
+  }, []);
+
+  const addToLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    sessionLogRef.current.push(`[${timestamp}] ${message}`);
+  }, []);
+
+  const getSessionLog = useCallback((): string[] => {
+    return [...sessionLogRef.current];
+  }, []);
+
+  const clearSessionLog = useCallback(() => {
+    sessionLogRef.current = [];
   }, []);
 
   // Dynamic automation callbacks
@@ -556,7 +595,7 @@ export default function Play() {
     return result ?? command;
   }, [aliases, sendCommand, echoLocal]);
 
-  const executeScript = useCallback(async (script: string, line?: string, matches?: string[]) => {
+  const executeScript = useCallback(async (script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>) => {
     try {
       setScriptContext({
         send: sendCommand,
@@ -571,7 +610,6 @@ export default function Play() {
         matches,
         // Extended API
         gag: gagLine,
-        highlight: highlightText,
         replace: replaceText,
         tempTrigger: createTempTrigger,
         tempAlias: createTempAlias,
@@ -588,19 +626,26 @@ export default function Play() {
         enableClass: enableClassByName,
         disableClass: disableClassByName,
         expandAlias: expandAliasCommand,
+        // User-friendly helpers
+        notify: showNotification,
+        setGauge: updateGauge,
+        clearGauge: removeGauge,
+        log: addToLog,
+        getLog: getSessionLog,
+        clearLog: clearSessionLog,
       });
-      await executeLuaScript(script, line, matches);
+      await executeLuaScript(script, line, matches, namedCaptures);
     } catch (err) {
       console.error('Lua script execution error:', err);
       echoLocal(`[Script Error] ${err}`);
     }
   }, [
     sendCommand, echoLocal, setVariable, getVariable, playSound, stopSound, loopSound, setSoundPosition,
-    gagLine, highlightText, replaceText,
+    gagLine, replaceText,
     createTempTrigger, createTempAlias, createTempTimer, killTempTrigger, killTempAlias, killTempTimer,
     enableTriggerByName, disableTriggerByName, enableAliasByName, disableAliasByName,
     enableTimerByName, disableTimerByName, enableClassByName, disableClassByName,
-    expandAliasCommand
+    expandAliasCommand, showNotification, updateGauge, removeGauge, addToLog, getSessionLog, clearSessionLog
   ]);
 
   const disableTimer = useCallback((timerId: string) => {
@@ -788,10 +833,17 @@ export default function Play() {
               if (!trigger.active || !isClassActive(trigger.classId)) continue;
               
               let matches: string[] | null = null;
+              let namedCaptures: Record<string, string> = {};
               if (trigger.type === 'regex') {
                 const re = new RegExp(trigger.pattern);
                 const match = re.exec(cleanLine);
-                if (match) matches = Array.from(match);
+                if (match) {
+                  matches = Array.from(match);
+                  // Extract named capture groups
+                  if (match.groups) {
+                    namedCaptures = { ...match.groups };
+                  }
+                }
               } else {
                 if (cleanLine.includes(trigger.pattern)) {
                   matches = [trigger.pattern];
@@ -799,7 +851,7 @@ export default function Play() {
               }
               
               if (matches && trigger.script) {
-                executeScript(trigger.script, cleanLine, matches);
+                executeScript(trigger.script, cleanLine, matches, namedCaptures);
                 if (trigger.soundFile) {
                   playSound(trigger.soundFile, trigger.soundVolume, trigger.soundLoop);
                 }
@@ -811,12 +863,18 @@ export default function Play() {
             for (const tempTrigger of tempTriggersCopy) {
               try {
                 let matches: string[] | null = null;
+                let namedCaptures: Record<string, string> = {};
                 
                 // Try regex first, fall back to plain text substring match
                 try {
                   const re = new RegExp(tempTrigger.pattern);
                   const match = re.exec(cleanLine);
-                  if (match) matches = Array.from(match);
+                  if (match) {
+                    matches = Array.from(match);
+                    if (match.groups) {
+                      namedCaptures = { ...match.groups };
+                    }
+                  }
                 } catch {
                   // If pattern is not valid regex, use substring match
                   if (cleanLine.includes(tempTrigger.pattern)) {
@@ -825,7 +883,7 @@ export default function Play() {
                 }
                 
                 if (matches) {
-                  executeScript(tempTrigger.script, cleanLine, matches);
+                  executeScript(tempTrigger.script, cleanLine, matches, namedCaptures);
                   // Temp triggers fire once then are removed
                   tempTriggersRef.current = tempTriggersRef.current.filter(t => t.id !== tempTrigger.id);
                 }
@@ -1163,6 +1221,31 @@ export default function Play() {
           </Button>
         </div>
       </div>
+
+      {/* Gauges Display */}
+      {gauges.size > 0 && (
+        <div className="px-4 py-2 bg-card/50 border-b border-border flex flex-wrap gap-3" data-testid="gauges-container">
+          {Array.from(gauges.entries()).map(([name, gauge]) => {
+            const percent = Math.min(100, Math.max(0, (gauge.current / gauge.max) * 100));
+            const color = gauge.color || (percent < 25 ? 'red' : percent < 50 ? 'yellow' : 'green');
+            return (
+              <div key={name} className="flex items-center gap-2 min-w-[150px]" data-testid={`gauge-${name}`}>
+                <span className="text-xs text-muted-foreground capitalize">{name}:</span>
+                <div className="flex-1 h-3 bg-muted rounded-sm overflow-hidden relative">
+                  <div 
+                    className="h-full transition-all duration-300"
+                    style={{ 
+                      width: `${percent}%`,
+                      backgroundColor: color === 'red' ? '#ef4444' : color === 'yellow' ? '#eab308' : color === 'green' ? '#22c55e' : color === 'blue' ? '#3b82f6' : color
+                    }}
+                  />
+                </div>
+                <span className="text-xs font-mono">{gauge.current}/{gauge.max}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Terminal Area */}
       <div 

@@ -181,6 +181,146 @@ end)`}</pre>
 
         <Card>
           <CardHeader>
+            <CardTitle>Notifications & Gauges</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold font-mono">notify(message, type)</h4>
+              <p className="text-sm text-muted-foreground">Show a popup notification. Type can be "info", "success", "warning", or "danger".</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">notify("Low health!", "danger")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">setGauge(name, current, max, color)</h4>
+              <p className="text-sm text-muted-foreground">Create or update a visual meter. Color is optional (auto: green/yellow/red).</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">setGauge("health", 75, 100, "red")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">clearGauge(name)</h4>
+              <p className="text-sm text-muted-foreground">Remove a gauge from the display.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">clearGauge("health")</pre>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cooldowns & Spam Prevention</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold font-mono">cooldown(name, seconds)</h4>
+              <p className="text-sm text-muted-foreground">Returns true if enough time has passed since last use. Prevents spamming commands.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">{`if cooldown("heal", 5) then
+  send("cast heal")
+else
+  echo("Heal is on cooldown!")
+end`}</pre>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Movement & Command Sequences</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold font-mono">queue(cmd1, cmd2, ...)</h4>
+              <p className="text-sm text-muted-foreground">Send multiple commands with automatic delays between them.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">queue("kick", "punch", "uppercut")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">speedwalk(path)</h4>
+              <p className="text-sm text-muted-foreground">Automatically walk a path. Use numbers for repeats: "3n" = 3 north, "2e" = 2 east.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">speedwalk("3n 2e s")  -- North 3x, East 2x, South 1x</pre>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Session Logging</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold font-mono">log(message)</h4>
+              <p className="text-sm text-muted-foreground">Add an entry to your session journal with timestamp.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">log("Killed the dragon!")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">showLog()</h4>
+              <p className="text-sm text-muted-foreground">Display the session log in the terminal.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">clearLog()</h4>
+              <p className="text-sm text-muted-foreground">Clear the session log.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Stopwatch & Timing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold font-mono">startStopwatch(name)</h4>
+              <p className="text-sm text-muted-foreground">Start a named timer.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">startStopwatch("boss_fight")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">getElapsed(name)</h4>
+              <p className="text-sm text-muted-foreground">Get seconds elapsed since timer started.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">echo("Fight took " .. getElapsed("boss_fight") .. " seconds")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">stopStopwatch(name)</h4>
+              <p className="text-sm text-muted-foreground">Stop a timer and return elapsed time.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>String Helpers</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              These functions make it easier to work with text without needing regex knowledge.
+            </p>
+            <div>
+              <h4 className="font-semibold font-mono">extractNumber(text)</h4>
+              <p className="text-sm text-muted-foreground">Get the first number from text.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">local hp = extractNumber("You have 50 health")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">extractNumbers(text)</h4>
+              <p className="text-sm text-muted-foreground">Get all numbers from text as a table.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">local nums = extractNumbers("HP: 50/100")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">contains(text, search)</h4>
+              <p className="text-sm text-muted-foreground">Check if text contains a substring.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">{`if contains(line, "dragon") then ... end`}</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">startsWith(text, prefix), endsWith(text, suffix)</h4>
+              <p className="text-sm text-muted-foreground">Check if text starts or ends with a string.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">split(text, delimiter)</h4>
+              <p className="text-sm text-muted-foreground">Split text into parts.</p>
+              <pre className="bg-muted p-2 rounded text-sm mt-1">local words = split(line, " ")</pre>
+            </div>
+            <div>
+              <h4 className="font-semibold font-mono">trim(text), lower(text), upper(text)</h4>
+              <p className="text-sm text-muted-foreground">String manipulation utilities.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Special Variables</CardTitle>
           </CardHeader>
           <CardContent>
@@ -196,11 +336,23 @@ end)`}</pre>
                   <td className="py-2">Capture groups from regex</td>
                 </tr>
                 <tr>
+                  <td className="py-2 pr-4 font-mono text-sm">captures.name</td>
+                  <td className="py-2">Named capture groups (from patterns like <code className="bg-muted px-1 rounded">{`(?<name>\\w+)`}</code>)</td>
+                </tr>
+                <tr>
                   <td className="py-2 pr-4 font-mono text-sm">line</td>
                   <td className="py-2">The full line that triggered</td>
                 </tr>
               </tbody>
             </table>
+            <div className="mt-4">
+              <h4 className="font-semibold">Named Capture Example:</h4>
+              <pre className="bg-muted p-3 rounded text-sm overflow-x-auto mt-2">
+{`-- Trigger pattern: (?<enemy>\\w+) attacks you for (?<damage>\\d+)
+echo("Attacked by: " .. captures.enemy)
+echo("Damage: " .. captures.damage)`}
+              </pre>
+            </div>
           </CardContent>
         </Card>
 
