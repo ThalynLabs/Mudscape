@@ -86,9 +86,11 @@ export default function Play() {
     return cls ? cls.active : true;
   }, [classes]);
   
-  const { speak, speakLine, togglePause, paused } = useSpeech({
+  const { speak, speakLine, cancel: cancelSpeech, togglePause, paused } = useSpeech({
     enabled: settings.speechEnabled ?? false,
     rate: settings.speechRate ?? 1,
+    volume: settings.speechVolume ?? 1,
+    pitch: settings.speechPitch ?? 1,
     voiceURI: settings.speechVoice ?? undefined,
   });
 
@@ -322,6 +324,10 @@ export default function Play() {
           
           // Speak if enabled
           if (settings.speechEnabled) {
+            // Interrupt existing speech if enabled
+            if (settings.interruptOnIncoming) {
+              cancelSpeech();
+            }
             const cleanText = stripAnsi(processedContent);
             speak(cleanText);
           }
@@ -393,11 +399,16 @@ export default function Play() {
     return () => {
       ws.close();
     };
-  }, [profile, toast, speak, settings.speechEnabled, triggers, sendCommand, echoLocal]);
+  }, [profile, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim() || !socketRef.current) return;
+
+    // Interrupt speech on send if enabled
+    if (settings.interruptOnSend !== false) {
+      cancelSpeech();
+    }
 
     // Process aliases first (if enabled)
     let commandToSend = inputValue;
@@ -447,6 +458,12 @@ export default function Play() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Interrupt speech on keypress if enabled (but not for modifier keys alone)
+    if (settings.interruptOnKeypress && 
+        !['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape'].includes(e.key)) {
+      cancelSpeech();
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length > 0) {

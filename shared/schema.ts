@@ -65,7 +65,13 @@ export interface GlobalSettings {
   // Speech settings
   speechEnabled?: boolean;
   speechRate?: number;
+  speechVolume?: number;
+  speechPitch?: number;
   speechVoice?: string;
+  // Speech interrupt behaviors
+  interruptOnKeypress?: boolean;
+  interruptOnSend?: boolean;
+  interruptOnIncoming?: boolean;
   
   // Display settings
   fontScale?: number;
@@ -94,7 +100,13 @@ export interface ProfileSettings {
   // Speech settings (null = use global)
   speechEnabled?: boolean | null;
   speechRate?: number | null;
+  speechVolume?: number | null;
+  speechPitch?: number | null;
   speechVoice?: string | null;
+  // Speech interrupt behaviors (null = use global)
+  interruptOnKeypress?: boolean | null;
+  interruptOnSend?: boolean | null;
+  interruptOnIncoming?: boolean | null;
   
   // Display settings (null = use global)
   fontScale?: number | null;
@@ -233,7 +245,12 @@ export type UpdateGlobalSettingsRequest = Partial<GlobalSettings>;
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   speechEnabled: true,
   speechRate: 1.0,
+  speechVolume: 1.0,
+  speechPitch: 1.0,
   speechVoice: undefined,
+  interruptOnKeypress: false,
+  interruptOnSend: true,
+  interruptOnIncoming: false,
   fontScale: 1.0,
   lineHeight: 1.4,
   highContrast: false,

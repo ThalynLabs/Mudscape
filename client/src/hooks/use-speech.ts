@@ -3,11 +3,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 interface SpeechOptions {
   enabled: boolean;
   rate?: number;
+  volume?: number;
   pitch?: number;
   voiceURI?: string;
 }
 
-export function useSpeech({ enabled, rate = 1, pitch = 1, voiceURI }: SpeechOptions) {
+export function useSpeech({ enabled, rate = 1, volume = 1, pitch = 1, voiceURI }: SpeechOptions) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speaking, setSpeaking] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -35,6 +36,7 @@ export function useSpeech({ enabled, rate = 1, pitch = 1, voiceURI }: SpeechOpti
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = rate;
+    utterance.volume = volume;
     utterance.pitch = pitch;
 
     if (voiceURI) {
@@ -56,7 +58,7 @@ export function useSpeech({ enabled, rate = 1, pitch = 1, voiceURI }: SpeechOpti
     };
 
     window.speechSynthesis.speak(utterance);
-  }, [enabled, rate, pitch, voiceURI, voices]);
+  }, [enabled, rate, volume, pitch, voiceURI, voices]);
 
   const cancel = useCallback(() => {
     window.speechSynthesis.cancel();

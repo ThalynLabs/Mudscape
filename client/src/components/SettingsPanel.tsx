@@ -118,6 +118,74 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
                     onValueChange={([val]) => updateSetting('speechRate', val)}
                   />
                 </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Speech Volume</Label>
+                    <span className="text-xs font-mono">{Math.round((settings.speechVolume || 1) * 100)}%</span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={[settings.speechVolume || 1]}
+                    onValueChange={([val]) => updateSetting('speechVolume', val)}
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Speech Pitch</Label>
+                    <span className="text-xs font-mono">{settings.speechPitch || 1}x</span>
+                  </div>
+                  <Slider
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={[settings.speechPitch || 1]}
+                    onValueChange={([val]) => updateSetting('speechPitch', val)}
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">Speech Interruption</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="interrupt-keypress">Interrupt on keypress</Label>
+                      <p className="text-xs text-muted-foreground">Stop speech when you type</p>
+                    </div>
+                    <Switch
+                      id="interrupt-keypress"
+                      checked={settings.interruptOnKeypress ?? false}
+                      onCheckedChange={(val) => updateSetting('interruptOnKeypress', val)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="interrupt-send">Interrupt on send</Label>
+                      <p className="text-xs text-muted-foreground">Stop speech when you press Enter</p>
+                    </div>
+                    <Switch
+                      id="interrupt-send"
+                      checked={settings.interruptOnSend ?? true}
+                      onCheckedChange={(val) => updateSetting('interruptOnSend', val)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="interrupt-incoming">Interrupt on incoming</Label>
+                      <p className="text-xs text-muted-foreground">Stop speech when new text arrives</p>
+                    </div>
+                    <Switch
+                      id="interrupt-incoming"
+                      checked={settings.interruptOnIncoming ?? false}
+                      onCheckedChange={(val) => updateSetting('interruptOnIncoming', val)}
+                    />
+                  </div>
+                </div>
               </>
             )}
 

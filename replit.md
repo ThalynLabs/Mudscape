@@ -79,10 +79,16 @@ Preferred communication style: Simple, everyday language.
 - **Ctrl (alone)**: Toggle pause/resume of speech synthesis
 - All interactive elements have proper ARIA labels for screen reader compatibility
 - **Strip Symbols Setting**: Removes decorative characters (box drawing, ASCII art) for cleaner screen reader output
+- **Speech Controls**: Rate, volume, and pitch adjustable via settings
+- **Speech Interruption Options**:
+  - Interrupt on keypress: Stop speech when typing
+  - Interrupt on send: Stop speech when pressing Enter (default on)
+  - Interrupt on incoming: Stop speech when new text arrives from MUD
 
 ### Settings Architecture
 - **Global Settings**: App-wide defaults stored in global_settings table (single row)
-  - Speech: speechEnabled, speechRate, speechVoice
+  - Speech: speechEnabled, speechRate, speechVolume, speechPitch, speechVoice
+  - Speech Interruption: interruptOnKeypress, interruptOnSend, interruptOnIncoming
   - Display: fontScale, lineHeight, highContrast, readerMode, showInputEcho, stripSymbols
   - Automation: triggersEnabled, aliasesEnabled
   - Connection: autoReconnect, reconnectDelay, keepAlive, keepAliveInterval, gmcpEnabled
