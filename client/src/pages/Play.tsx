@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profiles";
@@ -39,6 +39,7 @@ function stripAnsi(text: string): string {
 
 export default function Play() {
   const [, params] = useRoute("/play/:id");
+  const [, navigate] = useLocation();
   const profileId = parseInt(params?.id || "0");
   const { data: profile } = useProfile(profileId);
   const { toast } = useToast();
@@ -124,17 +125,29 @@ export default function Play() {
     switch (command) {
       case '/help':
       case '/commands':
-        echoLocal('\x1b[32m=== Mudscape Commands ===\x1b[0m');
-        echoLocal('/speech on|off - Toggle text-to-speech');
-        echoLocal('/rate <0.5-2> - Set speech rate (e.g., /rate 1.5)');
-        echoLocal('/volume <0-100> - Set speech volume (e.g., /volume 80)');
-        echoLocal('/pitch <0.5-2> - Set speech pitch (e.g., /pitch 1.0)');
-        echoLocal('/voice - List available voices');
-        echoLocal('/voice <number> - Set voice by number');
-        echoLocal('/settings - Open settings panel');
-        echoLocal('/triggers on|off - Toggle trigger processing');
-        echoLocal('/aliases on|off - Toggle alias processing');
-        echoLocal('/reader on|off - Toggle reader mode');
+        echoLocal('\x1b[36m=== Mudscape Quick Help ===\x1b[0m');
+        echoLocal('');
+        echoLocal('\x1b[33mGetting Started:\x1b[0m');
+        echoLocal('Type commands in the input box below and press Enter to send to the MUD.');
+        echoLocal('Commands starting with / are Mudscape commands, not sent to the MUD.');
+        echoLocal('');
+        echoLocal('\x1b[33mSpeech Commands:\x1b[0m');
+        echoLocal('  /speech on|off  - Toggle text-to-speech');
+        echoLocal('  /rate <0.5-2>   - Adjust speech speed');
+        echoLocal('  /volume <0-100> - Adjust speech volume');
+        echoLocal('  /voice          - List or set voice');
+        echoLocal('');
+        echoLocal('\x1b[33mOther Commands:\x1b[0m');
+        echoLocal('  /triggers on|off - Toggle automation triggers');
+        echoLocal('  /aliases on|off  - Toggle command aliases');
+        echoLocal('  /settings        - Open settings panel');
+        echoLocal('');
+        echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
+        echoLocal('  Ctrl+1-9  - Read recent lines aloud');
+        echoLocal('  Ctrl      - Pause/resume speech');
+        echoLocal('  F1        - Open detailed help wiki');
+        echoLocal('');
+        echoLocal('\x1b[32mPress F1 for the full help wiki with detailed documentation.\x1b[0m');
         return true;
         
       case '/speech':
@@ -418,6 +431,13 @@ export default function Play() {
         ctrlOnlyRef.current = false;
       }
 
+      // F1 opens help page
+      if (e.key === 'F1') {
+        e.preventDefault();
+        navigate('/help');
+        return;
+      }
+
       // Ctrl + number keys (1-9) to read recent lines
       if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
         const num = parseInt(e.key);
@@ -451,7 +471,7 @@ export default function Play() {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('keyup', handleGlobalKeyUp);
     };
-  }, [lines, speakLine, togglePause]);
+  }, [lines, speakLine, togglePause, navigate]);
 
   // Connect to WebSocket
   useEffect(() => {

@@ -108,7 +108,7 @@ Preferred communication style: Simple, everyday language.
   - Global Defaults: Category tabs for Speech, Display, Automation, Connection, AI
   - Per-MUD Settings: Select a profile, then configure with category tabs
 - **In-Game Commands**: Players can adjust settings while playing:
-  - /help - Show available commands
+  - /help - Show quick reference guide (points to F1 for full wiki)
   - /speech on|off - Toggle text-to-speech
   - /rate <0.5-2> - Set speech rate
   - /volume <0-100> - Set speech volume
@@ -118,6 +118,20 @@ Preferred communication style: Simple, everyday language.
   - /triggers on|off - Toggle trigger processing
   - /aliases on|off - Toggle alias processing
   - /reader on|off - Toggle reader mode
+
+### Help System
+- **Quick Help (/help command)**: Brief in-terminal reference with key commands and shortcuts
+- **Help Wiki (F1 or /help page)**: Comprehensive documentation with:
+  - Getting Started guide
+  - Speech & TTS configuration
+  - Keyboard shortcuts reference
+  - Client commands reference
+  - Lua scripting documentation
+  - Triggers & aliases guide
+  - Sound system documentation
+  - Package manager guide
+  - AI Script Assistant usage
+  - Settings configuration
 
 ### GMCP Support
 - Generic MUD Communication Protocol for structured data from MUD servers
