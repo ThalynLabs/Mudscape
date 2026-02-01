@@ -143,9 +143,9 @@ export default function Play() {
         echoLocal('  /settings        - Open settings panel');
         echoLocal('');
         echoLocal('\x1b[33mKeyboard Shortcuts:\x1b[0m');
-        echoLocal('  Ctrl+1-9  - Read recent lines aloud');
-        echoLocal('  Ctrl      - Pause/resume speech');
-        echoLocal('  F1        - Open detailed help wiki');
+        echoLocal('  Ctrl+1-9      - Read recent lines aloud');
+        echoLocal('  Ctrl Ctrl     - Double-tap to pause/resume speech');
+        echoLocal('  F1            - Open detailed help wiki');
         echoLocal('');
         echoLocal('\x1b[32mPress F1 for the full help wiki with detailed documentation.\x1b[0m');
         return true;
@@ -385,6 +385,7 @@ export default function Play() {
 
   // Track if only Ctrl was pressed (no other keys)
   const ctrlOnlyRef = useRef(true);
+  const lastCtrlTapRef = useRef<number>(0);
 
   // Fetch active soundpack
   const { data: activeSoundpack } = useQuery<SoundpackRow>({
@@ -423,8 +424,10 @@ export default function Play() {
     }
   }, [activeSoundpack]);
 
-  // Global keyboard shortcuts (Ctrl+1-9 to read lines, Ctrl alone to toggle pause)
+  // Global keyboard shortcuts (Ctrl+1-9 to read lines, double-tap Ctrl to toggle pause)
   useEffect(() => {
+    const DOUBLE_TAP_THRESHOLD = 400; // ms between taps to count as double-tap
+    
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // If Ctrl is pressed with any other key, mark that Ctrl wasn't alone
       if (e.ctrlKey && e.key !== 'Control') {
@@ -454,10 +457,17 @@ export default function Play() {
     };
 
     const handleGlobalKeyUp = (e: KeyboardEvent) => {
-      // Single Ctrl key press (without other keys) toggles pause
+      // Double-tap Ctrl to toggle pause/resume speech
+      // This avoids conflicts with screen reader modifiers (VO uses Ctrl+Option)
       if (e.key === 'Control') {
         if (ctrlOnlyRef.current) {
-          togglePause();
+          const now = Date.now();
+          if (now - lastCtrlTapRef.current < DOUBLE_TAP_THRESHOLD) {
+            togglePause();
+            lastCtrlTapRef.current = 0; // Reset to prevent triple-tap
+          } else {
+            lastCtrlTapRef.current = now;
+          }
         }
         // Reset for next Ctrl press
         ctrlOnlyRef.current = true;

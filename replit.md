@@ -83,7 +83,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Accessibility Keyboard Shortcuts
 - **Ctrl+1 through Ctrl+9**: Read the 1st through 9th most recent line via text-to-speech
-- **Ctrl (alone)**: Toggle pause/resume of speech synthesis
+- **Ctrl Ctrl (double-tap)**: Toggle pause/resume of speech synthesis (double-tap avoids conflicts with screen reader modifiers like VoiceOver's Ctrl+Option)
 - All interactive elements have proper ARIA labels for screen reader compatibility
 - **Strip Symbols Setting**: Removes decorative characters (box drawing, ASCII art) for cleaner screen reader output
 - **Speech Controls**: Rate, volume, and pitch adjustable via settings
