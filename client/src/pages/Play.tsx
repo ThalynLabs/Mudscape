@@ -47,6 +47,14 @@ export default function Play() {
   // Terminal State
   const [lines, setLines] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  
+  // Temporary automation state (runtime-only, not persisted)
+  const tempTriggersRef = useRef<Array<{ id: string; pattern: string; script: string; timeout?: number; createdAt: number }>>([]);
+  const tempAliasesRef = useRef<Array<{ id: string; pattern: string; script: string }>>([]);
+  const tempTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
+  // Line modification state for current trigger execution
+  const lineModificationsRef = useRef<{ gagged: boolean; replacements: Array<{ old: string; new: string }> }>({ gagged: false, replacements: [] });
   const [inputValue, setInputValue] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -405,6 +413,149 @@ export default function Play() {
     soundManager.setPosition(name, x, y, z ?? 0);
   }, []);
 
+  // Text manipulation callbacks
+  const gagLine = useCallback(() => {
+    lineModificationsRef.current.gagged = true;
+  }, []);
+
+  const highlightText = useCallback((pattern: string, fgColor: string, bgColor?: string) => {
+    // For now, we just echo a message since we can't modify ANSI mid-stream
+    // Future: implement actual highlighting in TerminalLine component
+    echoLocal(`[Highlight] Pattern "${pattern}" with ${fgColor}${bgColor ? ` on ${bgColor}` : ''}`);
+  }, [echoLocal]);
+
+  const replaceText = useCallback((oldText: string, newText: string) => {
+    lineModificationsRef.current.replacements.push({ old: oldText, new: newText });
+  }, []);
+
+  // Dynamic automation callbacks
+  const createTempTrigger = useCallback((pattern: string, script: string, timeout?: number): string => {
+    const id = `temp_trigger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    tempTriggersRef.current.push({
+      id,
+      pattern,
+      script,
+      timeout,
+      createdAt: Date.now(),
+    });
+    
+    // If timeout is specified, auto-remove after timeout
+    if (timeout && timeout > 0) {
+      setTimeout(() => {
+        tempTriggersRef.current = tempTriggersRef.current.filter(t => t.id !== id);
+      }, timeout * 1000);
+    }
+    
+    return id;
+  }, []);
+
+  const createTempAlias = useCallback((pattern: string, script: string): string => {
+    const id = `temp_alias_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    tempAliasesRef.current.push({ id, pattern, script });
+    return id;
+  }, []);
+
+  const createTempTimer = useCallback((seconds: number, script: string): string => {
+    const id = `temp_timer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timeoutId = setTimeout(async () => {
+      tempTimersRef.current.delete(id);
+      try {
+        await executeLuaScript(script);
+      } catch (err) {
+        console.error('Temp timer script error:', err);
+      }
+    }, seconds * 1000);
+    tempTimersRef.current.set(id, timeoutId);
+    return id;
+  }, []);
+
+  const killTempTrigger = useCallback((id: string) => {
+    tempTriggersRef.current = tempTriggersRef.current.filter(t => t.id !== id);
+  }, []);
+
+  const killTempAlias = useCallback((id: string) => {
+    tempAliasesRef.current = tempAliasesRef.current.filter(a => a.id !== id);
+  }, []);
+
+  const killTempTimer = useCallback((id: string) => {
+    const timeoutId = tempTimersRef.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      tempTimersRef.current.delete(id);
+    }
+  }, []);
+
+  // Toggle functions for permanent automation
+  const enableTriggerByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedTriggers = triggers.map(t => 
+      (t.pattern === name || t.id === name) ? { ...t, active: true } : t
+    );
+    updateProfile.mutate({ id: profile.id, triggers: updatedTriggers });
+  }, [profile, triggers, updateProfile]);
+
+  const disableTriggerByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedTriggers = triggers.map(t => 
+      (t.pattern === name || t.id === name) ? { ...t, active: false } : t
+    );
+    updateProfile.mutate({ id: profile.id, triggers: updatedTriggers });
+  }, [profile, triggers, updateProfile]);
+
+  const enableAliasByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedAliases = aliases.map(a => 
+      (a.pattern === name || a.id === name) ? { ...a, active: true } : a
+    );
+    updateProfile.mutate({ id: profile.id, aliases: updatedAliases });
+  }, [profile, aliases, updateProfile]);
+
+  const disableAliasByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedAliases = aliases.map(a => 
+      (a.pattern === name || a.id === name) ? { ...a, active: false } : a
+    );
+    updateProfile.mutate({ id: profile.id, aliases: updatedAliases });
+  }, [profile, aliases, updateProfile]);
+
+  const enableTimerByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedTimers = timers.map(t => 
+      t.id === name ? { ...t, active: true } : t
+    );
+    updateProfile.mutate({ id: profile.id, timers: updatedTimers });
+  }, [profile, timers, updateProfile]);
+
+  const disableTimerByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedTimers = timers.map(t => 
+      t.id === name ? { ...t, active: false } : t
+    );
+    updateProfile.mutate({ id: profile.id, timers: updatedTimers });
+  }, [profile, timers, updateProfile]);
+
+  const enableClassByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedClasses = classes.map(c => 
+      (c.name === name || c.id === name) ? { ...c, active: true } : c
+    );
+    updateProfile.mutate({ id: profile.id, classes: updatedClasses });
+  }, [profile, classes, updateProfile]);
+
+  const disableClassByName = useCallback((name: string) => {
+    if (!profile) return;
+    const updatedClasses = classes.map(c => 
+      (c.name === name || c.id === name) ? { ...c, active: false } : c
+    );
+    updateProfile.mutate({ id: profile.id, classes: updatedClasses });
+  }, [profile, classes, updateProfile]);
+
+  // Expand alias utility
+  const expandAliasCommand = useCallback((command: string): string => {
+    const result = processAlias(command, aliases, sendCommand, echoLocal);
+    return result ?? command;
+  }, [aliases, sendCommand, echoLocal]);
+
   const executeScript = useCallback(async (script: string, line?: string, matches?: string[]) => {
     try {
       setScriptContext({
@@ -418,13 +569,39 @@ export default function Play() {
         setSoundPosition,
         line,
         matches,
+        // Extended API
+        gag: gagLine,
+        highlight: highlightText,
+        replace: replaceText,
+        tempTrigger: createTempTrigger,
+        tempAlias: createTempAlias,
+        tempTimer: createTempTimer,
+        killTrigger: killTempTrigger,
+        killAlias: killTempAlias,
+        killTimer: killTempTimer,
+        enableTrigger: enableTriggerByName,
+        disableTrigger: disableTriggerByName,
+        enableAlias: enableAliasByName,
+        disableAlias: disableAliasByName,
+        enableTimer: enableTimerByName,
+        disableTimer: disableTimerByName,
+        enableClass: enableClassByName,
+        disableClass: disableClassByName,
+        expandAlias: expandAliasCommand,
       });
       await executeLuaScript(script, line, matches);
     } catch (err) {
       console.error('Lua script execution error:', err);
       echoLocal(`[Script Error] ${err}`);
     }
-  }, [sendCommand, echoLocal, setVariable, getVariable, playSound, stopSound, loopSound, setSoundPosition]);
+  }, [
+    sendCommand, echoLocal, setVariable, getVariable, playSound, stopSound, loopSound, setSoundPosition,
+    gagLine, highlightText, replaceText,
+    createTempTrigger, createTempAlias, createTempTimer, killTempTrigger, killTempAlias, killTempTimer,
+    enableTriggerByName, disableTriggerByName, enableAliasByName, disableAliasByName,
+    enableTimerByName, disableTimerByName, enableClassByName, disableClassByName,
+    expandAliasCommand
+  ]);
 
   const disableTimer = useCallback((timerId: string) => {
     if (!profile) return;
@@ -598,9 +775,15 @@ export default function Play() {
             speak(cleanText);
           }
 
+          // Reset line modifications for this trigger run
+          lineModificationsRef.current = { gagged: false, replacements: [] };
+          
           // Run triggers (if enabled)
-          if (triggers.length > 0 && settings.triggersEnabled !== false) {
-            const cleanLine = stripAnsi(processedContent);
+          const cleanLine = stripAnsi(processedContent);
+          let displayLine = processedContent;
+          
+          if (settings.triggersEnabled !== false) {
+            // Process permanent triggers
             for (const trigger of triggers) {
               if (!trigger.active || !isClassActive(trigger.classId)) continue;
               
@@ -622,13 +805,49 @@ export default function Play() {
                 }
               }
             }
+            
+            // Process temporary triggers (support both regex and plain text)
+            const tempTriggersCopy = [...tempTriggersRef.current];
+            for (const tempTrigger of tempTriggersCopy) {
+              try {
+                let matches: string[] | null = null;
+                
+                // Try regex first, fall back to plain text substring match
+                try {
+                  const re = new RegExp(tempTrigger.pattern);
+                  const match = re.exec(cleanLine);
+                  if (match) matches = Array.from(match);
+                } catch {
+                  // If pattern is not valid regex, use substring match
+                  if (cleanLine.includes(tempTrigger.pattern)) {
+                    matches = [tempTrigger.pattern];
+                  }
+                }
+                
+                if (matches) {
+                  executeScript(tempTrigger.script, cleanLine, matches);
+                  // Temp triggers fire once then are removed
+                  tempTriggersRef.current = tempTriggersRef.current.filter(t => t.id !== tempTrigger.id);
+                }
+              } catch (err) {
+                console.error('Temp trigger error:', err);
+              }
+            }
           }
-
-          setLines(prev => {
-            const next = [...prev, processedContent];
-            if (next.length > MAX_LINES) return next.slice(next.length - MAX_LINES);
-            return next;
-          });
+          
+          // Apply line modifications (replace)
+          for (const replacement of lineModificationsRef.current.replacements) {
+            displayLine = displayLine.replace(replacement.old, replacement.new);
+          }
+          
+          // Add line to display (unless gagged)
+          if (!lineModificationsRef.current.gagged) {
+            setLines(prev => {
+              const next = [...prev, displayLine];
+              if (next.length > MAX_LINES) return next.slice(next.length - MAX_LINES);
+              return next;
+            });
+          }
         } else if (msg.type === 'connected') {
           setLines(prev => [...prev, `\x1b[32m>> Connected to MUD.\x1b[0m`]);
           
@@ -713,6 +932,9 @@ export default function Play() {
     let commandToSend = inputValue;
     
     if (settings.aliasesEnabled !== false) {
+      let aliasMatched = false;
+      
+      // Process permanent aliases
       for (const alias of aliases) {
         if (!alias.active || !isClassActive(alias.classId)) continue;
         
@@ -720,6 +942,7 @@ export default function Play() {
         const match = re.exec(inputValue);
         
         if (match) {
+          aliasMatched = true;
           if (alias.isScript) {
             await executeScript(alias.command, inputValue, Array.from(match));
             commandToSend = '';
@@ -730,6 +953,26 @@ export default function Play() {
             }
           }
           break;
+        }
+      }
+      
+      // Process temporary aliases if no permanent alias matched
+      if (!aliasMatched) {
+        const tempAliasesCopy = [...tempAliasesRef.current];
+        for (const tempAlias of tempAliasesCopy) {
+          try {
+            const re = new RegExp(tempAlias.pattern);
+            const match = re.exec(inputValue);
+            
+            if (match) {
+              await executeScript(tempAlias.script, inputValue, Array.from(match));
+              commandToSend = '';
+              // Temp aliases remain active until killed
+              break;
+            }
+          } catch (err) {
+            console.error('Temp alias error:', err);
+          }
         }
       }
     }

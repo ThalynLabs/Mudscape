@@ -46,7 +46,13 @@ Preferred communication style: Simple, everyday language.
 ### Scripting Engine
 - **Lua Engine**: User-defined triggers, aliases, timers, and keybindings execute Lua code via wasmoon (Lua 5.4 WebAssembly)
 - Scripts run in the browser context matching traditional MUD client behavior (like Mudlet)
-- Scripting context provides: send(), echo(), setVariable(), getVariable(), playSound(), stopSound(), loopSound(), setSoundPosition()
+- Scripting context provides:
+  - Core: send(), echo(), print(), setVariable(), getVariable()
+  - Sound: playSound(), stopSound(), loopSound(), setSoundPosition()
+  - Text manipulation: gag(), replace(old, new) (trigger scripts only)
+  - Dynamic automation: tempTrigger(), tempAlias(), tempTimer(), killTrigger(), killAlias(), killTimer()
+  - Toggle: enableTrigger(), disableTrigger(), enableAlias(), disableAlias(), enableTimer(), disableTimer(), enableClass(), disableClass()
+  - Utility: expandAlias(), wait(seconds, callback)
 - Triggers: Pattern-based automation that runs on incoming MUD lines (regex patterns)
 - Aliases: Command macros that expand shortcuts with $1/$2 substitution or execute Lua scripts (isScript=true)
 - Timers: Scheduled Lua script execution (one-shot or repeating intervals), managed via TimersPanel
@@ -64,6 +70,15 @@ Preferred communication style: Simple, everyday language.
   - Converts triggers, aliases, timers, keybindings, buttons to Mudscape's native format
   - Preserves Lua scripts (both clients use Lua)
   - ZIP extraction for .mpackage files via JSZip
+- **Import TinTin++**: Import .tt, .tin, .txt files from TinTin++
+  - Converts #action to triggers (%0-%9 wildcards to Lua)
+  - Converts #alias to aliases (%0 for all arguments)
+  - Converts #ticker to timers
+- **Import VIPMud**: Import .set, .cfg files from VIPMud
+  - Converts #TRIGGER to triggers
+  - Converts #ALIAS to aliases
+  - Converts #KEY to keybindings
+  - @variable syntax converted to getVariable() calls
 - **Install**: Apply package contents to current profile
 - **Library**: Store packages in database for reuse across profiles
 
