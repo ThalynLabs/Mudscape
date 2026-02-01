@@ -2,13 +2,14 @@ import { useProfiles, useDeleteProfile, useCreateProfile } from "@/hooks/use-pro
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { useState, useEffect, useRef } from "react";
 import { Profile, InsertProfile } from "@shared/schema";
-import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload } from "lucide-react";
+import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload, HelpCircle, Keyboard, Volume2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
   const { data: profiles, isLoading, error } = useProfiles();
@@ -304,6 +305,113 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mt-2">Create a new connection to start playing.</p>
           </div>
         )}
+
+        {/* Getting Started Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-6"
+        >
+          <h2 className="text-2xl font-bold border-b border-border pb-4">Getting Started</h2>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <TerminalSquare className="w-5 h-5 text-primary" />
+                  Quick Start
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>1. Click "New Connection" to add a MUD</p>
+                <p>2. Enter host address and port</p>
+                <p>3. Click "Connect" to start playing</p>
+                <p>4. Type commands and press Enter</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Keyboard className="w-5 h-5 text-primary" />
+                  Key Shortcuts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p><kbd className="bg-muted px-1 rounded">F1</kbd> Open help wiki</p>
+                <p><kbd className="bg-muted px-1 rounded">Ctrl+1-9</kbd> Read recent lines</p>
+                <p><kbd className="bg-muted px-1 rounded">Ctrl Ctrl</kbd> Pause speech</p>
+                <p><kbd className="bg-muted px-1 rounded">Escape</kbd> Clear input</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Volume2 className="w-5 h-5 text-primary" />
+                  Speech Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>Text-to-speech is on by default</p>
+                <p>Type <code className="bg-muted px-1 rounded">/config speech off</code> to disable</p>
+                <p>Adjust rate, volume, pitch in Settings</p>
+                <p>Works with VoiceOver, NVDA, Orca</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Zap className="w-5 h-5 text-primary" />
+                  Automation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p><strong>Triggers</strong> - React to MUD text</p>
+                <p><strong>Aliases</strong> - Command shortcuts</p>
+                <p><strong>Timers</strong> - Scheduled actions</p>
+                <p>All support Lua scripting</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  Commands
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p><code className="bg-muted px-1 rounded">/help</code> Quick reference</p>
+                <p><code className="bg-muted px-1 rounded">/config</code> Change settings</p>
+                <p><code className="bg-muted px-1 rounded">/connect</code> Reconnect</p>
+                <p><code className="bg-muted px-1 rounded">/disconnect</code> Disconnect</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  Learn More
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Full documentation with tutorials and examples.
+                </p>
+                <Link href="/help">
+                  <Button variant="outline" className="w-full" data-testid="button-open-help">
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Open Help Wiki
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
       </div>
     </div>
   );
