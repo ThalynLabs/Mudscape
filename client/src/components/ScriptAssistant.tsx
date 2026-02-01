@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Wand2, Send, Loader2, Copy, Check, Plus, Code, Zap, Timer, Keyboard, SquareMousePointer } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Wand2, Send, Loader2, Copy, Check, Plus, Code, Zap, Timer, Keyboard, SquareMousePointer, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton } from '@shared/schema';
 
@@ -129,6 +130,7 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -156,6 +158,7 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setAiUnavailable(false);
 
     try {
       const chatHistory = messages.map(m => ({
@@ -173,7 +176,13 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.aiUnavailable) {
+          setAiUnavailable(true);
+          setMessages(prev => prev.slice(0, -1)); // Remove the user message
+          throw new Error('AI service not configured on this server.');
+        }
+        throw new Error(errorData.message || 'Failed to get response');
       }
 
       const reader = response.body?.getReader();
@@ -400,7 +409,16 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
           )}
         </ScrollArea>
 
-        <div className="px-6 py-4 border-t">
+        <div className="px-6 py-4 border-t space-y-3">
+          {aiUnavailable && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                AI service not configured. For self-hosted deployments, the server administrator needs to set the OPENAI_API_KEY environment variable.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="flex gap-2">
             <Textarea
               ref={inputRef}
