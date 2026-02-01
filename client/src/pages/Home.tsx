@@ -1,12 +1,13 @@
 import { useProfiles, useDeleteProfile } from "@/hooks/use-profiles";
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
-import { ProfileCard } from "@/components/ProfileCard";
 import { useState, useEffect, useRef } from "react";
 import { Profile } from "@shared/schema";
-import { Loader2, TerminalSquare, Settings } from "lucide-react";
+import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Home() {
   const { data: profiles, isLoading, error } = useProfiles();
@@ -106,30 +107,75 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Profiles Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {profiles?.map((profile, i) => (
-            <motion.div
-              key={profile.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
-            >
-              <ProfileCard 
-                profile={profile} 
-                onEdit={handleEdit} 
-                onDelete={handleDelete}
-              />
-            </motion.div>
-          ))}
-          
-          {profiles?.length === 0 && (
-            <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-xl">
-              <p className="text-muted-foreground text-xl">No connections configured.</p>
-              <p className="text-sm text-muted-foreground mt-2">Create a new connection to start playing.</p>
-            </div>
-          )}
-        </div>
+        {/* Profiles Table */}
+        {profiles && profiles.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="border border-border rounded-lg overflow-hidden"
+          >
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="font-semibold">Name</TableHead>
+                  <TableHead className="font-semibold">Description</TableHead>
+                  <TableHead className="font-semibold">Host</TableHead>
+                  <TableHead className="font-semibold w-20">Port</TableHead>
+                  <TableHead className="font-semibold w-32 text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {profiles.map((profile) => (
+                  <TableRow key={profile.id} className="hover-elevate" data-testid={`row-profile-${profile.id}`}>
+                    <TableCell className="font-medium">{profile.name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {profile.description || <span className="italic">No description</span>}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{profile.host}</TableCell>
+                    <TableCell className="font-mono text-sm">{profile.port}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-2">
+                        <Link href={`/play/${profile.id}`}>
+                          <Button size="sm" data-testid={`button-connect-${profile.id}`}>
+                            <Play className="w-3 h-3 mr-1" />
+                            Connect
+                          </Button>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-options-${profile.id}`}>
+                              <MoreHorizontal className="w-4 h-4" />
+                              <span className="sr-only">Options</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(profile)} data-testid={`menu-edit-${profile.id}`}>
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(profile.id)} 
+                              className="text-destructive focus:text-destructive"
+                              data-testid={`menu-delete-${profile.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </motion.div>
+        ) : (
+          <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
+            <p className="text-muted-foreground text-xl">No connections configured.</p>
+            <p className="text-sm text-muted-foreground mt-2">Create a new connection to start playing.</p>
+          </div>
+        )}
       </div>
     </div>
   );

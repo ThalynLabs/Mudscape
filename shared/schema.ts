@@ -14,6 +14,7 @@ export const globalSettings = pgTable("global_settings", {
 export const profiles = pgTable("profiles", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(), // e.g. "Achaea", "Discworld"
+  description: text("description"), // Optional description for the MUD
   host: text("host").notNull(),
   port: integer("port").notNull(),
   encoding: text("encoding").default("ISO-8859-1"), // MUD default

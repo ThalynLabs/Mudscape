@@ -32,6 +32,7 @@ export function CreateProfileDialog({ existingProfile, open, onOpenChange }: Cre
     resolver: zodResolver(insertProfileSchema),
     defaultValues: {
       name: "",
+      description: "",
       host: "",
       port: 23,
       encoding: "ISO-8859-1",
@@ -50,6 +51,7 @@ export function CreateProfileDialog({ existingProfile, open, onOpenChange }: Cre
     if (existingProfile) {
       form.reset({
         name: existingProfile.name,
+        description: existingProfile.description || "",
         host: existingProfile.host,
         port: existingProfile.port,
         encoding: existingProfile.encoding || "ISO-8859-1",
@@ -66,6 +68,7 @@ export function CreateProfileDialog({ existingProfile, open, onOpenChange }: Cre
     } else {
       form.reset({
         name: "",
+        description: "",
         host: "",
         port: 23,
         encoding: "ISO-8859-1",
@@ -115,7 +118,26 @@ export function CreateProfileDialog({ existingProfile, open, onOpenChange }: Cre
                 <FormItem>
                   <FormLabel>Profile Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Achaea" {...field} className="bg-background font-mono" />
+                    <Input placeholder="e.g. Achaea" {...field} className="bg-background font-mono" data-testid="input-profile-name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g. Iron Realms fantasy MUD" 
+                      {...field} 
+                      value={field.value ?? ''} 
+                      className="bg-background" 
+                      data-testid="input-profile-description"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
