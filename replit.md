@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is an accessible, screen-reader-first MUD (Multi-User Dungeon) client built as a web application with self-hosting capabilities. The project aims to match Mudlet-like features (profiles, triggers, aliases, scripting, GMCP support) while prioritizing accessibility for VoiceOver/NVDA/Orca users. The architecture follows a web-first approach with a Node.js backend that provides both the web interface and a WebSocket-to-TCP relay for connecting to MUD servers.
+**Mudscape** is an accessible, screen-reader-first MUD (Multi-User Dungeon) client built as a web application with self-hosting capabilities. The project aims to match Mudlet-like features (profiles, triggers, aliases, scripting, GMCP support) while prioritizing accessibility for VoiceOver/NVDA/Orca users. The architecture follows a web-first approach with a Node.js backend that provides both the web interface and a WebSocket-to-TCP relay for connecting to MUD servers.
 
 ## User Preferences
 

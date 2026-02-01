@@ -63,10 +63,10 @@ export default function Home() {
               className="text-4xl md:text-5xl font-extrabold tracking-tighter text-primary flex items-center gap-3"
             >
               <TerminalSquare className="w-10 h-10 md:w-12 md:h-12" />
-              MUD.CLIENT
+              Mudscape
             </motion.h1>
             <p className="text-muted-foreground text-lg">
-              Secure WebSocket Relay Terminal v1.0
+              Accessible MUD Client
             </p>
           </div>
           
