@@ -69,9 +69,9 @@ export default function Play() {
   const profile = activeConnection?.profile;
   const profileId = activeConnection?.profileId ?? 0;
   
-  // Terminal State (for active connection)
-  const [lines, setLines] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+  // Derive terminal state from active connection (single source of truth)
+  const lines = activeConnection?.lines ?? [];
+  const isConnected = activeConnection?.isConnected ?? false;
   
   // Temporary automation state (runtime-only, not persisted)
   const tempTriggersRef = useRef<Array<{ id: string; pattern: string; script: string; timeout?: number; createdAt: number }>>([]);
@@ -143,12 +143,9 @@ export default function Play() {
     }
   }, [initialProfile]);
 
-  // Sync lines state with active connection
+  // Clear unread count when switching to this connection
   useEffect(() => {
-    if (activeConnection) {
-      setLines(activeConnection.lines);
-      setIsConnected(activeConnection.isConnected);
-      // Clear unread count when switching to this connection
+    if (activeConnectionId) {
       setConnections(prev => prev.map(c => 
         c.id === activeConnectionId ? { ...c, unreadCount: 0 } : c
       ));
@@ -215,10 +212,6 @@ export default function Play() {
       }
       return c;
     }));
-    // Also update local lines if this is the active connection
-    if (connId === activeConnectionId) {
-      setLines(prev => [...prev, ...newLines].slice(-MAX_LINES));
-    }
   }, [activeConnectionId]);
   
   const isClassActive = useCallback((classId?: string) => {
@@ -253,9 +246,8 @@ export default function Play() {
   const echoLocal = useCallback((text: string) => {
     if (activeConnectionId) {
       addLinesToConnection(activeConnectionId, [`\x1b[33m${text}\x1b[0m`]);
-    } else {
-      setLines(prev => [...prev, `\x1b[33m${text}\x1b[0m`]);
     }
+    // If no active connection, silently drop the echo
   }, [activeConnectionId, addLinesToConnection]);
   
   // Update profile settings helper (for in-game commands)
@@ -972,7 +964,6 @@ export default function Play() {
     updateConnectionState(currentConnId, { socket: ws });
 
     ws.onopen = () => {
-      setIsConnected(true);
       updateConnectionState(currentConnId, { isConnected: true });
       // Send connect handshake
       const msg: WsClientMessage = {
@@ -987,7 +978,6 @@ export default function Play() {
     };
 
     ws.onclose = () => {
-      setIsConnected(false);
       updateConnectionState(currentConnId, { isConnected: false, socket: null });
       addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server.\x1b[0m`]);
     };
@@ -1343,7 +1333,6 @@ export default function Play() {
       if (conn?.socket) {
         conn.socket.close();
         updateConnectionState(activeConnectionId, { socket: null, isConnected: false });
-        setIsConnected(false);
         addLinesToConnection(activeConnectionId, [`\x1b[33m>> Disconnected by user.\x1b[0m`]);
         toast({ title: "Disconnected", description: `Closed connection to ${profile?.host}` });
       }
