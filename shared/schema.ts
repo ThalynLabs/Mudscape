@@ -6,6 +6,9 @@ import { sql } from "drizzle-orm";
 // Re-export chat models for AI integration
 export * from "./models/chat";
 
+// Re-export auth models for Replit Auth
+export * from "./models/auth";
+
 // === TABLE DEFINITIONS ===
 
 // Global settings table - single row for app-wide defaults
@@ -17,6 +20,7 @@ export const globalSettings = pgTable("global_settings", {
 // We store profiles on the server so the user can access them from any device (Self-hosted goal)
 export const profiles = pgTable("profiles", {
   id: serial("id").primaryKey(),
+  userId: text("user_id"), // Owner of this profile (null = legacy/shared profiles)
   name: text("name").notNull(), // e.g. "Achaea", "Discworld"
   description: text("description"), // Optional description for the MUD
   host: text("host").notNull(),

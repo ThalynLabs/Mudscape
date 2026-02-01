@@ -6,6 +6,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 // Telnet constants
 const IAC = 255;
@@ -28,22 +29,38 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // === PROFILE ROUTES ===
-  app.get(api.profiles.list.path, async (req, res) => {
-    const profiles = await storage.getProfiles();
+  // Setup auth BEFORE other routes
+  await setupAuth(app);
+  registerAuthRoutes(app);
+  
+  // Helper to get user ID from request (returns null if not authenticated)
+  const getUserId = (req: any): string | null => {
+    return req.user?.claims?.sub ?? null;
+  };
+
+  // === PROFILE ROUTES (protected by auth) ===
+  app.get(api.profiles.list.path, isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const profiles = await storage.getProfilesByUser(userId!);
     res.json(profiles);
   });
 
-  app.get(api.profiles.get.path, async (req, res) => {
+  app.get(api.profiles.get.path, isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
     const profile = await storage.getProfile(Number(req.params.id));
     if (!profile) return res.status(404).json({ message: "Profile not found" });
+    // Check ownership
+    if (profile.userId && profile.userId !== userId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     res.json(profile);
   });
 
-  app.post(api.profiles.create.path, async (req, res) => {
+  app.post(api.profiles.create.path, isAuthenticated, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
       const input = api.profiles.create.input.parse(req.body);
-      const profile = await storage.createProfile(input);
+      const profile = await storage.createProfile({ ...input, userId });
       res.status(201).json(profile);
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -53,11 +70,16 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.profiles.update.path, async (req, res) => {
+  app.put(api.profiles.update.path, isAuthenticated, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
+      const existing = await storage.getProfile(Number(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Profile not found" });
+      if (existing.userId && existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       const input = api.profiles.update.input.parse(req.body);
       const profile = await storage.updateProfile(Number(req.params.id), input);
-      if (!profile) return res.status(404).json({ message: "Profile not found" });
       res.json(profile);
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -67,7 +89,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.profiles.delete.path, async (req, res) => {
+  app.delete(api.profiles.delete.path, isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const existing = await storage.getProfile(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Profile not found" });
+    if (existing.userId && existing.userId !== userId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     await storage.deleteProfile(Number(req.params.id));
     res.status(204).send();
   });
