@@ -333,17 +333,24 @@ Guidelines:
   // === WEBSOCKET RELAY ===
   const wss = new WebSocketServer({ noServer: true });
 
-  httpServer.on('upgrade', (request, socket, head) => {
-    console.log(`WS: Upgrade request for ${request.url}`);
-    if (request.url?.startsWith('/ws')) {
-      console.log('WS: Handling upgrade for /ws');
+  // Handle WebSocket upgrades for MUD relay
+  // Use 'prepend' to ensure our handler runs before Vite's HMR handler in development
+  const upgradeHandler = (request: any, socket: any, head: any) => {
+    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+    console.log(`WS: Upgrade request for ${pathname} (raw: ${request.url})`);
+    
+    if (pathname === '/ws' || pathname.startsWith('/ws?')) {
+      console.log('WS: Handling upgrade for MUD relay');
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
     } else {
-      console.log('WS: Not handling, path does not match /ws');
+      console.log(`WS: Not handling, path ${pathname} does not match /ws`);
     }
-  });
+  };
+  
+  // Prepend our handler to run first
+  httpServer.prependListener('upgrade', upgradeHandler);
 
   wss.on('connection', (ws) => {
     let tcpSocket: net.Socket | null = null;
