@@ -26,7 +26,24 @@ Preferred communication style: Simple, everyday language.
 - **Language**: TypeScript with tsx
 - **API**: REST endpoints (shared/routes.ts) with Zod validation
 - **WebSocket Relay**: `ws` library for WebSocket-to-TCP MUD connections
-- **Authentication**: Replit Auth (OpenID Connect) with multi-user and profile isolation.
+- **Authentication**: Custom username/password authentication with bcrypt password hashing and PostgreSQL session storage.
+
+### Authentication System
+- **Account Modes**: 
+  - **Single-user mode**: No login required, all access treated as admin
+  - **Multi-user mode**: Username/password authentication with registration
+- **Password Security**: bcrypt with 10 salt rounds
+- **Session Storage**: PostgreSQL via connect-pg-simple
+- **First User**: First account created during setup becomes admin
+- **Admin Features**: User management (CRUD), promote/demote admin, toggle registration
+- **Installation Wizard**: Initial setup (/setup) allows choosing account mode and creating admin account
+- **Routes**:
+  - POST /api/auth/login - Login with username/password
+  - POST /api/auth/logout - Session invalidation
+  - POST /api/auth/register - New user registration (if enabled)
+  - GET /api/auth/status - Current auth state and user info
+  - POST /api/install/setup - Initial installation
+  - GET/POST/PUT/DELETE /api/admin/* - Admin user management
 
 ### Data Storage
 - **Database**: PostgreSQL with Drizzle ORM
