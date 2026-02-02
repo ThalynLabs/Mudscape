@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
+import { io, Socket } from "socket.io-client";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profiles";
 import { TerminalLine } from "@/components/TerminalLine";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -49,7 +50,7 @@ interface ConnectionState {
   lines: string[];
   isConnected: boolean;
   unreadCount: number;
-  socket: WebSocket | null;
+  socket: Socket | null;
 }
 
 export default function Play() {
@@ -232,16 +233,15 @@ export default function Play() {
   
   // Scripting helpers - must be defined before handleClientCommand
   // Get the active connection's socket
-  const getActiveSocket = useCallback((): WebSocket | null => {
+  const getActiveSocket = useCallback((): Socket | null => {
     const activeConn = connections.find(c => c.id === activeConnectionId);
     return activeConn?.socket || null;
   }, [connections, activeConnectionId]);
   
   const sendCommand = useCallback((cmd: string) => {
     const socket = getActiveSocket();
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      const msg: WsClientMessage = { type: 'send', data: cmd };
-      socket.send(JSON.stringify(msg));
+    if (socket && socket.connected) {
+      socket.emit('mud:send', { data: cmd });
     }
   }, [getActiveSocket]);
 
@@ -982,44 +982,64 @@ export default function Play() {
     const conn = connections.find(c => c.id === activeConnectionId);
     if (conn?.socket) return; // Already connected
 
-    // Build WS URL (uses same host as frontend, just wss protocol)
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
+    // Use Socket.IO for better proxy support (HTTP polling fallback)
+    // Force polling first as Replit's proxy may block WebSocket upgrades on custom paths
     const currentConnId = activeConnectionId;
-    const ws = new WebSocket(wsUrl);
+    const socket = io({
+      path: '/socket.io',
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      upgrade: true,
+    });
     
-    // Store socket in connection state (not in ref since we use connection-aware getActiveSocket)
-    updateConnectionState(currentConnId, { socket: ws });
+    // Store socket in connection state
+    updateConnectionState(currentConnId, { socket });
 
-    ws.onopen = () => {
-      updateConnectionState(currentConnId, { isConnected: true });
+    socket.on('connect', () => {
+      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
       // Send connect handshake
-      const msg: WsClientMessage = {
-        type: "connect",
+      socket.emit('mud:connect', {
         host: profile.host,
         port: profile.port,
         encoding: profile.encoding || "ISO-8859-1",
         gmcp: settings.gmcpEnabled !== false
-      };
-      ws.send(JSON.stringify(msg));
-      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
-    };
+      });
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      addLinesToConnection(currentConnId, [`\x1b[31m>> WebSocket error occurred.\x1b[0m`]);
-    };
+    socket.on('connect_error', (error) => {
+      console.error('Socket.IO error:', error);
+      addLinesToConnection(currentConnId, [`\x1b[31m>> Connection error: ${error.message}\x1b[0m`]);
+    });
 
-    ws.onclose = (event) => {
+    socket.on('disconnect', (reason) => {
       updateConnectionState(currentConnId, { isConnected: false, socket: null });
-      const reason = event.reason || (event.code === 1006 ? 'Connection failed or was interrupted' : `Code ${event.code}`);
       addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server. (${reason})\x1b[0m`]);
-    };
+    });
 
-    ws.onmessage = (event) => {
+    socket.on('connected', (data: { host: string; port: number }) => {
+      updateConnectionState(currentConnId, { isConnected: true });
+      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to ${data.host}:${data.port}\x1b[0m`]);
+    });
+
+    socket.on('disconnected', () => {
+      updateConnectionState(currentConnId, { isConnected: false });
+      addLinesToConnection(currentConnId, [`\x1b[33m>> Disconnected from MUD server.\x1b[0m`]);
+    });
+
+    socket.on('error', (data: { message: string }) => {
+      addLinesToConnection(currentConnId, [`\x1b[31m>> Error: ${data.message}\x1b[0m`]);
+    });
+
+    socket.on('gmcp', (data: { module: string; data: unknown }) => {
+      const msg: WsServerMessage = { type: 'gmcp', module: data.module, data: data.data };
+      handleGmcpMessage(msg);
+    });
+
+    socket.on('data', (data: { content: string }) => {
       try {
-        const msg = JSON.parse(event.data) as WsServerMessage;
+        const msg: WsServerMessage = { type: 'data', content: data.content };
         
         if (msg.type === 'data') {
           // Process MSP sound triggers
@@ -1171,58 +1191,58 @@ export default function Play() {
           if (!lineModificationsRef.current.gagged) {
             addLinesToConnection(currentConnId, [displayLine]);
           }
-        } else if (msg.type === 'connected') {
-          addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to MUD.\x1b[0m`]);
-          
-          // Send login commands if configured
-          if (profile.loginCommands) {
-            const commands = profile.loginCommands.split('\n').filter(c => c.trim());
-            commands.forEach((cmd, index) => {
-              let processedCmd = cmd
-                .replace(/\{name\}/gi, profile.characterName || '')
-                .replace(/\{password\}/gi, profile.characterPassword || '');
-              
-              // Delay each command slightly to ensure they arrive in order
-              setTimeout(() => {
-                if (ws.readyState === WebSocket.OPEN) {
-                  ws.send(JSON.stringify({ type: 'send', data: processedCmd }));
-                }
-              }, index * 200);
-            });
-          }
-        } else if (msg.type === 'disconnected') {
-          addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from MUD: ${msg.reason}\x1b[0m`]);
-        } else if (msg.type === 'error') {
-          addLinesToConnection(currentConnId, [`\x1b[31m>> Error: ${msg.message}\x1b[0m`]);
-          toast({ variant: "destructive", title: "Connection Error", description: msg.message });
-        } else if (msg.type === 'gmcp') {
-          console.log('GMCP:', msg.module, msg.data);
-          setGmcpData(prev => ({ ...prev, [msg.module]: msg.data }));
-          
-          if (msg.module === 'Char.Vitals' && typeof msg.data === 'object' && msg.data !== null) {
-            const vitals = msg.data as Record<string, unknown>;
-            const vitalStr = Object.entries(vitals)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(' | ');
-            addLinesToConnection(currentConnId, [`\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
-          } else if (msg.module === 'Room.Info' && typeof msg.data === 'object' && msg.data !== null) {
-            const room = msg.data as Record<string, unknown>;
-            const roomName = room.name || room.short || 'Unknown Room';
-            const exits = Array.isArray(room.exits) ? room.exits.join(', ') : 
-                          (typeof room.exits === 'object' && room.exits !== null) ? Object.keys(room.exits).join(', ') : '';
-            const roomLine = exits ? `[Room] ${roomName} | Exits: ${exits}` : `[Room] ${roomName}`;
-            addLinesToConnection(currentConnId, [`\x1b[36m${roomLine}\x1b[0m`]);
-          } else if (msg.module.startsWith('Core.')) {
-            console.log('GMCP Core module:', msg.module, msg.data);
-          }
         }
       } catch (e) {
-        console.error("Failed to parse WS message", e);
+        console.error("Failed to parse Socket.IO message", e);
+      }
+    });
+
+    // Handle MUD connected - send login commands
+    socket.on('connected', () => {
+      if (profile.loginCommands) {
+        const commands = profile.loginCommands.split('\n').filter(c => c.trim());
+        commands.forEach((cmd, index) => {
+          let processedCmd = cmd
+            .replace(/\{name\}/gi, profile.characterName || '')
+            .replace(/\{password\}/gi, profile.characterPassword || '');
+          
+          // Delay each command slightly to ensure they arrive in order
+          setTimeout(() => {
+            if (socket.connected) {
+              socket.emit('mud:send', { data: processedCmd });
+            }
+          }, index * 200);
+        });
+      }
+    });
+
+    // Handle GMCP messages
+    const handleGmcpMessage = (msg: WsServerMessage) => {
+      if (msg.type === 'gmcp') {
+        console.log('GMCP:', msg.module, msg.data);
+        setGmcpData(prev => ({ ...prev, [msg.module!]: msg.data }));
+        
+        if (msg.module === 'Char.Vitals' && typeof msg.data === 'object' && msg.data !== null) {
+          const vitals = msg.data as Record<string, unknown>;
+          const vitalStr = Object.entries(vitals)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(' | ');
+          addLinesToConnection(currentConnId, [`\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
+        } else if (msg.module === 'Room.Info' && typeof msg.data === 'object' && msg.data !== null) {
+          const room = msg.data as Record<string, unknown>;
+          const roomName = room.name || room.short || 'Unknown Room';
+          const exits = Array.isArray(room.exits) ? room.exits.join(', ') : 
+                        (typeof room.exits === 'object' && room.exits !== null) ? Object.keys(room.exits).join(', ') : '';
+          const roomLine = exits ? `[Room] ${roomName} | Exits: ${exits}` : `[Room] ${roomName}`;
+          addLinesToConnection(currentConnId, [`\x1b[36m${roomLine}\x1b[0m`]);
+        } else if (msg.module?.startsWith('Core.')) {
+          console.log('GMCP Core module:', msg.module, msg.data);
+        }
       }
     };
 
     return () => {
-      ws.close();
+      socket.disconnect();
     };
   }, [profile, activeConnectionId, connections, updateConnectionState, addLinesToConnection, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);
 
@@ -1302,9 +1322,8 @@ export default function Play() {
     }
 
     // Send to server (if there's still a command after alias processing)
-    if (commandToSend && socket.readyState === WebSocket.OPEN) {
-      const msg: WsClientMessage = { type: 'send', data: commandToSend };
-      socket.send(JSON.stringify(msg));
+    if (commandToSend && socket.connected) {
+      socket.emit('mud:send', { data: commandToSend });
     }
 
     // Echo locally (if enabled)

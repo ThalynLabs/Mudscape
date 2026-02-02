@@ -27,7 +27,6 @@ import SettingsHelp from "@/pages/help/SettingsHelp";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading, accountMode } = useAuth();
-  const [, setLocation] = useLocation();
 
   if (isLoading) {
     return (
@@ -42,8 +41,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isAuthenticated) {
-    setLocation("/login");
-    return null;
+    return <Redirect to="/login" />;
   }
 
   return <Component />;
@@ -51,7 +49,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading, user, accountMode } = useAuth();
-  const [, setLocation] = useLocation();
 
   if (isLoading) {
     return (
@@ -66,13 +63,11 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   }
 
   if (!isAuthenticated) {
-    setLocation("/login");
-    return null;
+    return <Redirect to="/login" />;
   }
 
   if (!user?.isAdmin) {
-    setLocation("/");
-    return null;
+    return <Redirect to="/" />;
   }
 
   return <Component />;

@@ -66,6 +66,9 @@ export function setupAuth(app: Express): void {
     console.warn("WARNING: SESSION_SECRET not set. Using insecure default for development only.");
   }
 
+  // Trust proxy for proper secure cookies behind reverse proxy
+  app.set('trust proxy', 1);
+
   app.use(
     session({
       store: new PgSession({
@@ -74,8 +77,10 @@ export function setupAuth(app: Express): void {
         createTableIfMissing: true,
       }),
       secret: sessionSecret || "mudscape-dev-secret-insecure",
+      name: "mudscape.sid",
       resave: false,
       saveUninitialized: false,
+      proxy: true,
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         httpOnly: true,
@@ -129,6 +134,11 @@ export function isAdmin(req: Request, res: Response, next: NextFunction): void {
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/status", async (req, res) => {
+    // Prevent caching of auth status
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    
     const config = await storage.getAppConfig();
     
     if (config?.accountMode === "single") {

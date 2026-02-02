@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocket, WebSocketServer } from "ws";
+import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -330,36 +330,39 @@ Guidelines:
     }
   });
 
-  // === WEBSOCKET RELAY ===
-  const wss = new WebSocketServer({ noServer: true });
-
-  // Handle WebSocket upgrades for MUD relay
-  // Use 'prepend' to ensure our handler runs before Vite's HMR handler in development
-  const upgradeHandler = (request: any, socket: any, head: any) => {
-    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
-    console.log(`WS: Upgrade request for ${pathname} (raw: ${request.url})`);
-    
-    if (pathname === '/ws' || pathname.startsWith('/ws?')) {
-      console.log('WS: Handling upgrade for MUD relay');
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-      });
-    } else {
-      console.log(`WS: Not handling, path ${pathname} does not match /ws`);
-    }
-  };
+  // === SOCKET.IO MUD RELAY ===
+  // Using Socket.IO for better proxy support (HTTP polling fallback)
+  // Force polling first as Replit's proxy may not forward WebSocket upgrades on custom paths
+  const io = new SocketIOServer(httpServer, {
+    path: '/socket.io',
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    serveClient: false,
+  });
   
-  // Prepend our handler to run first
-  httpServer.prependListener('upgrade', upgradeHandler);
+  console.log('Socket.IO: Server initialized on /socket.io path');
+  
+  // Add Socket.IO's engine.io middleware to Express to handle HTTP polling requests
+  // This ensures polling requests are handled before Vite's catch-all middleware
+  app.use('/socket.io', (req, res) => {
+    (io.engine as any).handleRequest(req, res);
+  });
 
-  wss.on('connection', (ws) => {
+  io.on('connection', (socket) => {
     let tcpSocket: net.Socket | null = null;
     let connected = false;
     let gmcpEnabled = false;
     let gmcpNegotiated = false;
     let pendingBuffer = Buffer.alloc(0);
 
-    console.log('WS: Client connected');
+    console.log('Socket.IO: Client connected');
 
     function sendGmcpToMud(module: string, data: unknown) {
       if (!tcpSocket || !connected || !gmcpNegotiated) return;
@@ -394,8 +397,8 @@ Guidelines:
               if (cmd === WILL && gmcpEnabled) {
                 tcpSocket?.write(Buffer.from([IAC, DO, GMCP]));
                 gmcpNegotiated = true;
-                console.log('WS: GMCP negotiated');
-                sendGmcpToMud('Core.Hello', { client: 'AccessibleMUD', version: '1.0' });
+                console.log('Socket.IO: GMCP negotiated');
+                sendGmcpToMud('Core.Hello', { client: 'Mudscape', version: '1.0' });
                 sendGmcpToMud('Core.Supports.Set', ['Char 1', 'Char.Vitals 1', 'Room 1', 'Room.Info 1']);
               } else if (cmd === DO && gmcpEnabled) {
                 tcpSocket?.write(Buffer.from([IAC, WILL, GMCP]));
@@ -434,7 +437,7 @@ Guidelines:
                 }
               }
               
-              ws.send(JSON.stringify({ type: 'gmcp', module, data: jsonData }));
+              socket.emit('gmcp', { module, data: jsonData });
             }
             
             i = seIndex + 2;
@@ -458,81 +461,77 @@ Guidelines:
       pendingBuffer = pendingBuffer.subarray(i);
       
       if (textContent.length > 0) {
-        ws.send(JSON.stringify({ type: 'data', content: textContent }));
+        socket.emit('data', { content: textContent });
       }
     }
 
-    ws.on('message', (message) => {
+    socket.on('mud:connect', (data: { host: string; port: number; encoding?: string; gmcp?: boolean }) => {
       try {
-        const data = JSON.parse(message.toString()) as WsClientMessage;
-        
-        if (data.type === 'connect') {
-          if (tcpSocket) {
-            tcpSocket.destroy();
-            tcpSocket = null;
-          }
-
-          gmcpEnabled = data.gmcp ?? true;
-          gmcpNegotiated = false;
-          pendingBuffer = Buffer.alloc(0);
-
-          console.log(`WS: Connecting to ${data.host}:${data.port} (GMCP: ${gmcpEnabled})`);
-          
-          tcpSocket = new net.Socket();
-          tcpSocket.connect(data.port, data.host, () => {
-            connected = true;
-            console.log('WS: TCP Connected');
-            ws.send(JSON.stringify({ 
-              type: 'connected', 
-              host: data.host, 
-              port: data.port 
-            }));
-            
-            if (gmcpEnabled) {
-              tcpSocket?.write(Buffer.from([IAC, WILL, GMCP]));
-              console.log('WS: Sent IAC WILL GMCP');
-            }
-          });
-
-          tcpSocket.on('data', (buffer) => {
-            parseAndForwardData(buffer);
-          });
-
-          tcpSocket.on('close', () => {
-            console.log('WS: TCP Closed');
-            if (connected) {
-              ws.send(JSON.stringify({ type: 'disconnected' }));
-            }
-            connected = false;
-            tcpSocket = null;
-          });
-
-          tcpSocket.on('error', (err) => {
-            console.error('WS: TCP Error', err);
-            ws.send(JSON.stringify({ type: 'error', message: err.message }));
-          });
-
-        } else if (data.type === 'disconnect') {
-          if (tcpSocket) {
-            tcpSocket.destroy();
-            tcpSocket = null;
-          }
-          ws.send(JSON.stringify({ type: 'disconnected' }));
-
-        } else if (data.type === 'send') {
-          if (tcpSocket && connected) {
-            tcpSocket.write(data.data + '\r\n');
-          }
-
-        } else if (data.type === 'gmcp') {
-          sendGmcpToMud(data.module, data.data);
+        if (tcpSocket) {
+          tcpSocket.destroy();
+          tcpSocket = null;
         }
+
+        gmcpEnabled = data.gmcp ?? true;
+        gmcpNegotiated = false;
+        pendingBuffer = Buffer.alloc(0);
+
+        console.log(`Socket.IO: Connecting to ${data.host}:${data.port} (GMCP: ${gmcpEnabled})`);
+        
+        tcpSocket = new net.Socket();
+        tcpSocket.connect(data.port, data.host, () => {
+          connected = true;
+          console.log('Socket.IO: TCP Connected');
+          socket.emit('connected', { host: data.host, port: data.port });
+          
+          if (gmcpEnabled) {
+            tcpSocket?.write(Buffer.from([IAC, WILL, GMCP]));
+            console.log('Socket.IO: Sent IAC WILL GMCP');
+          }
+        });
+
+        tcpSocket.on('data', (buffer) => {
+          parseAndForwardData(buffer);
+        });
+
+        tcpSocket.on('close', () => {
+          console.log('Socket.IO: TCP Closed');
+          if (connected) {
+            socket.emit('disconnected');
+          }
+          connected = false;
+          tcpSocket = null;
+        });
+
+        tcpSocket.on('error', (err) => {
+          console.error('Socket.IO: TCP Error', err);
+          socket.emit('error', { message: err.message });
+        });
       } catch (e) {
-        console.error('WS: Message error', e);
+        console.error('Socket.IO: Connect error', e);
       }
     });
 
-    ws.on('close', () => {
+    socket.on('mud:disconnect', () => {
+      if (tcpSocket) {
+        tcpSocket.destroy();
+        tcpSocket = null;
+      }
+      socket.emit('disconnected');
+    });
+
+    socket.on('mud:send', (data: { data: string }) => {
+      if (tcpSocket && connected) {
+        tcpSocket.write(data.data + '\r\n');
+      }
+    });
+
+    socket.on('mud:gmcp', (data: { module: string; data: unknown }) => {
+      sendGmcpToMud(data.module, data.data);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket.IO: Client disconnected');
       if (tcpSocket) {
         tcpSocket.destroy();
       }

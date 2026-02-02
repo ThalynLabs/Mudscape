@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mudscape is an accessible, screen-reader-first MUD (Multi-User Dungeon) client designed as a web application with self-hosting capabilities. It aims to provide Mudlet-like features, including profiles, triggers, aliases, scripting, and GMCP support, with a strong focus on accessibility for screen reader users (VoiceOver/NVDA/Orca). The project utilizes a web-first approach with a Node.js backend serving both the web interface and a WebSocket-to-TCP relay for MUD server connections.
+Mudscape is an accessible, screen-reader-first MUD (Multi-User Dungeon) client designed as a web application with self-hosting capabilities. It aims to provide Mudlet-like features, including profiles, triggers, aliases, scripting, and GMCP support, with a strong focus on accessibility for screen reader users (VoiceOver/NVDA/Orca). The project utilizes a web-first approach with a Node.js backend serving both the web interface and a Socket.IO-to-TCP relay for MUD server connections.
 
 ## User Preferences
 
@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Runtime**: Node.js with Express
 - **Language**: TypeScript with tsx
 - **API**: REST endpoints (shared/routes.ts) with Zod validation
-- **WebSocket Relay**: `ws` library for WebSocket-to-TCP MUD connections
+- **MUD Relay**: Socket.IO library for browser-to-TCP MUD connections with HTTP polling fallback
 - **Authentication**: Custom username/password authentication with bcrypt password hashing and PostgreSQL session storage.
 
 ### Authentication System
@@ -99,7 +99,7 @@ Preferred communication style: Simple, everyday language.
 - **connect-pg-simple**: PostgreSQL session storage.
 
 ### MUD Protocol
-- **ws**: WebSocket server library.
+- **socket.io**: Socket.IO for real-time MUD relay with polling fallback.
 - **net module**: Node.js TCP connections.
 
 ### UI Framework
