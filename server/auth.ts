@@ -144,10 +144,12 @@ export function isAdmin(req: Request, res: Response, next: NextFunction): void {
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/status", async (req, res) => {
-    // Prevent caching of auth status
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    // Prevent caching of auth status - disable ETags and all caching
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
+    res.set('ETag', '');
+    res.removeHeader('ETag');
     
     const config = await storage.getAppConfig();
     
