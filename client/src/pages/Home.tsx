@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
   const { data: profiles, isLoading: profilesLoading, error } = useProfiles();
   const deleteMutation = useDeleteProfile();
   const createMutation = useCreateProfile();
@@ -304,7 +304,7 @@ export default function Home() {
               Mudscape
             </motion.h1>
             <p className="text-muted-foreground text-lg">
-              {user ? `Welcome back, ${user.firstName || user.email || 'User'}` : 'Accessible MUD Client'}
+              {user ? `Welcome back, ${user.username}` : 'Accessible MUD Client'}
             </p>
           </div>
           
@@ -344,30 +344,29 @@ export default function Home() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" data-testid="button-user-menu">
-                  {user?.profileImageUrl ? (
-                    <Avatar className="w-6 h-6">
-                      <AvatarImage src={user.profileImageUrl} alt={user.firstName || 'User'} />
-                      <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <User className="w-5 h-5" />
-                  )}
+                  <User className="w-5 h-5" />
                   <span className="sr-only">User menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <div className="px-2 py-1.5 text-sm font-medium">
-                  {user?.firstName} {user?.lastName}
-                </div>
-                <div className="px-2 pb-1.5 text-xs text-muted-foreground">
-                  {user?.email}
+                  {user?.username}
+                  {user?.isAdmin && <span className="ml-1 text-xs text-primary">(Admin)</span>}
                 </div>
                 <DropdownMenuSeparator />
+                {user?.isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer" data-testid="menu-admin">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin Panel
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
-                  <a href="/api/logout" className="cursor-pointer" data-testid="menu-logout">
+                  <Link href="/login" onClick={(e) => { e.preventDefault(); logout(); }} className="cursor-pointer" data-testid="menu-logout">
                     <LogOut className="w-4 h-4 mr-2" />
                     Log Out
-                  </a>
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

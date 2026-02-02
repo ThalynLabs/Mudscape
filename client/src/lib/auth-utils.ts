@@ -1,8 +1,7 @@
 export function isUnauthorizedError(error: Error): boolean {
-  return /^401: .*Unauthorized/.test(error.message);
+  return /^401: .*Unauthorized/.test(error.message) || error.message.includes("Authentication required");
 }
 
-// Redirect to login with a toast notification
 export function redirectToLogin(toast?: (options: { title: string; description: string; variant: string }) => void) {
   if (toast) {
     toast({
@@ -12,6 +11,6 @@ export function redirectToLogin(toast?: (options: { title: string; description: 
     });
   }
   setTimeout(() => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
   }, 500);
 }

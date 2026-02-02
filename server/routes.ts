@@ -6,7 +6,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
 
 // Telnet constants
 const IAC = 255;
@@ -30,12 +30,12 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Setup auth BEFORE other routes
-  await setupAuth(app);
+  setupAuth(app);
   registerAuthRoutes(app);
   
   // Helper to get user ID from request (returns null if not authenticated)
   const getUserId = (req: any): string | null => {
-    return req.user?.claims?.sub ?? null;
+    return req.authUser?.claims?.sub ?? null;
   };
 
   // === PROFILE ROUTES (protected by auth) ===
