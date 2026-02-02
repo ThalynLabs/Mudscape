@@ -102,6 +102,7 @@ Preferred communication style: Simple, everyday language.
 - **socket.io**: Socket.IO for real-time MUD relay with polling fallback.
 - **Socket.IO Path**: Uses `/api/socket` path to avoid Replit proxy interference (standard `/socket.io` path may be intercepted by the proxy).
 - **Transport**: Polling-first with WebSocket upgrade for reliability through proxies.
+- **Session Bypass**: Session middleware skips `/api/socket` requests to prevent interference with Socket.IO polling.
 - **net module**: Node.js TCP connections to MUD servers.
 
 ### UI Framework

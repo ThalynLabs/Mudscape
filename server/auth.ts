@@ -69,29 +69,39 @@ export function setupAuth(app: Express): void {
   // Trust proxy for proper secure cookies behind reverse proxy
   app.set('trust proxy', 1);
 
-  app.use(
-    session({
-      store: new PgSession({
-        pool,
-        tableName: "sessions",
-        createTableIfMissing: true,
-      }),
-      secret: sessionSecret || "mudscape-dev-secret-insecure",
-      name: "mudscape.sid",
-      resave: false,
-      saveUninitialized: false,
-      proxy: true,
-      cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      },
-    })
-  );
+  const sessionMiddleware = session({
+    store: new PgSession({
+      pool,
+      tableName: "sessions",
+      createTableIfMissing: true,
+    }),
+    secret: sessionSecret || "mudscape-dev-secret-insecure",
+    name: "mudscape.sid",
+    resave: false,
+    saveUninitialized: false,
+    proxy: true,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    },
+  });
 
+  // Skip session middleware for Socket.IO requests to avoid interfering with polling
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api/socket')) {
+      return next();
+    }
+    sessionMiddleware(req, res, next);
+  });
+
+  // Skip auth user lookup for Socket.IO requests
   app.use(async (req: Request, res: Response, next: NextFunction) => {
-    if (req.session.userId) {
+    if (req.path.startsWith('/api/socket')) {
+      return next();
+    }
+    if (req.session?.userId) {
       const dbUser = await storage.getUser(req.session.userId);
       if (dbUser && dbUser.username) {
         req.authUser = {
