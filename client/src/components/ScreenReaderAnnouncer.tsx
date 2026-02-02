@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef, ForwardRefRenderFunction } from "react";
 
 function stripAnsi(text: string): string {
   return text.replace(/\x1b\[[0-9;]*m/g, "").trim();
+}
+
+export interface ScreenReaderAnnouncerRef {
+  announce: (text: string) => void;
 }
 
 interface ScreenReaderAnnouncerProps {
@@ -10,10 +14,23 @@ interface ScreenReaderAnnouncerProps {
   maxLines?: number;
 }
 
-export function ScreenReaderAnnouncer({ lines, enabled, maxLines = 5 }: ScreenReaderAnnouncerProps) {
+const ScreenReaderAnnouncerInner: ForwardRefRenderFunction<ScreenReaderAnnouncerRef, ScreenReaderAnnouncerProps> = (
+  { lines, enabled, maxLines = 5 },
+  ref
+) => {
   const [announcements, setAnnouncements] = useState<string[]>([]);
   const lastLineCountRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    announce: (text: string) => {
+      const cleanText = stripAnsi(text);
+      setAnnouncements(prev => {
+        const updated = [...prev, cleanText];
+        return updated.slice(-maxLines);
+      });
+    }
+  }), [maxLines]);
 
   useEffect(() => {
     if (!enabled) {
@@ -47,8 +64,6 @@ export function ScreenReaderAnnouncer({ lines, enabled, maxLines = 5 }: ScreenRe
     }
   }, [announcements]);
 
-  if (!enabled) return null;
-
   return (
     <div
       ref={containerRef}
@@ -74,4 +89,6 @@ export function ScreenReaderAnnouncer({ lines, enabled, maxLines = 5 }: ScreenRe
       ))}
     </div>
   );
-}
+};
+
+export const ScreenReaderAnnouncer = forwardRef(ScreenReaderAnnouncerInner);

@@ -17,7 +17,7 @@ import { SoundpackPanel } from "@/components/SoundpackPanel";
 import { ScriptAssistant } from "@/components/ScriptAssistant";
 import { ConnectionTabs } from "@/components/ConnectionTabs";
 import { AddConnectionDialog } from "@/components/AddConnectionDialog";
-import { ScreenReaderAnnouncer } from "@/components/ScreenReaderAnnouncer";
+import { ScreenReaderAnnouncer, ScreenReaderAnnouncerRef } from "@/components/ScreenReaderAnnouncer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Settings, Wifi, WifiOff, ArrowDown, Clock, Keyboard, Volume2, Zap, Terminal, SquareMousePointer, Package, Wand2, Library, Unplug } from "lucide-react";
@@ -108,6 +108,7 @@ export default function Play() {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const executeScriptRef = useRef<((script: string, line?: string, matches?: string[], namedCaptures?: Record<string, string>) => Promise<void>) | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const screenReaderRef = useRef<ScreenReaderAnnouncerRef>(null);
 
   // Fetch global settings
   const { data: globalSettings } = useQuery<GlobalSettings>({
@@ -936,6 +937,10 @@ export default function Play() {
           if (lineIndex >= 0 && lines[lineIndex]) {
             const cleanLine = stripAnsi(lines[lineIndex]);
             speakLine(cleanLine);
+            // Also announce to screen reader if enabled
+            if (screenReaderRef.current) {
+              screenReaderRef.current.announce(cleanLine);
+            }
           }
           return;
         }
@@ -1564,6 +1569,7 @@ export default function Play() {
 
       {/* Screen Reader ARIA Live Region for NVDA/JAWS */}
       <ScreenReaderAnnouncer 
+        ref={screenReaderRef}
         lines={lines} 
         enabled={settings.screenReaderAnnounce ?? false} 
       />
