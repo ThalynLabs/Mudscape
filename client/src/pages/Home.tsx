@@ -362,11 +362,9 @@ export default function Home() {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem asChild>
-                  <Link href="/login" onClick={(e) => { e.preventDefault(); logout(); }} className="cursor-pointer" data-testid="menu-logout">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Log Out
-                  </Link>
+                <DropdownMenuItem onClick={() => logout()} className="cursor-pointer" data-testid="menu-logout">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Log Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

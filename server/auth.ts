@@ -58,6 +58,14 @@ export function setupAuth(app: Express): void {
 
   const PgSession = connectPgSimple(session);
 
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET environment variable is required in production");
+  }
+  if (!sessionSecret) {
+    console.warn("WARNING: SESSION_SECRET not set. Using insecure default for development only.");
+  }
+
   app.use(
     session({
       store: new PgSession({
@@ -65,7 +73,7 @@ export function setupAuth(app: Express): void {
         tableName: "sessions",
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "mudscape-session-secret-change-in-production",
+      secret: sessionSecret || "mudscape-dev-secret-insecure",
       resave: false,
       saveUninitialized: false,
       cookie: {
