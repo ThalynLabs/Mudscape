@@ -15,6 +15,7 @@ import {
   type InsertPackage,
   DEFAULT_GLOBAL_SETTINGS,
 } from "@shared/schema";
+import { users, appConfig, type User, type UpsertUser, type AppConfig } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
@@ -42,6 +43,20 @@ export interface IStorage {
   getPackage(id: number): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
   deletePackage(id: number): Promise<void>;
+  
+  // Users
+  getUsers(): Promise<User[]>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<UpsertUser>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  getUserCount(): Promise<number>;
+  
+  // App Config
+  getAppConfig(): Promise<AppConfig | undefined>;
+  createAppConfig(config: Partial<AppConfig>): Promise<AppConfig>;
+  updateAppConfig(updates: Partial<AppConfig>): Promise<AppConfig>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -157,6 +172,68 @@ export class DatabaseStorage implements IStorage {
   
   async deletePackage(id: number): Promise<void> {
     await db.delete(packages).where(eq(packages.id, id));
+  }
+  
+  // Users
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.username);
+  }
+  
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+  
+  async createUser(insertUser: UpsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  async updateUser(id: string, updates: Partial<UpsertUser>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+  
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+  
+  async getUserCount(): Promise<number> {
+    const result = await db.select().from(users);
+    return result.length;
+  }
+  
+  // App Config
+  async getAppConfig(): Promise<AppConfig | undefined> {
+    const [config] = await db.select().from(appConfig).limit(1);
+    return config;
+  }
+  
+  async createAppConfig(config: Partial<AppConfig>): Promise<AppConfig> {
+    const [created] = await db.insert(appConfig).values(config as typeof appConfig.$inferInsert).returning();
+    return created;
+  }
+  
+  async updateAppConfig(updates: Partial<AppConfig>): Promise<AppConfig> {
+    const existing = await this.getAppConfig();
+    if (!existing) {
+      return this.createAppConfig(updates);
+    }
+    const [updated] = await db
+      .update(appConfig)
+      .set(updates as Partial<typeof appConfig.$inferInsert>)
+      .where(eq(appConfig.id, existing.id))
+      .returning();
+    return updated;
   }
 }
 
