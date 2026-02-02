@@ -6,6 +6,12 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
+// Store Socket.IO instance for access outside routes (set by registerRoutes)
+export let socketIO: any = null;
+export function setSocketIO(io: any) {
+  socketIO = io;
+}
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -36,6 +42,11 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+  
+  // Log all socket.io requests for debugging
+  if (path.startsWith('/api/socket')) {
+    console.log('Express: socket.io request received:', req.method, path);
+  }
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -61,6 +72,21 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+
+  // Add Socket.IO polling middleware BEFORE Vite to ensure it's not caught by catch-all
+  // Socket.IO attached to httpServer handles WebSocket upgrades automatically
+  // but we need to handle polling requests through Express
+  // Use /api/socket path to avoid Replit proxy interference
+  app.use('/api/socket', (req, res, next) => {
+    console.log('Socket.IO middleware: request received', req.url);
+    if (socketIO) {
+      // Let Socket.IO's engine handle the polling request
+      (socketIO.engine as any).handleRequest(req, res);
+    } else {
+      console.log('Socket.IO middleware: socketIO not initialized');
+      next();
+    }
+  });
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

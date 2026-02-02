@@ -7,6 +7,7 @@ import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
+import { setSocketIO } from "./index";
 
 // Telnet constants
 const IAC = 255;
@@ -333,27 +334,25 @@ Guidelines:
   // === SOCKET.IO MUD RELAY ===
   // Using Socket.IO for better proxy support (HTTP polling fallback)
   // Force polling first as Replit's proxy may not forward WebSocket upgrades on custom paths
+  // Use /api/socket path to avoid Replit proxy interference
   const io = new SocketIOServer(httpServer, {
-    path: '/socket.io',
+    path: '/api/socket',
     cors: {
       origin: '*',
-      methods: ['GET', 'POST'],
-      credentials: true,
+      methods: ['GET', 'POST', 'OPTIONS'],
     },
     transports: ['polling', 'websocket'],
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
     serveClient: false,
+    allowUpgrades: true,
   });
   
-  console.log('Socket.IO: Server initialized on /socket.io path');
+  console.log('Socket.IO: Server initialized on /api/socket path');
   
-  // Add Socket.IO's engine.io middleware to Express to handle HTTP polling requests
-  // This ensures polling requests are handled before Vite's catch-all middleware
-  app.use('/socket.io', (req, res) => {
-    (io.engine as any).handleRequest(req, res);
-  });
+  // Store Socket.IO instance for access in index.ts
+  setSocketIO(io);
 
   io.on('connection', (socket) => {
     let tcpSocket: net.Socket | null = null;

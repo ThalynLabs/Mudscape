@@ -981,17 +981,20 @@ export default function Play() {
     // Check if this connection already has a socket
     const conn = connections.find(c => c.id === activeConnectionId);
     if (conn?.socket) return; // Already connected
-
+    
     // Use Socket.IO for better proxy support (HTTP polling fallback)
-    // Force polling first as Replit's proxy may block WebSocket upgrades on custom paths
+    // Use /api/socket path to avoid Replit proxy interference
     const currentConnId = activeConnectionId;
-    const socket = io({
-      path: '/socket.io',
+    const socketUrl = window.location.origin;
+    
+    const socket = io(socketUrl, {
+      path: '/api/socket',
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       upgrade: true,
+      forceNew: true,
     });
     
     // Store socket in connection state
@@ -1009,7 +1012,7 @@ export default function Play() {
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket.IO error:', error);
+      console.error('Socket.IO connect_error:', error.message, error);
       addLinesToConnection(currentConnId, [`\x1b[31m>> Connection error: ${error.message}\x1b[0m`]);
     });
 
