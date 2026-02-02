@@ -1006,9 +1006,15 @@ export default function Play() {
       addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
     };
 
-    ws.onclose = () => {
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      addLinesToConnection(currentConnId, [`\x1b[31m>> WebSocket error occurred.\x1b[0m`]);
+    };
+
+    ws.onclose = (event) => {
       updateConnectionState(currentConnId, { isConnected: false, socket: null });
-      addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server.\x1b[0m`]);
+      const reason = event.reason || (event.code === 1006 ? 'Connection failed or was interrupted' : `Code ${event.code}`);
+      addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server. (${reason})\x1b[0m`]);
     };
 
     ws.onmessage = (event) => {

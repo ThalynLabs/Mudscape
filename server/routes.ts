@@ -334,10 +334,14 @@ Guidelines:
   const wss = new WebSocketServer({ noServer: true });
 
   httpServer.on('upgrade', (request, socket, head) => {
+    console.log(`WS: Upgrade request for ${request.url}`);
     if (request.url?.startsWith('/ws')) {
+      console.log('WS: Handling upgrade for /ws');
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
+    } else {
+      console.log('WS: Not handling, path does not match /ws');
     }
   });
 
