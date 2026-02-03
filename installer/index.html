@@ -471,6 +471,11 @@
             <h3>Upgrade</h3>
             <p>Update an existing Mudscape installation to the latest version</p>
           </button>
+          <button class="choice-btn" onclick="selectInstallType('uninstall')">
+            <div class="icon">🗑️</div>
+            <h3>Uninstall</h3>
+            <p>Remove Mudscape from this computer</p>
+          </button>
         </div>
       </div>
     </div>
@@ -743,6 +748,97 @@
         <button class="btn-primary" onclick="window.print()">Print These Instructions</button>
       </div>
     </div>
+
+    <!-- Step 7: Uninstall -->
+    <div class="step" id="step-7">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Uninstall Mudscape</div>
+      </div>
+      <div class="step-content">
+        <div class="warning-box" style="border-color: var(--accent);">
+          <strong>⚠️ This will permanently remove Mudscape from your computer.</strong>
+          <p style="margin: 10px 0 0 0;">Your profiles, triggers, aliases, and all settings will be deleted.</p>
+        </div>
+
+        <p><strong>What would you like to remove?</strong></p>
+
+        <div class="mode-option selected" onclick="toggleUninstallOption('app')" id="uninstall-app">
+          <h3>📁 Mudscape Application</h3>
+          <p>Remove the Mudscape folder and all application files</p>
+        </div>
+
+        <div class="mode-option" onclick="toggleUninstallOption('db')" id="uninstall-db">
+          <h3>🗄️ Database (Optional)</h3>
+          <p>Also remove the Mudscape database. Leave unchecked to keep your data for reinstallation.</p>
+        </div>
+
+        <div class="download-section" style="border-color: var(--accent); margin-top: 30px;">
+          <h3 style="color: var(--accent);">Download Uninstaller</h3>
+          <p>Double-click the downloaded file to remove Mudscape.</p>
+          <button class="btn-primary btn-large" onclick="downloadUninstaller()" id="uninstallBtn">
+            Download Uninstaller
+          </button>
+        </div>
+
+        <div class="instruction-step">
+          <span class="big-number">1</span>
+          <div class="content">
+            <h4>Find the downloaded file</h4>
+            <p>Look in your Downloads folder for <span class="inline-code" id="uninstallFilename">Mudscape-Uninstall.command</span></p>
+          </div>
+        </div>
+
+        <div class="instruction-step" id="uninstallMacStep">
+          <span class="big-number">2</span>
+          <div class="content">
+            <h4>Allow it to run (Mac only)</h4>
+            <p>Right-click the file → Click "Open" → Click "Open" again in the popup.</p>
+          </div>
+        </div>
+
+        <div class="instruction-step">
+          <span class="big-number" id="uninstallRunStep">3</span>
+          <div class="content">
+            <h4>Double-click to run</h4>
+            <p>Follow the prompts. You'll be asked to confirm before anything is deleted.</p>
+          </div>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="showStep(0)">Back to Start</button>
+        <div></div>
+      </div>
+    </div>
+
+    <!-- Step 8: Uninstall Complete -->
+    <div class="step" id="step-8">
+      <div class="step-header">
+        <div class="step-number">✓</div>
+        <div class="step-title">Uninstall Complete</div>
+      </div>
+      <div class="step-content final-step">
+        <h2 style="color: var(--text);">Mudscape has been removed</h2>
+        
+        <ul class="checklist">
+          <li>Application files deleted</li>
+          <li id="dbRemoveConfirm">Database preserved (can reinstall later)</li>
+        </ul>
+
+        <div class="info-box">
+          <strong>Want to reinstall?</strong>
+          <p style="margin: 10px 0 0 0;">Just run this installer again and choose "Fresh Install".</p>
+        </div>
+
+        <div class="warning-box">
+          <strong>🗑️ Reminder:</strong> Please delete this installer file now.
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-primary" onclick="showStep(0)">Start Over</button>
+        <div></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -750,11 +846,13 @@
     let totalSteps = 7;
     let selectedOS = null;
     let accountMode = null;
-    let installType = null; // 'fresh' or 'upgrade'
+    let installType = null; // 'fresh', 'upgrade', or 'uninstall'
+    let removeDatabase = false;
     
-    // Step mapping for fresh install vs upgrade
+    // Step mapping for fresh install vs upgrade vs uninstall
     const freshSteps = [0, 1, 2, 3, 4, 5, 6];
     const upgradeSteps = [0, 1, 5, 6]; // Skip prerequisites, account mode, and some config
+    const uninstallSteps = [0, 1, 7]; // Just OS selection then uninstall
     let activeSteps = freshSteps;
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -804,7 +902,7 @@
       if (type === 'fresh') {
         activeSteps = freshSteps;
         totalSteps = 7;
-      } else {
+      } else if (type === 'upgrade') {
         activeSteps = upgradeSteps;
         totalSteps = 4;
         // Update step numbers for upgrade flow
@@ -813,10 +911,23 @@
         document.getElementById('downloadStepTitle').textContent = 'Download & Run Upgrade';
         document.getElementById('action1').textContent = 'Update Mudscape to the latest version';
         document.getElementById('action2').textContent = 'Preserve your settings and data';
+      } else if (type === 'uninstall') {
+        activeSteps = uninstallSteps;
+        totalSteps = 3;
       }
       
       updateProgressBar();
       setTimeout(() => nextStep(), 300);
+    }
+
+    function toggleUninstallOption(option) {
+      if (option === 'db') {
+        removeDatabase = !removeDatabase;
+        document.getElementById('uninstall-db').classList.toggle('selected', removeDatabase);
+        document.getElementById('dbRemoveConfirm').textContent = removeDatabase 
+          ? 'Database removed' 
+          : 'Database preserved (can reinstall later)';
+      }
     }
 
     function selectOS(os) {
@@ -841,6 +952,10 @@
       const dbUserHelp = document.getElementById('dbUserHelp');
       const startScriptName = document.getElementById('startScriptName');
       const downloadBtn = document.getElementById('downloadBtn');
+      const uninstallFilename = document.getElementById('uninstallFilename');
+      const uninstallMacStep = document.getElementById('uninstallMacStep');
+      const uninstallRunStep = document.getElementById('uninstallRunStep');
+      const uninstallBtn = document.getElementById('uninstallBtn');
 
       if (selectedOS === 'mac') {
         scriptFilename.textContent = 'Mudscape-Install.command';
@@ -849,6 +964,10 @@
         dbUserHelp.textContent = 'Usually your Mac username (the name of your home folder)';
         startScriptName.textContent = 'Mudscape-Start.command';
         downloadBtn.textContent = 'Download Mudscape Installer (.command)';
+        uninstallFilename.textContent = 'Mudscape-Uninstall.command';
+        uninstallMacStep.style.display = 'flex';
+        uninstallRunStep.textContent = '3';
+        uninstallBtn.textContent = 'Download Uninstaller (.command)';
       } else if (selectedOS === 'windows') {
         scriptFilename.textContent = 'Mudscape-Install.bat';
         macStep2.style.display = 'none';
@@ -856,6 +975,10 @@
         dbUserHelp.textContent = 'Usually "postgres" (the default PostgreSQL user)';
         startScriptName.textContent = 'Mudscape-Start.bat';
         downloadBtn.textContent = 'Download Mudscape Installer (.bat)';
+        uninstallFilename.textContent = 'Mudscape-Uninstall.bat';
+        uninstallMacStep.style.display = 'none';
+        uninstallRunStep.textContent = '2';
+        uninstallBtn.textContent = 'Download Uninstaller (.bat)';
       } else if (selectedOS === 'linux') {
         scriptFilename.textContent = 'Mudscape-Install.sh';
         macStep2.style.display = 'none';
@@ -863,6 +986,10 @@
         dbUserHelp.textContent = 'Usually your Linux username';
         startScriptName.textContent = 'Mudscape-Start.sh';
         downloadBtn.textContent = 'Download Mudscape Installer (.sh)';
+        uninstallFilename.textContent = 'Mudscape-Uninstall.sh';
+        uninstallMacStep.style.display = 'none';
+        uninstallRunStep.textContent = '2';
+        uninstallBtn.textContent = 'Download Uninstaller (.sh)';
       }
     }
 
@@ -1374,6 +1501,184 @@ npm run dev
         downloadFile('Mudscape-Install.bat', generateWindowsScript());
       } else {
         downloadFile('Mudscape-Install.sh', generateLinuxScript());
+      }
+    }
+
+    function generateMacUninstaller() {
+      const dbName = 'mudscape';
+      
+      return `#!/bin/bash
+# Mudscape Uninstaller for Mac
+# Double-click this file to run it
+
+trap 'echo ""; echo "Press any key to close..."; read -n 1' EXIT
+
+clear
+echo "========================================"
+echo "   Mudscape Uninstaller"
+echo "========================================"
+echo ""
+
+INSTALL_DIR="$HOME/Documents/mudscape"
+
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo "Mudscape is not installed at $INSTALL_DIR"
+    echo ""
+    exit 0
+fi
+
+echo "This will remove Mudscape from your computer."
+${removeDatabase ? 'echo "The database will also be deleted."' : 'echo "Your database will be preserved for reinstallation."'}
+echo ""
+read -p "Are you sure you want to continue? (y/n): " confirm
+
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo ""
+    echo "Uninstall cancelled."
+    exit 0
+fi
+
+echo ""
+echo "Removing Mudscape..."
+
+# Remove the application folder
+rm -rf "$INSTALL_DIR"
+echo "✅ Application files removed"
+
+${removeDatabase ? `
+# Remove the database
+echo "Removing database..."
+dropdb ${dbName} 2>/dev/null && echo "✅ Database removed" || echo "⚠️ Could not remove database (may not exist)"
+` : '# Database preserved'}
+
+echo ""
+echo "========================================"
+echo "   ✅ Mudscape has been uninstalled"
+echo "========================================"
+echo ""
+${removeDatabase ? '' : 'echo "Your database has been preserved. If you reinstall,"'}
+${removeDatabase ? '' : 'echo "your profiles and settings will still be there."'}
+${removeDatabase ? '' : 'echo ""'}
+echo "You can delete this uninstaller file now."
+echo ""
+`;
+    }
+
+    function generateWindowsUninstaller() {
+      const dbName = 'mudscape';
+      
+      return `@echo off
+REM Mudscape Uninstaller for Windows
+REM Double-click this file to run it
+
+title Mudscape Uninstaller
+
+echo ========================================
+echo    Mudscape Uninstaller
+echo ========================================
+echo.
+
+set INSTALL_DIR=%USERPROFILE%\\Documents\\mudscape
+
+if not exist "%INSTALL_DIR%" (
+    echo Mudscape is not installed at %INSTALL_DIR%
+    echo.
+    pause
+    exit /b 0
+)
+
+echo This will remove Mudscape from your computer.
+${removeDatabase ? 'echo The database will also be deleted.' : 'echo Your database will be preserved for reinstallation.'}
+echo.
+set /p confirm="Are you sure you want to continue? (y/n): "
+
+if /i not "%confirm%"=="y" (
+    echo.
+    echo Uninstall cancelled.
+    pause
+    exit /b 0
+)
+
+echo.
+echo Removing Mudscape...
+
+REM Remove the application folder
+rmdir /s /q "%INSTALL_DIR%"
+echo [OK] Application files removed
+
+${removeDatabase ? `
+REM Remove the database
+echo Removing database...
+dropdb ${dbName} 2>nul && echo [OK] Database removed || echo [WARNING] Could not remove database
+` : 'REM Database preserved'}
+
+echo.
+echo ========================================
+echo    [OK] Mudscape has been uninstalled
+echo ========================================
+echo.
+${removeDatabase ? '' : 'echo Your database has been preserved.'}
+${removeDatabase ? '' : 'echo If you reinstall, your settings will still be there.'}
+${removeDatabase ? '' : 'echo.'}
+echo You can delete this uninstaller file now.
+echo.
+pause
+`;
+    }
+
+    function generateLinuxUninstaller() {
+      const dbName = 'mudscape';
+      
+      return `#!/bin/bash
+# Mudscape Uninstaller for Linux
+# Run with: chmod +x Mudscape-Uninstall.sh && ./Mudscape-Uninstall.sh
+
+echo "========================================"
+echo "   Mudscape Uninstaller"
+echo "========================================"
+echo ""
+
+INSTALL_DIR="$HOME/Documents/mudscape"
+
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo "Mudscape is not installed at $INSTALL_DIR"
+    exit 0
+fi
+
+echo "This will remove Mudscape from your computer."
+${removeDatabase ? 'echo "The database will also be deleted."' : 'echo "Your database will be preserved for reinstallation."'}
+echo ""
+read -p "Are you sure? (y/n): " confirm
+
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo "Cancelled."
+    exit 0
+fi
+
+echo ""
+echo "Removing Mudscape..."
+rm -rf "$INSTALL_DIR"
+echo "✅ Application files removed"
+
+${removeDatabase ? `
+echo "Removing database..."
+dropdb ${dbName} 2>/dev/null && echo "✅ Database removed" || echo "⚠️ Could not remove database"
+` : ''}
+
+echo ""
+echo "✅ Mudscape has been uninstalled"
+${removeDatabase ? '' : 'echo "Database preserved for reinstallation."'}
+echo ""
+`;
+    }
+
+    function downloadUninstaller() {
+      if (selectedOS === 'mac') {
+        downloadFile('Mudscape-Uninstall.command', generateMacUninstaller());
+      } else if (selectedOS === 'windows') {
+        downloadFile('Mudscape-Uninstall.bat', generateWindowsUninstaller());
+      } else {
+        downloadFile('Mudscape-Uninstall.sh', generateLinuxUninstaller());
       }
     }
 
