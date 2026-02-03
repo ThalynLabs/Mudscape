@@ -158,9 +158,15 @@
     .btn-success {
       background: var(--success);
       color: #000;
+      font-weight: 600;
     }
     
     .btn-success:hover { filter: brightness(1.1); }
+    
+    .btn-large {
+      padding: 20px 40px;
+      font-size: 1.2rem;
+    }
     
     .btn-primary:disabled, .btn-success:disabled {
       background: #555;
@@ -255,33 +261,45 @@
     .progress-dot.active { background: var(--accent); }
     .progress-dot.completed { background: var(--success); }
     
-    .os-buttons {
+    .choice-buttons {
       display: flex;
-      gap: 15px;
-      margin: 20px 0;
+      gap: 20px;
+      margin: 30px 0;
     }
     
-    .os-btn {
+    .choice-btn {
       flex: 1;
-      padding: 20px;
+      padding: 30px 20px;
       background: var(--bg);
       border: 2px solid var(--border);
       border-radius: 12px;
       color: var(--text);
       cursor: pointer;
       transition: all 0.2s;
+      text-align: center;
     }
     
-    .os-btn:hover { border-color: var(--accent); }
+    .choice-btn:hover { border-color: var(--accent); }
     
-    .os-btn.selected {
+    .choice-btn.selected {
       border-color: var(--accent);
       background: rgba(233, 69, 96, 0.1);
     }
     
-    .os-btn .icon {
-      font-size: 2rem;
-      margin-bottom: 10px;
+    .choice-btn .icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+    }
+    
+    .choice-btn h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.3rem;
+    }
+    
+    .choice-btn p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
     }
     
     .help-text {
@@ -330,7 +348,7 @@
 
     .download-section {
       background: var(--bg);
-      border: 2px dashed var(--border);
+      border: 2px solid var(--success);
       border-radius: 12px;
       padding: 30px;
       text-align: center;
@@ -338,38 +356,51 @@
     }
 
     .download-section h3 {
-      margin: 0 0 15px 0;
-      color: var(--text);
-    }
-
-    .download-buttons {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .file-list {
-      text-align: left;
-      margin: 20px 0;
-    }
-
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px;
-      background: var(--bg);
-      border-radius: 8px;
-      margin: 8px 0;
-    }
-
-    .file-item .icon { font-size: 1.5rem; }
-    .file-item .name { flex: 1; font-family: monospace; }
-    
-    .file-item .status {
+      margin: 0 0 10px 0;
       color: var(--success);
-      font-size: 0.9rem;
+      font-size: 1.3rem;
+    }
+
+    .download-section p {
+      margin: 0 0 20px 0;
+      color: var(--text-secondary);
+    }
+
+    .big-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-right: 15px;
+    }
+
+    .instruction-step {
+      display: flex;
+      align-items: flex-start;
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+
+    .instruction-step .content {
+      flex: 1;
+    }
+
+    .instruction-step h4 {
+      margin: 0 0 8px 0;
+      font-size: 1.1rem;
+    }
+
+    .instruction-step p {
+      margin: 0;
+      color: var(--text-secondary);
     }
 
     .final-step h2 {
@@ -400,11 +431,16 @@
       font-size: 1.2rem;
     }
 
+    .os-specific { display: none; }
+    .os-specific.active { display: block; }
+
     @media (max-width: 600px) {
-      .os-buttons, .buttons, .download-buttons { flex-direction: column; }
+      .choice-buttons, .buttons { flex-direction: column; }
       button { width: 100%; }
       .input-group { flex-direction: column; }
       .input-group button { width: 100%; margin-top: 0; }
+      .choice-btn { padding: 20px 15px; }
+      .choice-btn .icon { font-size: 2rem; }
     }
   </style>
 </head>
@@ -417,55 +453,135 @@
 
     <div class="progress-bar" id="progressBar"></div>
 
-    <!-- Step 0: Welcome & OS Selection -->
+    <!-- Step 0: Install Type -->
     <div class="step active" id="step-0">
       <div class="step-header">
         <div class="step-number">1</div>
-        <div class="step-title">Welcome</div>
+        <div class="step-title">What would you like to do?</div>
       </div>
       <div class="step-content">
-        <p>This wizard will create all the configuration files you need to run Mudscape. Just fill in the information and download the generated files.</p>
-        
-        <p><strong>What operating system are you using?</strong></p>
-        
-        <div class="os-buttons">
-          <button class="os-btn" data-os="mac" onclick="selectOS('mac')">
+        <div class="choice-buttons">
+          <button class="choice-btn" onclick="selectInstallType('fresh')">
+            <div class="icon">🆕</div>
+            <h3>Fresh Install</h3>
+            <p>Install Mudscape for the first time on this computer</p>
+          </button>
+          <button class="choice-btn" onclick="selectInstallType('upgrade')">
+            <div class="icon">⬆️</div>
+            <h3>Upgrade</h3>
+            <p>Update an existing Mudscape installation to the latest version</p>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: OS Selection -->
+    <div class="step" id="step-1">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">What computer are you using?</div>
+      </div>
+      <div class="step-content">
+        <div class="choice-buttons">
+          <button class="choice-btn" onclick="selectOS('mac')">
             <div class="icon">🍎</div>
-            <div>Mac</div>
+            <h3>Mac</h3>
+            <p>macOS</p>
           </button>
-          <button class="os-btn" data-os="windows" onclick="selectOS('windows')">
+          <button class="choice-btn" onclick="selectOS('windows')">
             <div class="icon">🪟</div>
-            <div>Windows</div>
+            <h3>Windows</h3>
+            <p>Windows 10/11</p>
           </button>
-          <button class="os-btn" data-os="linux" onclick="selectOS('linux')">
+          <button class="choice-btn" onclick="selectOS('linux')">
             <div class="icon">🐧</div>
-            <div>Linux</div>
+            <h3>Linux</h3>
+            <p>Ubuntu, Fedora, etc.</p>
           </button>
         </div>
       </div>
       <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
         <div></div>
-        <button class="btn-primary" onclick="nextStep()" id="welcomeNext" disabled>Next Step</button>
       </div>
     </div>
 
-    <!-- Step 1: Account Mode -->
-    <div class="step" id="step-1">
+    <!-- Step 2: Prerequisites (Fresh Install Only) -->
+    <div class="step" id="step-2">
       <div class="step-header">
-        <div class="step-number">2</div>
-        <div class="step-title">Choose Account Mode</div>
+        <div class="step-number">3</div>
+        <div class="step-title">Required Software</div>
       </div>
       <div class="step-content">
-        <p>How do you want to use Mudscape?</p>
+        <p>Mudscape needs these programs installed first. If you don't have them, click the links to download:</p>
+
+        <div class="instruction-step">
+          <span class="big-number">1</span>
+          <div class="content">
+            <h4>Node.js</h4>
+            <p>Go to <a href="https://nodejs.org" target="_blank" style="color: var(--accent);">nodejs.org</a> and click the big green "LTS" button. Run the downloaded installer.</p>
+          </div>
+        </div>
+
+        <div class="instruction-step">
+          <span class="big-number">2</span>
+          <div class="content">
+            <h4>PostgreSQL Database</h4>
+            <div class="os-specific mac active" data-os="mac">
+              <p>Go to <a href="https://postgresapp.com" target="_blank" style="color: var(--accent);">postgresapp.com</a> and download the app. Open it and click "Initialize".</p>
+            </div>
+            <div class="os-specific windows" data-os="windows">
+              <p>Go to <a href="https://www.postgresql.org/download/windows/" target="_blank" style="color: var(--accent);">postgresql.org/download/windows</a> and download the installer. Remember the password you set!</p>
+            </div>
+            <div class="os-specific linux" data-os="linux">
+              <p>Open Terminal and run: <span class="inline-code">sudo apt install postgresql</span> (Ubuntu) or <span class="inline-code">sudo dnf install postgresql-server</span> (Fedora)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="instruction-step">
+          <span class="big-number">3</span>
+          <div class="content">
+            <h4>Git</h4>
+            <div class="os-specific mac active" data-os="mac">
+              <p>Usually pre-installed on Mac. If not, it will prompt you to install when you run the setup.</p>
+            </div>
+            <div class="os-specific windows" data-os="windows">
+              <p>Go to <a href="https://git-scm.com/download/win" target="_blank" style="color: var(--accent);">git-scm.com</a> and download the installer.</p>
+            </div>
+            <div class="os-specific linux" data-os="linux">
+              <p>Usually pre-installed. If not: <span class="inline-code">sudo apt install git</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="success-box">
+          <strong>Already have these installed?</strong> Great! Click "Next Step" to continue.
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Account Mode (Fresh Install Only) -->
+    <div class="step" id="step-3">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Account Mode</div>
+      </div>
+      <div class="step-content">
+        <p>How will Mudscape be used?</p>
         
         <div class="mode-option" onclick="selectMode('single')" id="mode-single">
-          <h3>Single-User Mode (Recommended for Personal Use)</h3>
-          <p>No login required. Perfect if you're the only one using this installation on your computer.</p>
+          <h3>🧑 Just Me (Single-User Mode)</h3>
+          <p>No login required. Perfect for personal use on your own computer.</p>
         </div>
 
         <div class="mode-option" onclick="selectMode('multi')" id="mode-multi">
-          <h3>Multi-User Mode</h3>
-          <p>Requires username and password to log in. Use this if multiple people will access Mudscape, or if you're hosting it on a server.</p>
+          <h3>👥 Multiple People (Multi-User Mode)</h3>
+          <p>Requires login. Use this if others will access Mudscape too.</p>
         </div>
 
         <div id="adminSetup" class="hidden" style="margin-top: 20px;">
@@ -473,15 +589,15 @@
             <strong>Create your admin account:</strong>
           </div>
           
-          <label for="adminUser">Admin Username</label>
-          <input type="text" id="adminUser" placeholder="Enter your username" value="admin">
+          <label for="adminUser">Username</label>
+          <input type="text" id="adminUser" placeholder="Choose a username" value="admin">
           
-          <label for="adminPass">Admin Password</label>
+          <label for="adminPass">Password</label>
           <div class="input-group">
-            <input type="text" id="adminPass" placeholder="Enter a password">
-            <button class="btn-secondary" onclick="generatePassword()">Generate</button>
+            <input type="text" id="adminPass" placeholder="Choose a password">
+            <button class="btn-secondary" onclick="generatePassword()">Generate Random</button>
           </div>
-          <p class="help-text">Write this password down somewhere safe!</p>
+          <p class="help-text">⚠️ Write this password down somewhere safe!</p>
         </div>
       </div>
       <div class="buttons">
@@ -490,196 +606,136 @@
       </div>
     </div>
 
-    <!-- Step 2: Database Configuration -->
-    <div class="step" id="step-2">
+    <!-- Step 4: Database Settings -->
+    <div class="step" id="step-4">
       <div class="step-header">
-        <div class="step-number">3</div>
+        <div class="step-number" id="dbStepNum">5</div>
         <div class="step-title">Database Settings</div>
       </div>
       <div class="step-content">
-        <p>Configure your PostgreSQL database connection. If you haven't installed PostgreSQL yet, you can use the default values and install it later.</p>
-
-        <label for="dbHost">Database Host</label>
-        <input type="text" id="dbHost" value="localhost">
-        <p class="help-text">Usually "localhost" for local installations</p>
-
-        <label for="dbPort">Database Port</label>
-        <input type="number" id="dbPort" value="5432">
-        <p class="help-text">Default PostgreSQL port is 5432</p>
+        <p>Enter your PostgreSQL database details. The defaults usually work for most setups.</p>
 
         <label for="dbUser">Database Username</label>
-        <input type="text" id="dbUser" placeholder="Your database username" id="dbUserField">
-        <p class="help-text" id="dbUserHelp">On Mac/Linux, often your computer username. On Windows, usually "postgres".</p>
+        <input type="text" id="dbUser" placeholder="Your database username">
+        <p class="help-text" id="dbUserHelp"></p>
 
         <label for="dbPassword">Database Password</label>
-        <input type="text" id="dbPassword" placeholder="Leave blank if none set">
-        <p class="help-text">The password for your PostgreSQL user</p>
+        <input type="text" id="dbPassword" placeholder="Leave blank if you didn't set one">
 
-        <label for="dbName">Database Name</label>
-        <input type="text" id="dbName" value="mudscape">
-        <p class="help-text">Name of the database to create for Mudscape</p>
-      </div>
-      <div class="buttons">
-        <button class="btn-secondary" onclick="prevStep()">Back</button>
-        <button class="btn-primary" onclick="nextStep()">Next Step</button>
-      </div>
-    </div>
+        <div class="info-box" id="advancedToggle" style="cursor: pointer;" onclick="toggleAdvanced()">
+          <strong>▶ Advanced Settings</strong> (click to expand)
+        </div>
 
-    <!-- Step 3: Application Settings -->
-    <div class="step" id="step-3">
-      <div class="step-header">
-        <div class="step-number">4</div>
-        <div class="step-title">Application Settings</div>
-      </div>
-      <div class="step-content">
-        <label for="appPort">Mudscape Port</label>
-        <input type="number" id="appPort" value="5000">
-        <p class="help-text">The port Mudscape will run on. Access it at http://localhost:5000</p>
+        <div id="advancedSettings" class="hidden">
+          <label for="dbHost">Database Host</label>
+          <input type="text" id="dbHost" value="localhost">
 
-        <label for="sessionSecret">Session Secret (Security Key)</label>
+          <label for="dbPort">Database Port</label>
+          <input type="number" id="dbPort" value="5432">
+
+          <label for="dbName">Database Name</label>
+          <input type="text" id="dbName" value="mudscape">
+
+          <label for="appPort">Mudscape Port</label>
+          <input type="number" id="appPort" value="5000">
+        </div>
+
+        <label for="sessionSecret">Security Key</label>
         <div class="input-group">
-          <input type="text" id="sessionSecret" readonly placeholder="Click Generate to create">
+          <input type="text" id="sessionSecret" readonly placeholder="Click Generate">
           <button class="btn-success" onclick="generateSessionSecret()">Generate</button>
         </div>
-        <p class="help-text">A random string used to secure your sessions. Click Generate to create one.</p>
-
-        <div class="info-box" id="secretWarning" style="display: none;">
-          <strong>Important:</strong> Please generate a session secret before continuing.
-        </div>
+        <p class="help-text">This keeps your sessions secure. Just click Generate.</p>
       </div>
       <div class="buttons">
         <button class="btn-secondary" onclick="prevStep()">Back</button>
-        <button class="btn-primary" onclick="validateAndContinue()" id="settingsNext">Next Step</button>
+        <button class="btn-primary" onclick="validateAndContinue()">Next Step</button>
       </div>
     </div>
 
-    <!-- Step 4: Generate & Download Files -->
-    <div class="step" id="step-4">
+    <!-- Step 5: Download & Run -->
+    <div class="step" id="step-5">
       <div class="step-header">
-        <div class="step-number">5</div>
-        <div class="step-title">Download Your Files</div>
+        <div class="step-number" id="downloadStepNum">6</div>
+        <div class="step-title" id="downloadStepTitle">Download & Run</div>
       </div>
       <div class="step-content">
-        <p>Your configuration is ready! Download these files to set up Mudscape:</p>
-
         <div class="download-section">
-          <h3>Configuration File</h3>
-          <p>This file contains your database connection and settings.</p>
-          <button class="btn-success" onclick="downloadEnvFile()">.env File</button>
+          <h3>Download Your Setup File</h3>
+          <p>Click the button below to download. Then double-click the file to run it!</p>
+          <button class="btn-success btn-large" onclick="downloadAllInOne()" id="downloadBtn">
+            Download Mudscape Installer
+          </button>
         </div>
 
-        <div class="download-section">
-          <h3>Setup Script</h3>
-          <p>This script will install everything automatically. Just run it!</p>
-          <button class="btn-success" onclick="downloadSetupScript()" id="downloadScriptBtn">Download Setup Script</button>
+        <div class="instruction-step">
+          <span class="big-number">1</span>
+          <div class="content">
+            <h4>Find the downloaded file</h4>
+            <p>Look in your Downloads folder for <span class="inline-code" id="scriptFilename">mudscape-install.command</span></p>
+          </div>
         </div>
 
-        <div class="file-list" id="downloadedFiles" style="display: none;">
-          <h4>Downloaded Files:</h4>
-          <div id="fileListContent"></div>
+        <div class="instruction-step" id="macStep2">
+          <span class="big-number">2</span>
+          <div class="content">
+            <h4>Allow it to run (Mac only - first time)</h4>
+            <p>Right-click the file → Click "Open" → Click "Open" again in the popup. You only need to do this once.</p>
+          </div>
+        </div>
+
+        <div class="instruction-step">
+          <span class="big-number" id="runStepNum">3</span>
+          <div class="content">
+            <h4>Double-click to run</h4>
+            <p>A window will open showing the installation progress. Wait for it to finish.</p>
+          </div>
         </div>
 
         <div class="success-box">
-          <strong>What's in the setup script?</strong>
+          <strong>The installer will:</strong>
           <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-            <li>Checks if Node.js and PostgreSQL are installed</li>
-            <li>Downloads Mudscape from GitHub</li>
-            <li>Installs all dependencies</li>
-            <li>Creates the database</li>
-            <li>Sets up the database tables</li>
-            <li>Starts Mudscape</li>
+            <li id="action1">Download Mudscape</li>
+            <li id="action2">Set up everything automatically</li>
+            <li>Open Mudscape in your browser when ready</li>
           </ul>
         </div>
       </div>
       <div class="buttons">
         <button class="btn-secondary" onclick="prevStep()">Back</button>
-        <button class="btn-primary" onclick="nextStep()">Next Step</button>
-      </div>
-    </div>
-
-    <!-- Step 5: Run Setup -->
-    <div class="step" id="step-5">
-      <div class="step-header">
-        <div class="step-number">6</div>
-        <div class="step-title">Run the Setup</div>
-      </div>
-      <div class="step-content">
-        <p><strong>Open your <span class="terminal-name">Terminal</span>:</strong></p>
-        <div id="openTerminalInstructions"></div>
-
-        <p><strong>Navigate to where you downloaded the files:</strong></p>
-        <div class="code-block">
-          <code id="cdDownloads">cd ~/Downloads</code>
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        </div>
-
-        <p><strong>Make the script executable and run it:</strong></p>
-        <div class="code-block" id="runScriptBlock">
-          <code id="runScriptCmd">chmod +x mudscape-setup.sh && ./mudscape-setup.sh</code>
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        </div>
-
-        <div class="info-box">
-          <strong>The script will:</strong>
-          <ol style="margin: 10px 0 0 0; padding-left: 20px;">
-            <li>Check your system for required software</li>
-            <li>Download Mudscape</li>
-            <li>Install dependencies</li>
-            <li>Set up the database</li>
-            <li>Copy your .env file</li>
-            <li>Start Mudscape!</li>
-          </ol>
-          <p style="margin-top: 10px;">Just follow any prompts that appear.</p>
-        </div>
-
-        <div class="warning-box" id="windowsNote" style="display: none;">
-          <strong>Windows Users:</strong> Right-click on <span class="inline-code">mudscape-setup.bat</span> and select "Run as administrator".
-        </div>
-      </div>
-      <div class="buttons">
-        <button class="btn-secondary" onclick="prevStep()">Back</button>
-        <button class="btn-primary" onclick="nextStep()">I've Run the Script</button>
+        <button class="btn-primary" onclick="nextStep()">I've Run the Installer</button>
       </div>
     </div>
 
     <!-- Step 6: Complete -->
     <div class="step" id="step-6">
       <div class="step-header">
-        <div class="step-number">7</div>
-        <div class="step-title">Setup Complete!</div>
+        <div class="step-number" id="completeStepNum">7</div>
+        <div class="step-title">All Done!</div>
       </div>
       <div class="step-content final-step">
-        <h2>Congratulations!</h2>
+        <h2>🎉 Congratulations!</h2>
         
-        <p>Mudscape should now be running. Open your browser and go to:</p>
+        <p style="text-align: center; font-size: 1.1rem;">Mudscape should now be running in your browser at:</p>
         
-        <div class="code-block" style="text-align: center; font-size: 1.2rem;">
+        <div class="code-block" style="text-align: center; font-size: 1.3rem;">
           <code id="finalUrl">http://localhost:5000</code>
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
 
-        <ul class="checklist">
+        <ul class="checklist" id="completeChecklist">
           <li>Mudscape is installed</li>
-          <li>Database is configured</li>
-          <li>Your settings are saved</li>
+          <li>Database is set up</li>
           <li id="modeConfirm">Running in single-user mode</li>
         </ul>
 
         <div class="warning-box">
-          <strong>Security Reminder:</strong> Please delete this installer file (<span class="inline-code">index.html</span>) now. It contains your configuration details and should not be kept.
+          <strong>🗑️ Security Reminder:</strong> Please delete this installer file now. It contains your configuration details.
         </div>
 
         <div class="info-box">
-          <strong>To start Mudscape in the future:</strong>
-          <ol style="margin: 10px 0 0 0; padding-left: 20px;">
-            <li>Open <span class="terminal-name">Terminal</span></li>
-            <li>Go to the mudscape folder: <span class="inline-code" id="futureCD">cd ~/Documents/mudscape</span></li>
-            <li>Run: <span class="inline-code">npm run dev</span></li>
-          </ol>
-        </div>
-
-        <div class="success-box">
-          <strong>Need help?</strong> Press F1 in Mudscape to open the Help Wiki, or type <span class="inline-code">/help</span> in the terminal.
+          <strong>To start Mudscape later:</strong>
+          <p style="margin: 10px 0 0 0;">Double-click <span class="inline-code" id="startScriptName">mudscape-start.command</span> in your Documents → mudscape folder.</p>
         </div>
       </div>
       <div class="buttons">
@@ -691,10 +747,15 @@
 
   <script>
     let currentStep = 0;
-    const totalSteps = 7;
+    let totalSteps = 7;
     let selectedOS = null;
     let accountMode = null;
-    let downloadedFiles = [];
+    let installType = null; // 'fresh' or 'upgrade'
+    
+    // Step mapping for fresh install vs upgrade
+    const freshSteps = [0, 1, 2, 3, 4, 5, 6];
+    const upgradeSteps = [0, 1, 5, 6]; // Skip prerequisites, account mode, and some config
+    let activeSteps = freshSteps;
 
     document.addEventListener('DOMContentLoaded', () => {
       updateProgressBar();
@@ -703,11 +764,12 @@
     function updateProgressBar() {
       const bar = document.getElementById('progressBar');
       bar.innerHTML = '';
-      for (let i = 0; i < totalSteps; i++) {
+      const stepIndex = activeSteps.indexOf(currentStep);
+      for (let i = 0; i < activeSteps.length; i++) {
         const dot = document.createElement('div');
         dot.className = 'progress-dot';
-        if (i < currentStep) dot.classList.add('completed');
-        if (i === currentStep) dot.classList.add('active');
+        if (i < stepIndex) dot.classList.add('completed');
+        if (i === stepIndex) dot.classList.add('active');
         bar.appendChild(dot);
       }
     }
@@ -721,78 +783,86 @@
     }
 
     function nextStep() {
-      if (currentStep < totalSteps - 1) {
-        showStep(currentStep + 1);
+      const stepIndex = activeSteps.indexOf(currentStep);
+      if (stepIndex < activeSteps.length - 1) {
+        showStep(activeSteps[stepIndex + 1]);
       }
     }
 
     function prevStep() {
-      if (currentStep > 0) {
-        showStep(currentStep - 1);
+      const stepIndex = activeSteps.indexOf(currentStep);
+      if (stepIndex > 0) {
+        showStep(activeSteps[stepIndex - 1]);
       }
+    }
+
+    function selectInstallType(type) {
+      installType = type;
+      document.querySelectorAll('#step-0 .choice-btn').forEach(btn => btn.classList.remove('selected'));
+      event.target.closest('.choice-btn').classList.add('selected');
+      
+      if (type === 'fresh') {
+        activeSteps = freshSteps;
+        totalSteps = 7;
+      } else {
+        activeSteps = upgradeSteps;
+        totalSteps = 4;
+        // Update step numbers for upgrade flow
+        document.getElementById('downloadStepNum').textContent = '3';
+        document.getElementById('completeStepNum').textContent = '4';
+        document.getElementById('downloadStepTitle').textContent = 'Download & Run Upgrade';
+        document.getElementById('action1').textContent = 'Update Mudscape to the latest version';
+        document.getElementById('action2').textContent = 'Preserve your settings and data';
+      }
+      
+      updateProgressBar();
+      setTimeout(() => nextStep(), 300);
     }
 
     function selectOS(os) {
       selectedOS = os;
-      document.querySelectorAll('.os-btn').forEach(btn => btn.classList.remove('selected'));
-      document.querySelector(`[data-os="${os}"]`).classList.add('selected');
-      document.getElementById('welcomeNext').disabled = false;
-      updateOSSpecificContent();
+      document.querySelectorAll('#step-1 .choice-btn').forEach(btn => btn.classList.remove('selected'));
+      event.target.closest('.choice-btn').classList.add('selected');
+      
+      // Update OS-specific content
+      document.querySelectorAll('.os-specific').forEach(el => {
+        el.classList.remove('active');
+        if (el.dataset.os === os) el.classList.add('active');
+      });
+      
+      updateOSContent();
+      setTimeout(() => nextStep(), 300);
     }
 
-    function updateOSSpecificContent() {
-      const terminalNames = document.querySelectorAll('.terminal-name');
-      const openInstructions = document.getElementById('openTerminalInstructions');
-      const cdDownloads = document.getElementById('cdDownloads');
-      const runScriptCmd = document.getElementById('runScriptCmd');
-      const windowsNote = document.getElementById('windowsNote');
-      const downloadScriptBtn = document.getElementById('downloadScriptBtn');
+    function updateOSContent() {
+      const scriptFilename = document.getElementById('scriptFilename');
+      const macStep2 = document.getElementById('macStep2');
+      const runStepNum = document.getElementById('runStepNum');
       const dbUserHelp = document.getElementById('dbUserHelp');
-      const futureCD = document.getElementById('futureCD');
+      const startScriptName = document.getElementById('startScriptName');
+      const downloadBtn = document.getElementById('downloadBtn');
 
       if (selectedOS === 'mac') {
-        terminalNames.forEach(el => el.textContent = 'Terminal');
-        openInstructions.innerHTML = `
-          <ul>
-            <li>Press <span class="inline-code">Cmd + Space</span> to open Spotlight</li>
-            <li>Type "Terminal" and press Enter</li>
-          </ul>
-        `;
-        cdDownloads.textContent = 'cd ~/Downloads';
-        runScriptCmd.textContent = 'chmod +x mudscape-setup.sh && ./mudscape-setup.sh';
-        windowsNote.style.display = 'none';
-        downloadScriptBtn.textContent = 'Download Setup Script (.sh)';
-        dbUserHelp.textContent = 'Usually your Mac username. Run "whoami" in Terminal to check.';
-        futureCD.textContent = 'cd ~/Documents/mudscape';
+        scriptFilename.textContent = 'Mudscape-Install.command';
+        macStep2.style.display = 'flex';
+        runStepNum.textContent = '3';
+        dbUserHelp.textContent = 'Usually your Mac username (the name of your home folder)';
+        startScriptName.textContent = 'Mudscape-Start.command';
+        downloadBtn.textContent = 'Download Mudscape Installer (.command)';
       } else if (selectedOS === 'windows') {
-        terminalNames.forEach(el => el.textContent = 'PowerShell');
-        openInstructions.innerHTML = `
-          <ul>
-            <li>Press the <span class="inline-code">Windows key</span></li>
-            <li>Type "PowerShell" and click "Windows PowerShell"</li>
-            <li>Or right-click the Start button and select "Windows Terminal"</li>
-          </ul>
-        `;
-        cdDownloads.textContent = 'cd $HOME\\Downloads';
-        runScriptCmd.textContent = '.\\mudscape-setup.bat';
-        windowsNote.style.display = 'block';
-        downloadScriptBtn.textContent = 'Download Setup Script (.bat)';
-        dbUserHelp.textContent = 'Default PostgreSQL username is usually "postgres".';
-        futureCD.textContent = 'cd $HOME\\Documents\\mudscape';
+        scriptFilename.textContent = 'Mudscape-Install.bat';
+        macStep2.style.display = 'none';
+        runStepNum.textContent = '2';
+        dbUserHelp.textContent = 'Usually "postgres" (the default PostgreSQL user)';
+        startScriptName.textContent = 'Mudscape-Start.bat';
+        downloadBtn.textContent = 'Download Mudscape Installer (.bat)';
       } else if (selectedOS === 'linux') {
-        terminalNames.forEach(el => el.textContent = 'Terminal');
-        openInstructions.innerHTML = `
-          <ul>
-            <li>Press <span class="inline-code">Ctrl + Alt + T</span></li>
-            <li>Or search for "Terminal" in your applications menu</li>
-          </ul>
-        `;
-        cdDownloads.textContent = 'cd ~/Downloads';
-        runScriptCmd.textContent = 'chmod +x mudscape-setup.sh && ./mudscape-setup.sh';
-        windowsNote.style.display = 'none';
-        downloadScriptBtn.textContent = 'Download Setup Script (.sh)';
-        dbUserHelp.textContent = 'Usually your Linux username. Run "whoami" in Terminal to check.';
-        futureCD.textContent = 'cd ~/Documents/mudscape';
+        scriptFilename.textContent = 'Mudscape-Install.sh';
+        macStep2.style.display = 'none';
+        runStepNum.textContent = '2';
+        dbUserHelp.textContent = 'Usually your Linux username';
+        startScriptName.textContent = 'Mudscape-Start.sh';
+        downloadBtn.textContent = 'Download Mudscape Installer (.sh)';
       }
     }
 
@@ -803,9 +873,17 @@
       document.getElementById('adminSetup').classList.toggle('hidden', mode !== 'multi');
       document.getElementById('modeNext').disabled = false;
       
-      // Update final step text
       document.getElementById('modeConfirm').textContent = 
-        mode === 'single' ? 'Running in single-user mode (no login required)' : 'Running in multi-user mode with admin account';
+        mode === 'single' ? 'Running in single-user mode (no login required)' : 'Running in multi-user mode';
+    }
+
+    function toggleAdvanced() {
+      const settings = document.getElementById('advancedSettings');
+      const toggle = document.getElementById('advancedToggle');
+      settings.classList.toggle('hidden');
+      toggle.innerHTML = settings.classList.contains('hidden') 
+        ? '<strong>▶ Advanced Settings</strong> (click to expand)'
+        : '<strong>▼ Advanced Settings</strong> (click to collapse)';
     }
 
     function generateRandomString(length) {
@@ -825,50 +903,28 @@
 
     function generateSessionSecret() {
       document.getElementById('sessionSecret').value = generateRandomString(64);
-      document.getElementById('secretWarning').style.display = 'none';
     }
 
     function validateAndContinue() {
       const secret = document.getElementById('sessionSecret').value;
       if (!secret) {
-        document.getElementById('secretWarning').style.display = 'block';
-        return;
+        generateSessionSecret();
       }
       nextStep();
     }
 
     function getConfig() {
-      const host = document.getElementById('dbHost').value || 'localhost';
-      const port = document.getElementById('dbPort').value || '5432';
-      const user = document.getElementById('dbUser').value || 'postgres';
-      const password = document.getElementById('dbPassword').value;
-      const dbName = document.getElementById('dbName').value || 'mudscape';
-      const appPort = document.getElementById('appPort').value || '5000';
-      const sessionSecret = document.getElementById('sessionSecret').value;
-      const adminUser = document.getElementById('adminUser').value || 'admin';
-      const adminPass = document.getElementById('adminPass').value;
+      const host = document.getElementById('dbHost')?.value || 'localhost';
+      const port = document.getElementById('dbPort')?.value || '5432';
+      const user = document.getElementById('dbUser')?.value || (selectedOS === 'windows' ? 'postgres' : '$USER');
+      const password = document.getElementById('dbPassword')?.value || '';
+      const dbName = document.getElementById('dbName')?.value || 'mudscape';
+      const appPort = document.getElementById('appPort')?.value || '5000';
+      const sessionSecret = document.getElementById('sessionSecret')?.value || generateRandomString(64);
+      const adminUser = document.getElementById('adminUser')?.value || 'admin';
+      const adminPass = document.getElementById('adminPass')?.value || '';
 
-      const pwPart = password ? `:${encodeURIComponent(password)}` : '';
-      const dbUrl = `postgresql://${user}${pwPart}@${host}:${port}/${dbName}`;
-
-      return { host, port, user, password, dbName, appPort, sessionSecret, dbUrl, adminUser, adminPass };
-    }
-
-    function generateEnvContent() {
-      const config = getConfig();
-      let content = `# Mudscape Configuration
-# Generated by Mudscape Installer
-
-DATABASE_URL=${config.dbUrl}
-SESSION_SECRET=${config.sessionSecret}
-PORT=${config.appPort}
-`;
-
-      if (accountMode === 'single') {
-        content += `SINGLE_USER_MODE=true\n`;
-      }
-
-      return content;
+      return { host, port, user, password, dbName, appPort, sessionSecret, adminUser, adminPass };
     }
 
     function downloadFile(filename, content) {
@@ -881,155 +937,162 @@ PORT=${config.appPort}
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // Track downloaded files
-      if (!downloadedFiles.includes(filename)) {
-        downloadedFiles.push(filename);
-        updateDownloadedFilesList();
-      }
     }
 
-    function updateDownloadedFilesList() {
-      const container = document.getElementById('downloadedFiles');
-      const content = document.getElementById('fileListContent');
-      
-      if (downloadedFiles.length > 0) {
-        container.style.display = 'block';
-        content.innerHTML = downloadedFiles.map(f => `
-          <div class="file-item">
-            <span class="icon">📄</span>
-            <span class="name">${f}</span>
-            <span class="status">✓ Downloaded</span>
-          </div>
-        `).join('');
-      }
-    }
-
-    function downloadEnvFile() {
-      downloadFile('.env', generateEnvContent());
-    }
-
-    function generateUnixScript() {
+    function generateMacScript() {
       const config = getConfig();
+      const isUpgrade = installType === 'upgrade';
       const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
       
+      const pwPart = config.password ? `:${config.password}` : '';
+      const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;
+
       let script = `#!/bin/bash
-# Mudscape Setup Script
-# Generated by Mudscape Installer
+# Mudscape ${isUpgrade ? 'Upgrade' : 'Install'} Script for Mac
+# Double-click this file to run it
 
-set -e
+# Keep the terminal window open on error
+trap 'echo ""; echo "Press any key to close..."; read -n 1' EXIT
 
+clear
 echo "========================================"
-echo "   Mudscape Setup Script"
+echo "   Mudscape ${isUpgrade ? 'Upgrade' : 'Installer'}"
 echo "========================================"
 echo ""
 
-# Colors for output
-RED='\\033[0;31m'
-GREEN='\\033[0;32m'
-YELLOW='\\033[1;33m'
-NC='\\033[0m' # No Color
+`;
 
-# Check for Node.js
-echo "Checking for Node.js..."
+      if (!isUpgrade) {
+        script += `# Check for required software
+echo "Checking requirements..."
+
 if ! command -v node &> /dev/null; then
-    echo -e "\${RED}Node.js is not installed.\${NC}"
-    echo "Please install Node.js from https://nodejs.org"
-    echo "Then run this script again."
+    echo ""
+    echo "❌ Node.js is not installed."
+    echo ""
+    echo "Please download it from: https://nodejs.org"
+    echo "Click the green LTS button, then run the installer."
+    echo ""
     exit 1
 fi
-echo -e "\${GREEN}✓ Node.js found: $(node --version)\${NC}"
+echo "✅ Node.js found: $(node --version)"
 
-# Check for PostgreSQL
-echo "Checking for PostgreSQL..."
-if ! command -v psql &> /dev/null; then
-    echo -e "\${YELLOW}Warning: PostgreSQL command-line tools not found.\${NC}"
-    echo "Make sure PostgreSQL is installed and running."
-fi
-
-# Check for Git
-echo "Checking for Git..."
 if ! command -v git &> /dev/null; then
-    echo -e "\${RED}Git is not installed.\${NC}"
-    echo "Please install Git first."
+    echo ""
+    echo "❌ Git is not installed."
+    echo "Please install Xcode Command Line Tools."
+    xcode-select --install
     exit 1
 fi
-echo -e "\${GREEN}✓ Git found\${NC}"
+echo "✅ Git found"
 
-echo ""
-echo "Creating installation directory..."
+`;
+      }
+
+      script += `# Set up directories
 INSTALL_DIR="$HOME/Documents/mudscape"
 mkdir -p "$HOME/Documents"
 
-# Clone or update repository
+`;
+
+      if (isUpgrade) {
+        script += `# Check if Mudscape exists
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo ""
+    echo "❌ Mudscape installation not found at $INSTALL_DIR"
+    echo "Please run a fresh install instead."
+    exit 1
+fi
+
+echo "Updating Mudscape..."
+cd "$INSTALL_DIR"
+git stash 2>/dev/null || true
+git pull origin main || git pull origin master || {
+    echo "❌ Could not update. Please check your internet connection."
+    exit 1
+}
+git stash pop 2>/dev/null || true
+
+`;
+      } else {
+        script += `# Download Mudscape
 if [ -d "$INSTALL_DIR" ]; then
-    echo "Mudscape folder already exists. Updating..."
+    echo "Mudscape folder exists. Updating..."
     cd "$INSTALL_DIR"
-    git pull origin main || git pull origin master || echo "Could not update, continuing with existing files..."
+    git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || true
 else
     echo "Downloading Mudscape..."
     cd "$HOME/Documents"
     git clone ${repoUrl} mudscape || {
-        echo -e "\${RED}Failed to download Mudscape.\${NC}"
-        echo "Please check your internet connection and try again."
+        echo ""
+        echo "❌ Download failed. Please check your internet connection."
         exit 1
     }
 fi
-
 cd "$INSTALL_DIR"
-echo -e "\${GREEN}✓ Mudscape downloaded to $INSTALL_DIR\${NC}"
+echo "✅ Mudscape downloaded"
 
-# Copy .env file
+# Create configuration file
 echo ""
 echo "Setting up configuration..."
-ENV_FILE="$HOME/Downloads/.env"
-if [ -f "$ENV_FILE" ]; then
-    cp "$ENV_FILE" "$INSTALL_DIR/.env"
-    echo -e "\${GREEN}✓ Configuration copied\${NC}"
-else
-    echo -e "\${YELLOW}Warning: .env file not found in Downloads folder.\${NC}"
-    echo "Please copy the .env file to $INSTALL_DIR manually."
-fi
+cat > "$INSTALL_DIR/.env" << 'ENVFILE'
+DATABASE_URL=${dbUrl}
+SESSION_SECRET=${config.sessionSecret}
+PORT=${config.appPort}
+${accountMode === 'single' ? 'SINGLE_USER_MODE=true' : ''}
+ENVFILE
+echo "✅ Configuration saved"
 
-# Install dependencies
-echo ""
-echo "Installing dependencies (this may take a few minutes)..."
-npm install
-echo -e "\${GREEN}✓ Dependencies installed\${NC}"
-
-# Create database
-echo ""
-echo "Setting up database..."
-createdb ${config.dbName} 2>/dev/null || echo "Database may already exist, continuing..."
-
-# Run database migrations
-echo "Initializing database tables..."
-npm run db:push
-echo -e "\${GREEN}✓ Database ready\${NC}"
-
-`;
-
-      if (accountMode === 'multi' && config.adminUser && config.adminPass) {
-        script += `
-# Create admin user (will be done on first access via setup wizard)
-echo ""
-echo -e "\${YELLOW}Note: Log in with your admin credentials after startup.\${NC}"
-echo "Username: ${config.adminUser}"
 `;
       }
 
-      script += `
+      script += `# Install dependencies
 echo ""
-echo "========================================"
-echo -e "\${GREEN}   Setup Complete!\${NC}"
-echo "========================================"
+echo "Installing dependencies (this may take a few minutes)..."
+cd "$INSTALL_DIR"
+npm install || {
+    echo "❌ Failed to install dependencies."
+    exit 1
+}
+echo "✅ Dependencies installed"
+
+`;
+
+      if (!isUpgrade) {
+        script += `# Set up database
 echo ""
+echo "Setting up database..."
+createdb ${config.dbName} 2>/dev/null || echo "(Database may already exist)"
+npm run db:push || {
+    echo ""
+    echo "⚠️ Database setup had issues. You may need to check PostgreSQL is running."
+}
+echo "✅ Database ready"
+
+`;
+      }
+
+      script += `# Create start script
+cat > "$INSTALL_DIR/Mudscape-Start.command" << 'STARTSCRIPT'
+#!/bin/bash
+cd "$HOME/Documents/mudscape"
 echo "Starting Mudscape..."
-echo "Open your browser to: http://localhost:${config.appPort}"
+echo "Opening browser to http://localhost:${config.appPort}"
+sleep 2 && open "http://localhost:${config.appPort}" &
+npm run dev
+STARTSCRIPT
+chmod +x "$INSTALL_DIR/Mudscape-Start.command"
+
 echo ""
-echo "Press Ctrl+C to stop the server."
+echo "========================================"
+echo "   ✅ ${isUpgrade ? 'Upgrade' : 'Installation'} Complete!"
+echo "========================================"
+echo ""
+echo "Opening Mudscape in your browser..."
 echo ""
 
+# Open browser and start server
+sleep 2 && open "http://localhost:${config.appPort}" &
 npm run dev
 `;
 
@@ -1038,114 +1101,280 @@ npm run dev
 
     function generateWindowsScript() {
       const config = getConfig();
+      const isUpgrade = installType === 'upgrade';
       const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
+      
+      const pwPart = config.password ? `:${config.password}` : '';
+      const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;
 
-      return `@echo off
-REM Mudscape Setup Script for Windows
-REM Generated by Mudscape Installer
+      let script = `@echo off
+REM Mudscape ${isUpgrade ? 'Upgrade' : 'Install'} Script for Windows
+REM Double-click this file to run it
+
+title Mudscape ${isUpgrade ? 'Upgrade' : 'Installer'}
 
 echo ========================================
-echo    Mudscape Setup Script
+echo    Mudscape ${isUpgrade ? 'Upgrade' : 'Installer'}
 echo ========================================
 echo.
 
-REM Check for Node.js
-echo Checking for Node.js...
+`;
+
+      if (!isUpgrade) {
+        script += `REM Check for Node.js
 where node >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
+    echo.
     echo [ERROR] Node.js is not installed.
-    echo Please install Node.js from https://nodejs.org
-    echo Then run this script again.
+    echo.
+    echo Please download it from: https://nodejs.org
+    echo Click the green LTS button, then run the installer.
+    echo.
     pause
     exit /b 1
 )
 for /f "tokens=*" %%i in ('node --version') do echo [OK] Node.js found: %%i
 
-REM Check for Git
-echo Checking for Git...
 where git >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
+    echo.
     echo [ERROR] Git is not installed.
-    echo Please install Git from https://git-scm.com
+    echo Please download it from: https://git-scm.com
+    echo.
     pause
     exit /b 1
 )
 echo [OK] Git found
-
 echo.
-echo Creating installation directory...
-set INSTALL_DIR=%USERPROFILE%\\Documents\\mudscape
 
-if exist "%INSTALL_DIR%" (
-    echo Mudscape folder already exists. Updating...
+`;
+      }
+
+      script += `set INSTALL_DIR=%USERPROFILE%\\Documents\\mudscape
+
+`;
+
+      if (isUpgrade) {
+        script += `if not exist "%INSTALL_DIR%" (
+    echo.
+    echo [ERROR] Mudscape installation not found.
+    echo Please run a fresh install instead.
+    pause
+    exit /b 1
+)
+
+echo Updating Mudscape...
+cd /d "%INSTALL_DIR%"
+git stash 2>nul
+git pull origin main || git pull origin master
+git stash pop 2>nul
+echo [OK] Updated
+
+`;
+      } else {
+        script += `if exist "%INSTALL_DIR%" (
+    echo Updating existing installation...
     cd /d "%INSTALL_DIR%"
-    git pull origin main || git pull origin master || echo Could not update, continuing...
+    git pull origin main 2>nul || git pull origin master 2>nul
 ) else (
     echo Downloading Mudscape...
     cd /d "%USERPROFILE%\\Documents"
     git clone ${repoUrl} mudscape
     if %ERRORLEVEL% NEQ 0 (
-        echo [ERROR] Failed to download Mudscape.
+        echo [ERROR] Download failed.
         pause
         exit /b 1
     )
 )
-
 cd /d "%INSTALL_DIR%"
-echo [OK] Mudscape downloaded to %INSTALL_DIR%
+echo [OK] Mudscape downloaded
 
-REM Copy .env file
 echo.
 echo Setting up configuration...
-if exist "%USERPROFILE%\\Downloads\\.env" (
-    copy "%USERPROFILE%\\Downloads\\.env" "%INSTALL_DIR%\\.env" >nul
-    echo [OK] Configuration copied
-) else (
-    echo [WARNING] .env file not found in Downloads folder.
-    echo Please copy the .env file to %INSTALL_DIR% manually.
-)
+(
+echo DATABASE_URL=${dbUrl}
+echo SESSION_SECRET=${config.sessionSecret}
+echo PORT=${config.appPort}
+${accountMode === 'single' ? 'echo SINGLE_USER_MODE=true' : ''}
+) > "%INSTALL_DIR%\\.env"
+echo [OK] Configuration saved
 
-REM Install dependencies
-echo.
+`;
+      }
+
+      script += `echo.
 echo Installing dependencies (this may take a few minutes)...
+cd /d "%INSTALL_DIR%"
 call npm install
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to install dependencies.
+    pause
+    exit /b 1
+)
 echo [OK] Dependencies installed
 
-REM Create database
-echo.
-echo Setting up database...
-createdb ${config.dbName} 2>nul || echo Database may already exist, continuing...
+`;
 
-REM Run database migrations
-echo Initializing database tables...
+      if (!isUpgrade) {
+        script += `echo.
+echo Setting up database...
+createdb ${config.dbName} 2>nul
 call npm run db:push
 echo [OK] Database ready
 
+`;
+      }
+
+      script += `REM Create start script
+(
+echo @echo off
+echo cd /d "%USERPROFILE%\\Documents\\mudscape"
+echo echo Starting Mudscape...
+echo start http://localhost:${config.appPort}
+echo call npm run dev
+) > "%INSTALL_DIR%\\Mudscape-Start.bat"
+
 echo.
 echo ========================================
-echo    Setup Complete!
+echo    [OK] ${isUpgrade ? 'Upgrade' : 'Installation'} Complete!
 echo ========================================
 echo.
-echo Starting Mudscape...
-echo Open your browser to: http://localhost:${config.appPort}
-echo.
-echo Press Ctrl+C to stop the server.
+echo Opening Mudscape in your browser...
 echo.
 
+start http://localhost:${config.appPort}
 call npm run dev
 `;
+
+      return script;
     }
 
-    function downloadSetupScript() {
-      if (selectedOS === 'windows') {
-        downloadFile('mudscape-setup.bat', generateWindowsScript());
-      } else {
-        downloadFile('mudscape-setup.sh', generateUnixScript());
-      }
+    function generateLinuxScript() {
+      const config = getConfig();
+      const isUpgrade = installType === 'upgrade';
+      const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
       
-      // Update final URL
+      const pwPart = config.password ? `:${config.password}` : '';
+      const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;
+
+      let script = `#!/bin/bash
+# Mudscape ${isUpgrade ? 'Upgrade' : 'Install'} Script for Linux
+# Run with: chmod +x Mudscape-Install.sh && ./Mudscape-Install.sh
+
+set -e
+
+echo "========================================"
+echo "   Mudscape ${isUpgrade ? 'Upgrade' : 'Installer'}"
+echo "========================================"
+echo ""
+
+`;
+
+      if (!isUpgrade) {
+        script += `# Check requirements
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed."
+    echo "Install with: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs"
+    exit 1
+fi
+echo "✅ Node.js: $(node --version)"
+
+if ! command -v git &> /dev/null; then
+    echo "❌ Git is not installed. Install with: sudo apt install git"
+    exit 1
+fi
+echo "✅ Git found"
+
+`;
+      }
+
+      script += `INSTALL_DIR="$HOME/Documents/mudscape"
+mkdir -p "$HOME/Documents"
+
+`;
+
+      if (isUpgrade) {
+        script += `if [ ! -d "$INSTALL_DIR" ]; then
+    echo "❌ Mudscape not found. Please run fresh install."
+    exit 1
+fi
+
+echo "Updating..."
+cd "$INSTALL_DIR"
+git stash 2>/dev/null || true
+git pull origin main || git pull origin master
+git stash pop 2>/dev/null || true
+
+`;
+      } else {
+        script += `if [ -d "$INSTALL_DIR" ]; then
+    cd "$INSTALL_DIR"
+    git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || true
+else
+    cd "$HOME/Documents"
+    git clone ${repoUrl} mudscape
+fi
+cd "$INSTALL_DIR"
+echo "✅ Downloaded"
+
+cat > "$INSTALL_DIR/.env" << 'ENVFILE'
+DATABASE_URL=${dbUrl}
+SESSION_SECRET=${config.sessionSecret}
+PORT=${config.appPort}
+${accountMode === 'single' ? 'SINGLE_USER_MODE=true' : ''}
+ENVFILE
+echo "✅ Configured"
+
+`;
+      }
+
+      script += `echo "Installing dependencies..."
+npm install
+echo "✅ Dependencies installed"
+
+`;
+
+      if (!isUpgrade) {
+        script += `echo "Setting up database..."
+createdb ${config.dbName} 2>/dev/null || true
+npm run db:push
+echo "✅ Database ready"
+
+`;
+      }
+
+      script += `cat > "$INSTALL_DIR/Mudscape-Start.sh" << 'STARTSCRIPT'
+#!/bin/bash
+cd "$HOME/Documents/mudscape"
+echo "Starting Mudscape at http://localhost:${config.appPort}"
+xdg-open "http://localhost:${config.appPort}" 2>/dev/null &
+npm run dev
+STARTSCRIPT
+chmod +x "$INSTALL_DIR/Mudscape-Start.sh"
+
+echo ""
+echo "✅ ${isUpgrade ? 'Upgrade' : 'Installation'} Complete!"
+echo ""
+echo "Opening browser..."
+
+xdg-open "http://localhost:${config.appPort}" 2>/dev/null &
+npm run dev
+`;
+
+      return script;
+    }
+
+    function downloadAllInOne() {
       const config = getConfig();
       document.getElementById('finalUrl').textContent = `http://localhost:${config.appPort}`;
+      
+      if (selectedOS === 'mac') {
+        downloadFile('Mudscape-Install.command', generateMacScript());
+      } else if (selectedOS === 'windows') {
+        downloadFile('Mudscape-Install.bat', generateWindowsScript());
+      } else {
+        downloadFile('Mudscape-Install.sh', generateLinuxScript());
+      }
     }
 
     function copyCode(button) {
