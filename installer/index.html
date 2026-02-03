@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mudscape Installer</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --primary: #0f3460;
+      --accent: #e94560;
+      --text: #eee;
+      --text-secondary: #aaa;
+      --success: #4ade80;
+      --border: #2a2a4a;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    h1 {
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-size: 2.5rem;
+    }
+    
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .step {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+    }
+    
+    .step.active {
+      display: block;
+    }
+    
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .step-number {
+      background: var(--accent);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    
+    .step-title {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+    
+    .step-content {
+      margin-bottom: 25px;
+    }
+    
+    .step-content p {
+      margin: 0 0 15px 0;
+    }
+    
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 0.95rem;
+      overflow-x: auto;
+      position: relative;
+      margin: 15px 0;
+    }
+    
+    .code-block code {
+      color: #7ee787;
+    }
+    
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    
+    .copy-btn:hover {
+      background: var(--accent);
+    }
+    
+    .copy-btn.copied {
+      background: var(--success);
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: space-between;
+    }
+    
+    button {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+    
+    .btn-secondary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      filter: brightness(1.2);
+    }
+    
+    .btn-primary:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      margin: 8px 0 15px 0;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    label {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .info-box {
+      background: rgba(233, 69, 96, 0.1);
+      border-left: 4px solid var(--accent);
+      padding: 15px;
+      border-radius: 0 8px 8px 0;
+      margin: 15px 0;
+    }
+    
+    .success-box {
+      background: rgba(74, 222, 128, 0.1);
+      border-left: 4px solid var(--success);
+      padding: 15px;
+      border-radius: 0 8px 8px 0;
+      margin: 15px 0;
+    }
+    
+    .progress-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 30px;
+      justify-content: center;
+    }
+    
+    .progress-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    
+    .progress-dot.active {
+      background: var(--accent);
+    }
+    
+    .progress-dot.completed {
+      background: var(--success);
+    }
+    
+    .os-buttons {
+      display: flex;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .os-btn {
+      flex: 1;
+      padding: 20px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .os-btn:hover {
+      border-color: var(--accent);
+    }
+    
+    .os-btn.selected {
+      border-color: var(--accent);
+      background: rgba(233, 69, 96, 0.1);
+    }
+    
+    .os-btn .icon {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .help-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 5px;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .inline-code {
+      background: #0d1117;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #7ee787;
+    }
+
+    .mode-option {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 10px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-option:hover {
+      border-color: var(--accent);
+    }
+
+    .mode-option.selected {
+      border-color: var(--accent);
+      background: rgba(233, 69, 96, 0.1);
+    }
+
+    .mode-option h3 {
+      margin: 0 0 8px 0;
+      color: var(--text);
+    }
+
+    .mode-option p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    #generatedEnv {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .final-step h2 {
+      color: var(--success);
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .os-buttons {
+        flex-direction: column;
+      }
+      
+      .buttons {
+        flex-direction: column;
+      }
+      
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Mudscape Installer</h1>
+      <p class="subtitle">Accessible MUD Client Setup Wizard</p>
+    </header>
+
+    <div class="progress-bar" id="progressBar">
+      <!-- Generated by JS -->
+    </div>
+
+    <!-- Step 0: Welcome -->
+    <div class="step active" id="step-0">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Welcome</div>
+      </div>
+      <div class="step-content">
+        <p>This wizard will guide you through setting up Mudscape on your computer. No technical experience required - just follow each step and click "Next" when you're done.</p>
+        
+        <p><strong>What is Mudscape?</strong></p>
+        <p>Mudscape is an accessible MUD (Multi-User Dungeon) client designed for screen reader users. It lets you connect to text-based online games with features like:</p>
+        <ul>
+          <li>Full screen reader support (VoiceOver, NVDA, Orca)</li>
+          <li>Keyboard navigation</li>
+          <li>Multiple MUD connections</li>
+          <li>Triggers, aliases, and scripting</li>
+        </ul>
+
+        <p><strong>First, what operating system are you using?</strong></p>
+        
+        <div class="os-buttons">
+          <button class="os-btn" data-os="mac" onclick="selectOS('mac')">
+            <div class="icon">🍎</div>
+            <div>Mac</div>
+          </button>
+          <button class="os-btn" data-os="windows" onclick="selectOS('windows')">
+            <div class="icon">🪟</div>
+            <div>Windows</div>
+          </button>
+          <button class="os-btn" data-os="linux" onclick="selectOS('linux')">
+            <div class="icon">🐧</div>
+            <div>Linux</div>
+          </button>
+        </div>
+      </div>
+      <div class="buttons">
+        <div></div>
+        <button class="btn-primary" onclick="nextStep()" id="welcomeNext" disabled>Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Install Node.js -->
+    <div class="step" id="step-1">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Install Node.js</div>
+      </div>
+      <div class="step-content">
+        <p>Node.js is required to run Mudscape. Let's check if you have it installed.</p>
+        
+        <p><strong>Open your <span id="terminalName">Terminal</span>:</strong></p>
+        <div id="openTerminalInstructions"></div>
+
+        <p><strong>Then type this command and press Enter:</strong></p>
+        <div class="code-block">
+          <code>node --version</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          <strong>What to look for:</strong>
+          <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+            <li>If you see a version number like <span class="inline-code">v18.17.0</span> or higher, Node.js is installed. Click "Next Step".</li>
+            <li>If you see "command not found" or an error, you need to install Node.js first.</li>
+          </ul>
+        </div>
+
+        <div id="nodeInstallInstructions" class="hidden">
+          <p><strong>Install Node.js:</strong></p>
+          <div id="nodeInstallContent"></div>
+          <p>After installing, close and reopen your <span class="terminal-name">Terminal</span>, then try the version command again.</p>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="needsNode" onchange="toggleNodeInstall()">
+          <label for="needsNode">I need to install Node.js</label>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Install PostgreSQL -->
+    <div class="step" id="step-2">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Install PostgreSQL Database</div>
+      </div>
+      <div class="step-content">
+        <p>Mudscape needs a PostgreSQL database to store your settings, profiles, and automation.</p>
+        
+        <p><strong>Check if PostgreSQL is installed:</strong></p>
+        <div class="code-block">
+          <code>psql --version</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          <strong>What to look for:</strong>
+          <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+            <li>If you see a version like <span class="inline-code">psql (PostgreSQL) 14.x</span>, it's installed.</li>
+            <li>If you see an error, you need to install PostgreSQL.</li>
+          </ul>
+        </div>
+
+        <div id="postgresInstallInstructions" class="hidden">
+          <p><strong>Install PostgreSQL:</strong></p>
+          <div id="postgresInstallContent"></div>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="needsPostgres" onchange="togglePostgresInstall()">
+          <label for="needsPostgres">I need to install PostgreSQL</label>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Download Mudscape -->
+    <div class="step" id="step-3">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Download Mudscape</div>
+      </div>
+      <div class="step-content">
+        <p>Now let's download Mudscape to your computer.</p>
+        
+        <p><strong>In your <span class="terminal-name">Terminal</span>, navigate to where you want to install Mudscape:</strong></p>
+        <div class="code-block" id="cdCommand">
+          <code>cd ~/Documents</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <p class="help-text">This puts Mudscape in your Documents folder. You can change this if you prefer another location.</p>
+
+        <p><strong>Clone the Mudscape repository:</strong></p>
+        <div class="code-block">
+          <code>git clone https://github.com/YOUR_USERNAME/mudscape.git</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          <strong>Don't have Git?</strong> 
+          <div id="gitInstallInstructions"></div>
+        </div>
+
+        <p><strong>Go into the Mudscape folder:</strong></p>
+        <div class="code-block">
+          <code>cd mudscape</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Install Dependencies -->
+    <div class="step" id="step-4">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Install Dependencies</div>
+      </div>
+      <div class="step-content">
+        <p>Now we need to install the software packages that Mudscape depends on.</p>
+        
+        <p><strong>Make sure you're in the mudscape folder, then run:</strong></p>
+        <div class="code-block">
+          <code>npm install</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          This may take a few minutes. You'll see lots of text scrolling by - that's normal! Wait until you see your command prompt again before continuing.
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Database Setup -->
+    <div class="step" id="step-5">
+      <div class="step-header">
+        <div class="step-number">6</div>
+        <div class="step-title">Create Database</div>
+      </div>
+      <div class="step-content">
+        <p>Let's create a database for Mudscape.</p>
+
+        <p><strong>First, start PostgreSQL if it's not running:</strong></p>
+        <div class="code-block" id="startPostgresCmd">
+          <code id="startPostgresCode">brew services start postgresql</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <p><strong>Create the Mudscape database:</strong></p>
+        <div class="code-block">
+          <code>createdb mudscape</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          If you see "database already exists", that's fine - it means the database was created previously.
+        </div>
+
+        <p><strong>Optional: Set a password for your database user:</strong></p>
+        <div class="code-block">
+          <code>psql -c "ALTER USER $(whoami) PASSWORD 'your_password_here';"</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <p class="help-text">Replace <span class="inline-code">your_password_here</span> with a password you'll remember.</p>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Configuration -->
+    <div class="step" id="step-6">
+      <div class="step-header">
+        <div class="step-number">7</div>
+        <div class="step-title">Configure Mudscape</div>
+      </div>
+      <div class="step-content">
+        <p>Fill in your database connection details:</p>
+
+        <label for="dbHost">Database Host</label>
+        <input type="text" id="dbHost" value="localhost" placeholder="localhost">
+
+        <label for="dbPort">Database Port</label>
+        <input type="number" id="dbPort" value="5432" placeholder="5432">
+
+        <label for="dbUser">Database Username</label>
+        <input type="text" id="dbUser" placeholder="Your computer username">
+        <p class="help-text">Usually your Mac/Linux username. On Windows with default install, try "postgres".</p>
+
+        <label for="dbPassword">Database Password</label>
+        <input type="password" id="dbPassword" placeholder="Leave blank if you didn't set one">
+
+        <label for="dbName">Database Name</label>
+        <input type="text" id="dbName" value="mudscape" placeholder="mudscape">
+
+        <label for="appPort">Mudscape Port</label>
+        <input type="number" id="appPort" value="5000" placeholder="5000">
+        <p class="help-text">The port Mudscape will run on. Default is 5000.</p>
+
+        <p style="margin-top: 25px;"><strong>Account Mode:</strong></p>
+        
+        <div class="mode-option" onclick="selectMode('single')" id="mode-single">
+          <h3>Single-User Mode</h3>
+          <p>No login required. Best for personal use on your own computer.</p>
+        </div>
+
+        <div class="mode-option" onclick="selectMode('multi')" id="mode-multi">
+          <h3>Multi-User Mode</h3>
+          <p>Requires username/password login. Best if multiple people will use this installation.</p>
+        </div>
+
+        <div id="adminSetup" class="hidden" style="margin-top: 20px;">
+          <p><strong>Create Admin Account:</strong></p>
+          <label for="adminUser">Admin Username</label>
+          <input type="text" id="adminUser" placeholder="admin">
+          
+          <label for="adminPass">Admin Password</label>
+          <input type="password" id="adminPass" placeholder="Choose a strong password">
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="generateConfig()">Generate Configuration</button>
+      </div>
+    </div>
+
+    <!-- Step 7: Create .env file -->
+    <div class="step" id="step-7">
+      <div class="step-header">
+        <div class="step-number">8</div>
+        <div class="step-title">Create Configuration File</div>
+      </div>
+      <div class="step-content">
+        <p>Copy the configuration below and save it to a file called <span class="inline-code">.env</span> in your mudscape folder.</p>
+
+        <p><strong>Create the file:</strong></p>
+        <div class="code-block" id="createEnvCmd">
+          <code>touch .env && open -e .env</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <p class="help-text" id="createEnvHelp">This creates the file and opens it in TextEdit.</p>
+
+        <p><strong>Paste this configuration into the file and save:</strong></p>
+        <div class="code-block">
+          <code id="generatedEnv"></code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="success-box">
+          <strong>Important:</strong> Make sure to save the file! On Mac, press Cmd+S. On Windows, press Ctrl+S.
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 8: Initialize Database -->
+    <div class="step" id="step-8">
+      <div class="step-header">
+        <div class="step-number">9</div>
+        <div class="step-title">Initialize Database</div>
+      </div>
+      <div class="step-content">
+        <p>Now let's set up the database tables Mudscape needs.</p>
+
+        <p><strong>Run this command:</strong></p>
+        <div class="code-block">
+          <code>npm run db:push</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          You should see messages about creating tables. If you see errors about connecting to the database, double-check your .env file settings.
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="nextStep()">Next Step</button>
+      </div>
+    </div>
+
+    <!-- Step 9: Start Mudscape -->
+    <div class="step" id="step-9">
+      <div class="step-header">
+        <div class="step-number">10</div>
+        <div class="step-title">Start Mudscape</div>
+      </div>
+      <div class="step-content final-step">
+        <h2>You're almost done!</h2>
+        
+        <p><strong>Start Mudscape with this command:</strong></p>
+        <div class="code-block">
+          <code>npm run dev</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="success-box">
+          <strong>Success!</strong> Once you see "Server running on port 5000" (or your chosen port), Mudscape is ready!
+        </div>
+
+        <p><strong>Open your browser and go to:</strong></p>
+        <div class="code-block">
+          <code id="appUrl">http://localhost:5000</code>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+
+        <div class="info-box">
+          <strong>To stop Mudscape:</strong> Press <span class="inline-code">Ctrl+C</span> in your Terminal.
+          <br><br>
+          <strong>To start it again later:</strong>
+          <ol style="margin: 10px 0 0 0; padding-left: 20px;">
+            <li>Open Terminal</li>
+            <li>Go to the mudscape folder: <span class="inline-code">cd ~/Documents/mudscape</span></li>
+            <li>Run: <span class="inline-code">npm run dev</span></li>
+          </ol>
+        </div>
+
+        <p style="text-align: center; margin-top: 30px; color: var(--text-secondary);">
+          Enjoy exploring the world of MUDs with Mudscape!
+        </p>
+      </div>
+      <div class="buttons">
+        <button class="btn-secondary" onclick="prevStep()">Back</button>
+        <button class="btn-primary" onclick="window.print()">Print Instructions</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 0;
+    const totalSteps = 10;
+    let selectedOS = null;
+    let accountMode = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      updateProgressBar();
+      
+      // Try to detect username for database
+      const dbUserInput = document.getElementById('dbUser');
+      // Can't actually detect, but provide helpful placeholder
+    });
+
+    function updateProgressBar() {
+      const bar = document.getElementById('progressBar');
+      bar.innerHTML = '';
+      for (let i = 0; i < totalSteps; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'progress-dot';
+        if (i < currentStep) dot.classList.add('completed');
+        if (i === currentStep) dot.classList.add('active');
+        bar.appendChild(dot);
+      }
+    }
+
+    function showStep(stepNum) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(`step-${stepNum}`).classList.add('active');
+      currentStep = stepNum;
+      updateProgressBar();
+      window.scrollTo(0, 0);
+    }
+
+    function nextStep() {
+      if (currentStep < totalSteps - 1) {
+        showStep(currentStep + 1);
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 0) {
+        showStep(currentStep - 1);
+      }
+    }
+
+    function selectOS(os) {
+      selectedOS = os;
+      document.querySelectorAll('.os-btn').forEach(btn => btn.classList.remove('selected'));
+      document.querySelector(`[data-os="${os}"]`).classList.add('selected');
+      document.getElementById('welcomeNext').disabled = false;
+      updateOSSpecificContent();
+    }
+
+    function updateOSSpecificContent() {
+      const terminalNames = document.querySelectorAll('.terminal-name, #terminalName');
+      const openInstructions = document.getElementById('openTerminalInstructions');
+      const nodeInstructions = document.getElementById('nodeInstallContent');
+      const postgresInstructions = document.getElementById('postgresInstallContent');
+      const gitInstructions = document.getElementById('gitInstallInstructions');
+      const cdCommand = document.querySelector('#cdCommand code');
+      const startPostgresCode = document.getElementById('startPostgresCode');
+      const createEnvCmd = document.querySelector('#createEnvCmd code');
+      const createEnvHelp = document.getElementById('createEnvHelp');
+
+      if (selectedOS === 'mac') {
+        terminalNames.forEach(el => el.textContent = 'Terminal');
+        openInstructions.innerHTML = `
+          <ul>
+            <li>Press <span class="inline-code">Cmd + Space</span> to open Spotlight</li>
+            <li>Type "Terminal" and press Enter</li>
+          </ul>
+        `;
+        nodeInstructions.innerHTML = `
+          <p>The easiest way is to download from the official website:</p>
+          <ol>
+            <li>Go to <a href="https://nodejs.org" target="_blank" style="color: var(--accent);">nodejs.org</a></li>
+            <li>Click the "LTS" (Long Term Support) download button</li>
+            <li>Open the downloaded .pkg file and follow the installer</li>
+          </ol>
+        `;
+        postgresInstructions.innerHTML = `
+          <p><strong>Option 1: Postgres.app (Easiest)</strong></p>
+          <ol>
+            <li>Go to <a href="https://postgresapp.com" target="_blank" style="color: var(--accent);">postgresapp.com</a></li>
+            <li>Click "Download" and install the app</li>
+            <li>Open Postgres.app and click "Initialize"</li>
+          </ol>
+          <p><strong>Option 2: Using Homebrew</strong></p>
+          <div class="code-block"><code>brew install postgresql@15 && brew services start postgresql@15</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        `;
+        gitInstructions.innerHTML = `
+          <p>Install Xcode Command Line Tools by running: <span class="inline-code">xcode-select --install</span></p>
+        `;
+        cdCommand.textContent = 'cd ~/Documents';
+        startPostgresCode.textContent = 'brew services start postgresql@15';
+        createEnvCmd.textContent = 'touch .env && open -e .env';
+        createEnvHelp.textContent = 'This creates the file and opens it in TextEdit.';
+      } else if (selectedOS === 'windows') {
+        terminalNames.forEach(el => el.textContent = 'PowerShell');
+        openInstructions.innerHTML = `
+          <ul>
+            <li>Press <span class="inline-code">Windows key</span></li>
+            <li>Type "PowerShell" and click "Windows PowerShell"</li>
+          </ul>
+        `;
+        nodeInstructions.innerHTML = `
+          <ol>
+            <li>Go to <a href="https://nodejs.org" target="_blank" style="color: var(--accent);">nodejs.org</a></li>
+            <li>Click the "LTS" (Long Term Support) download button</li>
+            <li>Run the downloaded .msi installer and follow the prompts</li>
+          </ol>
+        `;
+        postgresInstructions.innerHTML = `
+          <ol>
+            <li>Go to <a href="https://www.postgresql.org/download/windows/" target="_blank" style="color: var(--accent);">postgresql.org/download/windows</a></li>
+            <li>Click "Download the installer"</li>
+            <li>Run the installer (remember the password you set!)</li>
+            <li>Keep the default port 5432</li>
+          </ol>
+        `;
+        gitInstructions.innerHTML = `
+          <p>Download Git from <a href="https://git-scm.com/download/win" target="_blank" style="color: var(--accent);">git-scm.com</a> and run the installer.</p>
+        `;
+        cdCommand.textContent = 'cd $HOME\\Documents';
+        startPostgresCode.textContent = 'net start postgresql-x64-15';
+        createEnvCmd.textContent = 'New-Item .env -ItemType File; notepad .env';
+        createEnvHelp.textContent = 'This creates the file and opens it in Notepad.';
+      } else if (selectedOS === 'linux') {
+        terminalNames.forEach(el => el.textContent = 'Terminal');
+        openInstructions.innerHTML = `
+          <ul>
+            <li>Press <span class="inline-code">Ctrl + Alt + T</span></li>
+            <li>Or search for "Terminal" in your applications menu</li>
+          </ul>
+        `;
+        nodeInstructions.innerHTML = `
+          <p><strong>Ubuntu/Debian:</strong></p>
+          <div class="code-block"><code>curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <p><strong>Fedora:</strong></p>
+          <div class="code-block"><code>sudo dnf install nodejs</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        `;
+        postgresInstructions.innerHTML = `
+          <p><strong>Ubuntu/Debian:</strong></p>
+          <div class="code-block"><code>sudo apt install postgresql postgresql-contrib && sudo systemctl start postgresql</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <p><strong>Fedora:</strong></p>
+          <div class="code-block"><code>sudo dnf install postgresql-server postgresql-contrib && sudo postgresql-setup --initdb && sudo systemctl start postgresql</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        `;
+        gitInstructions.innerHTML = `
+          <p><strong>Ubuntu/Debian:</strong> <span class="inline-code">sudo apt install git</span></p>
+          <p><strong>Fedora:</strong> <span class="inline-code">sudo dnf install git</span></p>
+        `;
+        cdCommand.textContent = 'cd ~/Documents';
+        startPostgresCode.textContent = 'sudo systemctl start postgresql';
+        createEnvCmd.textContent = 'touch .env && nano .env';
+        createEnvHelp.textContent = 'This creates and opens the file in nano. Press Ctrl+O to save, Ctrl+X to exit.';
+      }
+    }
+
+    function toggleNodeInstall() {
+      const instructions = document.getElementById('nodeInstallInstructions');
+      const checkbox = document.getElementById('needsNode');
+      instructions.classList.toggle('hidden', !checkbox.checked);
+    }
+
+    function togglePostgresInstall() {
+      const instructions = document.getElementById('postgresInstallInstructions');
+      const checkbox = document.getElementById('needsPostgres');
+      instructions.classList.toggle('hidden', !checkbox.checked);
+    }
+
+    function selectMode(mode) {
+      accountMode = mode;
+      document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
+      document.getElementById(`mode-${mode}`).classList.add('selected');
+      document.getElementById('adminSetup').classList.toggle('hidden', mode !== 'multi');
+    }
+
+    function generateRandomSecret() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < 64; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    function generateConfig() {
+      const host = document.getElementById('dbHost').value || 'localhost';
+      const port = document.getElementById('dbPort').value || '5432';
+      const user = document.getElementById('dbUser').value || '$USER';
+      const password = document.getElementById('dbPassword').value;
+      const dbName = document.getElementById('dbName').value || 'mudscape';
+      const appPort = document.getElementById('appPort').value || '5000';
+
+      const pwPart = password ? `:${password}` : '';
+      const dbUrl = `postgresql://${user}${pwPart}@${host}:${port}/${dbName}`;
+      const sessionSecret = generateRandomSecret();
+
+      let config = `DATABASE_URL=${dbUrl}
+SESSION_SECRET=${sessionSecret}
+PORT=${appPort}`;
+
+      if (accountMode === 'single') {
+        config += `\nSINGLE_USER_MODE=true`;
+      }
+
+      document.getElementById('generatedEnv').textContent = config;
+      document.getElementById('appUrl').textContent = `http://localhost:${appPort}`;
+
+      nextStep();
+    }
+
+    function copyCode(button) {
+      const codeBlock = button.parentElement;
+      const code = codeBlock.querySelector('code').textContent;
+      
+      navigator.clipboard.writeText(code).then(() => {
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          button.classList.remove('copied');
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
