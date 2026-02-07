@@ -207,9 +207,13 @@ export function ScriptAssistant({ open, onOpenChange, onCreateTrigger, onCreateA
         content: m.content,
       }));
 
+      const authToken = localStorage.getItem('mudscape_auth_token');
       const response = await fetch('/api/ai/script-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           messages: [...chatHistory, { role: 'user', content: userMessage.content }],
           systemPrompt: SYSTEM_PROMPT,

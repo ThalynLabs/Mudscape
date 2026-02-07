@@ -90,9 +90,13 @@ export function ScriptingWizard({ onInsert, context = 'trigger', triggerButton, 
     setIsLoading(true);
     
     try {
+      const authToken = localStorage.getItem('mudscape_auth_token');
       const res = await fetch('/api/ai/generate-script', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({ 
           description, 
           context,

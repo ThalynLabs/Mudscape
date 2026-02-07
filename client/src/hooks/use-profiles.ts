@@ -1,25 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CreateProfileRequest, type UpdateProfileRequest } from "@shared/routes";
+import { getAuthToken } from "@/lib/queryClient";
 
-// GET /api/profiles
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export function useProfiles() {
   return useQuery({
     queryKey: [api.profiles.list.path],
     queryFn: async () => {
-      const res = await fetch(api.profiles.list.path, { credentials: "include" });
+      const res = await fetch(api.profiles.list.path, {
+        headers: authHeaders(),
+        credentials: "include",
+      });
       if (!res.ok) throw new Error('Failed to fetch profiles');
       return api.profiles.list.responses[200].parse(await res.json());
     },
   });
 }
 
-// GET /api/profiles/:id
 export function useProfile(id: number) {
   return useQuery({
     queryKey: [api.profiles.get.path, id],
     queryFn: async () => {
       const url = buildUrl(api.profiles.get.path, { id });
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url, {
+        headers: authHeaders(),
+        credentials: "include",
+      });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error('Failed to fetch profile');
       return api.profiles.get.responses[200].parse(await res.json());
@@ -28,7 +42,6 @@ export function useProfile(id: number) {
   });
 }
 
-// POST /api/profiles
 export function useCreateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -36,7 +49,7 @@ export function useCreateProfile() {
       const validated = api.profiles.create.input.parse(data);
       const res = await fetch(api.profiles.create.path, {
         method: api.profiles.create.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(validated),
         credentials: "include",
       });
@@ -53,7 +66,6 @@ export function useCreateProfile() {
   });
 }
 
-// PUT /api/profiles/:id
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -62,7 +74,7 @@ export function useUpdateProfile() {
       const url = buildUrl(api.profiles.update.path, { id });
       const res = await fetch(url, {
         method: api.profiles.update.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(validated),
         credentials: "include",
       });
@@ -82,13 +94,16 @@ export function useUpdateProfile() {
   });
 }
 
-// DELETE /api/profiles/:id
 export function useDeleteProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.profiles.delete.path, { id });
-      const res = await fetch(url, { method: api.profiles.delete.method, credentials: "include" });
+      const res = await fetch(url, {
+        method: api.profiles.delete.method,
+        headers: authHeaders(),
+        credentials: "include",
+      });
       if (!res.ok && res.status !== 404) throw new Error('Failed to delete profile');
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.profiles.list.path] }),
