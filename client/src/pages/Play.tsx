@@ -944,8 +944,8 @@ export default function Play() {
           if (lineIndex >= 0 && lines[lineIndex]) {
             const cleanLine = stripAnsi(lines[lineIndex]);
             speakLine(cleanLine);
-            // Also announce to screen reader if enabled
-            if (screenReaderRef.current) {
+            const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (!isMac && screenReaderRef.current) {
               screenReaderRef.current.announce(cleanLine);
             }
           }
