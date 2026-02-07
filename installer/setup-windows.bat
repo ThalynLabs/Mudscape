@@ -369,7 +369,7 @@ if defined SOURCE_DIR (
     REM Try git clone first
     where git >nul 2>nul
     if !errorlevel! equ 0 (
-        git clone https://github.com/ArtofMUDs/mudscape.git "!INSTALL_DIR!" 2>nul
+        git clone https://github.com/ThalynLabs/Mudscape.git "!INSTALL_DIR!" 2>nul
         if exist "!INSTALL_DIR!\package.json" (
             set "DOWNLOAD_OK=y"
             echo   [OK] Downloaded via git
@@ -379,7 +379,7 @@ if defined SOURCE_DIR (
     REM Try zip download as fallback
     if "!DOWNLOAD_OK!"=="n" (
         mkdir "!INSTALL_DIR!" 2>nul
-        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.zip' -OutFile '%TEMP%\mudscape.zip' -ErrorAction Stop } catch { exit 1 } }" 2>nul
+        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/ThalynLabs/Mudscape/archive/refs/heads/main.zip' -OutFile '%TEMP%\mudscape.zip' -ErrorAction Stop } catch { exit 1 } }" 2>nul
         if exist "%TEMP%\mudscape.zip" (
             powershell -Command "& { Expand-Archive -Path '%TEMP%\mudscape.zip' -DestinationPath '%TEMP%\mudscape-extract' -Force }" 2>nul
             xcopy "%TEMP%\mudscape-extract\mudscape-main\*" "!INSTALL_DIR!\" /E /I /Y >nul 2>nul

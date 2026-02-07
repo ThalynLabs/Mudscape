@@ -484,7 +484,7 @@ else
     DOWNLOAD_OK="n"
     
     if command -v git &>/dev/null; then
-      git clone https://github.com/ArtofMUDs/mudscape.git "$INSTALL_DIR" 2>/dev/null
+      git clone https://github.com/ThalynLabs/Mudscape.git "$INSTALL_DIR" 2>/dev/null
       if [ $? -eq 0 ] && [ -f "$INSTALL_DIR/package.json" ]; then
         DOWNLOAD_OK="y"
         print_ok "Downloaded via git"
@@ -492,7 +492,7 @@ else
     fi
     
     if [ "$DOWNLOAD_OK" != "y" ]; then
-      curl -fsSL "https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.tar.gz" -o "/tmp/mudscape.tar.gz" 2>/dev/null
+      curl -fsSL "https://github.com/ThalynLabs/Mudscape/archive/refs/heads/main.tar.gz" -o "/tmp/mudscape.tar.gz" 2>/dev/null
       if [ -f "/tmp/mudscape.tar.gz" ] && [ -s "/tmp/mudscape.tar.gz" ]; then
         tar -xzf "/tmp/mudscape.tar.gz" --strip-components=1 -C "$INSTALL_DIR" 2>/dev/null
         rm -f "/tmp/mudscape.tar.gz"

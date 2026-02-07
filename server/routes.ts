@@ -8,6 +8,7 @@ import * as net from "net";
 import OpenAI from "openai";
 import { setupAuth, registerAuthRoutes, isAuthenticated, aiLimiter } from "./auth";
 import { setSocketIO } from "./index";
+import { startUpdateChecker, getUpdateInfo, checkForUpdates } from "./update-checker";
 
 // Telnet constants
 const IAC = 255;
@@ -192,6 +193,18 @@ export async function registerRoutes(
       }
       throw e;
     }
+  });
+
+  // === UPDATE CHECK ===
+  startUpdateChecker();
+
+  app.get('/api/update-check', isAuthenticated, async (_req, res) => {
+    res.json(getUpdateInfo());
+  });
+
+  app.post('/api/update-check', isAuthenticated, async (_req, res) => {
+    const info = await checkForUpdates();
+    res.json(info);
   });
 
   // === AI SCRIPT GENERATION ===

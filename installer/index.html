@@ -1069,7 +1069,7 @@
     function generateMacScript() {
       const config = getConfig();
       const isUpgrade = installType === 'upgrade';
-      const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
+      const repoUrl = 'https://github.com/ThalynLabs/Mudscape.git';
       
       const pwPart = config.password ? `:${config.password}` : '';
       const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;
@@ -1229,7 +1229,7 @@ npm run dev
     function generateWindowsScript() {
       const config = getConfig();
       const isUpgrade = installType === 'upgrade';
-      const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
+      const repoUrl = 'https://github.com/ThalynLabs/Mudscape.git';
       
       const pwPart = config.password ? `:${config.password}` : '';
       const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;
@@ -1379,7 +1379,7 @@ call npm run dev
     function generateLinuxScript() {
       const config = getConfig();
       const isUpgrade = installType === 'upgrade';
-      const repoUrl = 'https://github.com/YOUR_USERNAME/mudscape.git';
+      const repoUrl = 'https://github.com/ThalynLabs/Mudscape.git';
       
       const pwPart = config.password ? `:${config.password}` : '';
       const dbUrl = `postgresql://${config.user}${pwPart}@${config.host}:${config.port}/${config.dbName}`;

@@ -14,7 +14,7 @@ This guide covers deploying Mudscape on a VPS or dedicated server for multi-user
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/mudscape.git
+git clone https://github.com/ThalynLabs/Mudscape.git
 cd mudscape
 
 # Install dependencies
@@ -65,7 +65,7 @@ sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_secure_password';"
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/mudscape.git
+git clone https://github.com/ThalynLabs/Mudscape.git
 cd mudscape
 
 # Install dependencies

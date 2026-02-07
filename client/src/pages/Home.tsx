@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 export default function Home() {
   const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
@@ -289,8 +290,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6 md:p-12 font-mono selection:bg-primary selection:text-primary-foreground">
-      <div className="max-w-6xl mx-auto space-y-12">
+    <div className="min-h-screen bg-background text-foreground font-mono selection:bg-primary selection:text-primary-foreground">
+      <UpdateBanner />
+      <div className="max-w-6xl mx-auto space-y-12 p-6 md:p-12">
         
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-border pb-8">
