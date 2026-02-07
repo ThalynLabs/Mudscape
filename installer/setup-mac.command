@@ -651,7 +651,9 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+set -a
 source .env 2>/dev/null
+set +a
 PORT="${PORT:-5000}"
 
 echo ""
@@ -700,6 +702,9 @@ else
     echo "  Starting Mudscape..."
     echo "  Opening browser to http://localhost:${APP_PORT}"
     echo ""
+    set -a
+    source .env 2>/dev/null
+    set +a
     open "http://localhost:${APP_PORT}" &
     node dist/index.cjs
   fi

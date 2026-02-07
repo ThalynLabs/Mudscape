@@ -635,7 +635,9 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+set -a
 source .env 2>/dev/null
+set +a
 PORT="${PORT:-5000}"
 
 echo ""
@@ -720,6 +722,9 @@ if [ "$INSTALL_SERVICE" != "y" ]; then
       echo ""
       echo "  Starting Mudscape on http://localhost:${APP_PORT}"
       echo ""
+      set -a
+      source .env 2>/dev/null
+      set +a
       xdg-open "http://localhost:${APP_PORT}" 2>/dev/null &
       node dist/index.cjs
     fi
