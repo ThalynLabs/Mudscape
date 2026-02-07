@@ -975,6 +975,28 @@ export default function Play() {
     };
   }, [lines, speakLine, togglePause, navigate]);
 
+  const addLinesToConnectionRef = useRef(addLinesToConnection);
+  addLinesToConnectionRef.current = addLinesToConnection;
+  const updateConnectionStateRef = useRef(updateConnectionState);
+  updateConnectionStateRef.current = updateConnectionState;
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const speakRef = useRef(speak);
+  speakRef.current = speak;
+  const cancelSpeechRef = useRef(cancelSpeech);
+  cancelSpeechRef.current = cancelSpeech;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const triggersRef = useRef(triggers);
+  triggersRef.current = triggers;
+  const sendCommandRef = useRef(sendCommand);
+  sendCommandRef.current = sendCommand;
+  const echoLocalRef = useRef(echoLocal);
+  echoLocalRef.current = echoLocal;
+
+  // Track whether a socket is being created for a connection to prevent duplicates
+  const socketCreatingRef = useRef<Set<string>>(new Set());
+
   // Connect to WebSocket for active connection
   useEffect(() => {
     if (!profile || !activeConnectionId) return;
@@ -982,6 +1004,10 @@ export default function Play() {
     // Check if this connection already has a socket
     const conn = connections.find(c => c.id === activeConnectionId);
     if (conn?.socket) return; // Already connected
+    
+    // Prevent duplicate socket creation during React re-renders
+    if (socketCreatingRef.current.has(activeConnectionId)) return;
+    socketCreatingRef.current.add(activeConnectionId);
     
     // Use Socket.IO for better proxy support (HTTP polling fallback)
     // Use /api/socket path to avoid Replit proxy interference
@@ -999,41 +1025,40 @@ export default function Play() {
     });
     
     // Store socket in connection state
-    updateConnectionState(currentConnId, { socket });
+    updateConnectionStateRef.current(currentConnId, { socket });
 
     socket.on('connect', () => {
-      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
-      // Send connect handshake
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[32m>> Connected to Relay Server. Connecting to ${profile.host}:${profile.port}...\x1b[0m`]);
       socket.emit('mud:connect', {
         host: profile.host,
         port: profile.port,
         encoding: profile.encoding || "ISO-8859-1",
-        gmcp: settings.gmcpEnabled !== false
+        gmcp: settingsRef.current.gmcpEnabled !== false
       });
     });
 
     socket.on('connect_error', (error) => {
       console.error('Socket.IO connect_error:', error.message, error);
-      addLinesToConnection(currentConnId, [`\x1b[31m>> Connection error: ${error.message}\x1b[0m`]);
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[31m>> Connection error: ${error.message}\x1b[0m`]);
     });
 
     socket.on('disconnect', (reason) => {
-      updateConnectionState(currentConnId, { isConnected: false, socket: null });
-      addLinesToConnection(currentConnId, [`\x1b[31m>> Disconnected from Relay Server. (${reason})\x1b[0m`]);
+      updateConnectionStateRef.current(currentConnId, { isConnected: false, socket: null });
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[31m>> Disconnected from Relay Server. (${reason})\x1b[0m`]);
     });
 
     socket.on('connected', (data: { host: string; port: number }) => {
-      updateConnectionState(currentConnId, { isConnected: true });
-      addLinesToConnection(currentConnId, [`\x1b[32m>> Connected to ${data.host}:${data.port}\x1b[0m`]);
+      updateConnectionStateRef.current(currentConnId, { isConnected: true });
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[32m>> Connected to ${data.host}:${data.port}\x1b[0m`]);
     });
 
     socket.on('disconnected', () => {
-      updateConnectionState(currentConnId, { isConnected: false });
-      addLinesToConnection(currentConnId, [`\x1b[33m>> Disconnected from MUD server.\x1b[0m`]);
+      updateConnectionStateRef.current(currentConnId, { isConnected: false });
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[33m>> Disconnected from MUD server.\x1b[0m`]);
     });
 
     socket.on('error', (data: { message: string }) => {
-      addLinesToConnection(currentConnId, [`\x1b[31m>> Error: ${data.message}\x1b[0m`]);
+      addLinesToConnectionRef.current(currentConnId, [`\x1b[31m>> Error: ${data.message}\x1b[0m`]);
     });
 
     socket.on('gmcp', (data: { module: string; data: unknown }) => {
@@ -1047,7 +1072,7 @@ export default function Play() {
       if (incomingBufferRef.current.length > 0) {
         const buffered = incomingBufferRef.current;
         incomingBufferRef.current = '';
-        addLinesToConnection(currentConnId, [buffered]);
+        addLinesToConnectionRef.current(currentConnId, [buffered]);
       }
     };
 
@@ -1067,13 +1092,13 @@ export default function Play() {
         for (const line of lines) {
           const processedContent = processLineForMSP(line);
           
-          if (settings.speechEnabled) {
-            if (settings.interruptOnIncoming) {
-              cancelSpeech();
+          if (settingsRef.current.speechEnabled) {
+            if (settingsRef.current.interruptOnIncoming) {
+              cancelSpeechRef.current();
             }
             const cleanText = stripAnsi(processedContent);
             if (cleanText.trim()) {
-              speak(cleanText);
+              speakRef.current(cleanText);
             }
           }
 
@@ -1096,8 +1121,8 @@ export default function Play() {
             }
           }
           
-          if (settings.triggersEnabled !== false) {
-            for (const trigger of triggers) {
+          if (settingsRef.current.triggersEnabled !== false) {
+            for (const trigger of triggersRef.current) {
               if (!trigger.active || !isClassActive(trigger.classId)) continue;
               
               let matches: string[] | null = null;
@@ -1200,7 +1225,7 @@ export default function Play() {
         }
         
         if (linesToAdd.length > 0) {
-          addLinesToConnection(currentConnId, linesToAdd);
+          addLinesToConnectionRef.current(currentConnId, linesToAdd);
         }
         
         if (incomingBufferRef.current.length > 0) {
@@ -1241,14 +1266,14 @@ export default function Play() {
           const vitalStr = Object.entries(vitals)
             .map(([k, v]) => `${k}: ${v}`)
             .join(' | ');
-          addLinesToConnection(currentConnId, [`\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
+          addLinesToConnectionRef.current(currentConnId, [`\x1b[35m[Vitals] ${vitalStr}\x1b[0m`]);
         } else if (msg.module === 'Room.Info' && typeof msg.data === 'object' && msg.data !== null) {
           const room = msg.data as Record<string, unknown>;
           const roomName = room.name || room.short || 'Unknown Room';
           const exits = Array.isArray(room.exits) ? room.exits.join(', ') : 
                         (typeof room.exits === 'object' && room.exits !== null) ? Object.keys(room.exits).join(', ') : '';
           const roomLine = exits ? `[Room] ${roomName} | Exits: ${exits}` : `[Room] ${roomName}`;
-          addLinesToConnection(currentConnId, [`\x1b[36m${roomLine}\x1b[0m`]);
+          addLinesToConnectionRef.current(currentConnId, [`\x1b[36m${roomLine}\x1b[0m`]);
         } else if (msg.module?.startsWith('Core.')) {
           console.log('GMCP Core module:', msg.module, msg.data);
         }
@@ -1258,9 +1283,13 @@ export default function Play() {
     return () => {
       if (flushTimer) clearTimeout(flushTimer);
       incomingBufferRef.current = '';
+      socketCreatingRef.current.delete(currentConnId);
       socket.disconnect();
     };
-  }, [profile, activeConnectionId, connections, updateConnectionState, addLinesToConnection, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);
+    // Only re-run when connection identity changes, not when callbacks/state update
+    // All callbacks accessed via refs to avoid stale closures without re-running effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.host, profile?.port, activeConnectionId]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
