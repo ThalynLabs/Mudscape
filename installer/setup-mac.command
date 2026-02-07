@@ -16,7 +16,7 @@ RED="\033[31m"
 CYAN="\033[36m"
 RESET="\033[0m"
 
-INSTALL_DIR="$HOME/Documents/mudscape"
+INSTALL_DIR="$HOME/Mudscape"
 DB_NAME="mudscape"
 DB_USER=""
 DB_PASS=""
@@ -249,7 +249,6 @@ add_brew_pg_to_path() {
 add_brew_pg_to_path
 
 # Wait for PostgreSQL to become ready instead of sleeping a fixed time.
-# Polls pg_isready every second, up to 30 seconds (handles slow machines).
 wait_for_pg() {
   local max_wait=30
   local waited=0
@@ -470,9 +469,30 @@ fi
 
 if [ -n "$SOURCE_DIR" ]; then
   echo "  Found Mudscape project at: $SOURCE_DIR"
-  INSTALL_DIR="$SOURCE_DIR"
   echo ""
-  print_ok "Using existing project files"
+  echo "  You can install Mudscape directly here, or copy it"
+  echo "  to a different location."
+  echo ""
+  USE_SOURCE=$(ask_yes_no "Install in the current project folder ($SOURCE_DIR)?" "y")
+  if [ "$USE_SOURCE" = "y" ]; then
+    INSTALL_DIR="$SOURCE_DIR"
+    print_ok "Using existing project files"
+  else
+    INSTALL_DIR=$(ask "Installation folder" "$INSTALL_DIR")
+    if [ "$SOURCE_DIR" != "$INSTALL_DIR" ]; then
+      echo "  Copying project files to $INSTALL_DIR..."
+      mkdir -p "$INSTALL_DIR"
+      rsync -a --exclude='node_modules' --exclude='.git' --exclude='dist' "$SOURCE_DIR/" "$INSTALL_DIR/"
+      if [ $? -eq 0 ]; then
+        print_ok "Files copied to $INSTALL_DIR"
+      else
+        # Fallback to cp if rsync not available
+        cp -R "$SOURCE_DIR/" "$INSTALL_DIR/" 2>/dev/null
+        rm -rf "$INSTALL_DIR/node_modules" "$INSTALL_DIR/.git" "$INSTALL_DIR/dist" 2>/dev/null
+        print_ok "Files copied to $INSTALL_DIR"
+      fi
+    fi
+  fi
 else
   INSTALL_DIR=$(ask "Installation folder" "$INSTALL_DIR")
   
@@ -495,15 +515,19 @@ else
     
     # Try git clone first
     if command -v git &>/dev/null; then
+      echo "  Trying git clone..."
       git clone https://github.com/ThalynLabs/Mudscape.git "$INSTALL_DIR" 2>/dev/null
       if [ $? -eq 0 ] && [ -f "$INSTALL_DIR/package.json" ]; then
         DOWNLOAD_OK="y"
         print_ok "Downloaded via git"
+      else
+        print_warn "Git clone failed, trying alternate method..."
       fi
     fi
     
     # Try tarball download as fallback
     if [ "$DOWNLOAD_OK" != "y" ]; then
+      echo "  Trying tarball download..."
       curl -fsSL "https://github.com/ThalynLabs/Mudscape/archive/refs/heads/main.tar.gz" -o "/tmp/mudscape.tar.gz" 2>/dev/null
       if [ -f "/tmp/mudscape.tar.gz" ] && [ -s "/tmp/mudscape.tar.gz" ]; then
         tar -xzf "/tmp/mudscape.tar.gz" --strip-components=1 -C "$INSTALL_DIR" 2>/dev/null
@@ -512,18 +536,26 @@ else
           DOWNLOAD_OK="y"
           print_ok "Downloaded via tarball"
         fi
+      else
+        rm -f "/tmp/mudscape.tar.gz" 2>/dev/null
       fi
     fi
     
     if [ "$DOWNLOAD_OK" != "y" ]; then
+      # Clean up empty directory
+      rmdir "$INSTALL_DIR" 2>/dev/null
       print_fail "Could not download Mudscape"
       echo ""
-      echo "  The download source may not be available yet."
-      echo "  If you already have the Mudscape files, place them in:"
-      echo "    $INSTALL_DIR"
-      echo "  Then re-run this script."
+      echo "  The GitHub repository may be private or unavailable."
       echo ""
-      echo "  Or run this script from inside the Mudscape project folder."
+      echo "  Instead, you can run this installer from inside an"
+      echo "  existing Mudscape project folder. For example:"
+      echo ""
+      echo "    1. Download or unzip the Mudscape source code"
+      echo "    2. Open Terminal in that folder"
+      echo "    3. Run: bash installer/setup-mac.command"
+      echo ""
+      echo "  The installer will detect the project and set it up."
       exit 1
     fi
   fi
@@ -550,11 +582,16 @@ npm install --silent 2>/dev/null
 if [ $? -eq 0 ]; then
   print_ok "Dependencies installed"
 else
-  print_warn "Some warnings during install (usually fine)"
+  npm install 2>/dev/null
+  if [ $? -eq 0 ]; then
+    print_ok "Dependencies installed"
+  else
+    print_warn "Some warnings during install (usually fine)"
+  fi
 fi
 
 echo "  Setting up database tables..."
-npm run db:push 2>/dev/null
+npx drizzle-kit push 2>/dev/null
 if [ $? -eq 0 ]; then
   print_ok "Database tables created"
 else
@@ -564,40 +601,64 @@ fi
 # Build for production
 echo "  Building application..."
 npm run build 2>/dev/null
-print_ok "Application built"
+if [ $? -eq 0 ]; then
+  print_ok "Application built"
+else
+  print_warn "Build had issues - you can try running 'npm run build' later"
+fi
 
 # Seed admin account if multi-user
 if [ "$ACCOUNT_MODE" = "multi" ] && [ -n "$ADMIN_USER" ] && [ -n "$ADMIN_PASS" ]; then
   echo "  Creating admin account..."
+  # Use a heredoc to avoid quoting issues with passwords
   node -e "
     const bcrypt = require('bcrypt');
     const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: '${DATABASE_URL}' });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     (async () => {
-      const hash = await bcrypt.hash('${ADMIN_PASS}', 10);
+      const hash = await bcrypt.hash(process.argv[1], 10);
       await pool.query(
-        \"INSERT INTO users (username, password, is_admin) VALUES (\\\$1, \\\$2, true) ON CONFLICT (username) DO NOTHING\",
-        ['${ADMIN_USER}', hash]
+        'INSERT INTO users (username, password, is_admin) VALUES (\$1, \$2, true) ON CONFLICT (username) DO NOTHING',
+        [process.argv[2], hash]
       );
       await pool.end();
-    })().catch(() => {});
-  " 2>/dev/null
-  print_ok "Admin account created"
+    })().catch(e => { console.error(e.message); process.exit(1); });
+  " "$ADMIN_PASS" "$ADMIN_USER" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    print_ok "Admin account created"
+  else
+    print_warn "Could not create admin account (you can register at first launch)"
+  fi
 fi
 
 # Create start script
-cat > "$INSTALL_DIR/Mudscape-Start.command" << 'STARTSCRIPT'
+START_SCRIPT="$INSTALL_DIR/Mudscape-Start.command"
+cat > "$START_SCRIPT" << 'STARTSCRIPT'
 #!/bin/bash
 trap 'echo ""; echo "Mudscape stopped. Press any key to close..."; read -n 1' EXIT
-cd "$(dirname "$0")"
-echo "Starting Mudscape..."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [ ! -f .env ]; then
+  echo "Error: .env file not found. Please run the setup script first."
+  exit 1
+fi
+
+source .env 2>/dev/null
+PORT="${PORT:-5000}"
+
+echo ""
+echo "Starting Mudscape on port $PORT..."
+echo "Open http://localhost:$PORT in your browser."
+echo "Press Ctrl+C to stop."
+echo ""
+
+open "http://localhost:$PORT" &
+node dist/index.js
 STARTSCRIPT
 
-echo "open \"http://localhost:${APP_PORT}\" &" >> "$INSTALL_DIR/Mudscape-Start.command"
-echo "node dist/index.js" >> "$INSTALL_DIR/Mudscape-Start.command"
-
-chmod +x "$INSTALL_DIR/Mudscape-Start.command"
-print_ok "Start script created"
+chmod +x "$START_SCRIPT"
+print_ok "Start script created: Mudscape-Start.command"
 
 # ============================================================
 print_step "7/7 - Setup Complete"
@@ -608,10 +669,11 @@ echo "  Location:  $INSTALL_DIR"
 echo "  URL:       http://localhost:${APP_PORT}"
 echo ""
 echo "  To start Mudscape:"
-echo "    Double-click Mudscape-Start.command in your Documents/mudscape folder"
+echo "    Double-click Mudscape-Start.command in:"
+echo "    $INSTALL_DIR"
 echo ""
 echo "  Or from terminal:"
-echo "    cd $INSTALL_DIR && npm run dev"
+echo "    cd $INSTALL_DIR && node dist/index.js"
 echo ""
 
 if [ "$ACCOUNT_MODE" = "multi" ]; then

@@ -8,7 +8,7 @@ title Mudscape Setup
 
 setlocal enabledelayedexpansion
 
-set "INSTALL_DIR=%USERPROFILE%\Documents\mudscape"
+set "INSTALL_DIR=%USERPROFILE%\Mudscape"
 set "DB_NAME=mudscape"
 set "DB_USER="
 set "DB_PASS="
@@ -334,9 +334,28 @@ if not defined SOURCE_DIR (
 
 if defined SOURCE_DIR (
     echo   Found Mudscape project at: !SOURCE_DIR!
-    set "INSTALL_DIR=!SOURCE_DIR!"
     echo.
-    echo   [OK] Using existing project files
+    echo   You can install Mudscape directly here, or copy it
+    echo   to a different location.
+    echo.
+    set /p USE_SOURCE="  Install in the current project folder? (y/n) [y]: "
+    if "!USE_SOURCE!"=="" set USE_SOURCE=y
+    if /i "!USE_SOURCE!"=="y" (
+        set "INSTALL_DIR=!SOURCE_DIR!"
+        echo   [OK] Using existing project files
+    ) else (
+        set /p INSTALL_DIR_IN="  Installation folder [!INSTALL_DIR!]: "
+        if not "!INSTALL_DIR_IN!"=="" set INSTALL_DIR=!INSTALL_DIR_IN!
+        if not "!SOURCE_DIR!"=="!INSTALL_DIR!" (
+            echo   Copying project files to !INSTALL_DIR!...
+            mkdir "!INSTALL_DIR!" 2>nul
+            xcopy "!SOURCE_DIR!\*" "!INSTALL_DIR!\" /E /I /Y /EXCLUDE:node_modules >nul 2>nul
+            rmdir /s /q "!INSTALL_DIR!\node_modules" 2>nul
+            rmdir /s /q "!INSTALL_DIR!\.git" 2>nul
+            rmdir /s /q "!INSTALL_DIR!\dist" 2>nul
+            echo   [OK] Files copied to !INSTALL_DIR!
+        )
+    )
 ) else (
     set /p INSTALL_DIR_IN="  Installation folder [!INSTALL_DIR!]: "
     if not "!INSTALL_DIR_IN!"=="" set INSTALL_DIR=!INSTALL_DIR_IN!
@@ -393,14 +412,18 @@ if defined SOURCE_DIR (
     )
     
     if "!DOWNLOAD_OK!"=="n" (
+        rmdir "!INSTALL_DIR!" 2>nul
         echo   [X] Could not download Mudscape
         echo.
-        echo   The download source may not be available yet.
-        echo   If you already have the Mudscape files, place them in:
-        echo     !INSTALL_DIR!
-        echo   Then re-run this script.
+        echo   The GitHub repository may be private or unavailable.
         echo.
-        echo   Or run this script from inside the Mudscape project folder.
+        echo   Instead, you can run this installer from inside an
+        echo   existing Mudscape project folder. For example:
+        echo.
+        echo     1. Download or unzip the Mudscape source code
+        echo     2. Double-click installer\setup-windows.bat
+        echo.
+        echo   The installer will detect the project and set it up.
         pause
         exit /b 1
     )
@@ -425,8 +448,12 @@ call npm install --silent 2>nul
 echo   [OK] Dependencies installed
 
 echo   Setting up database tables...
-call npm run db:push 2>nul
-echo   [OK] Database tables created
+call npx drizzle-kit push 2>nul
+if !errorlevel! equ 0 (
+    echo   [OK] Database tables created
+) else (
+    echo   [!] Database setup had issues ^(may already be set up^)
+)
 
 echo   Building application...
 call npm run build 2>nul
