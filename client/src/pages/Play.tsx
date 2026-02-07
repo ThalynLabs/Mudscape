@@ -255,10 +255,16 @@ export default function Play() {
   
   // Update profile settings helper (for in-game commands)
   const updateProfileSetting = useCallback((key: keyof ProfileSettings, value: any) => {
-    if (!profile) return;
+    if (!profile || !activeConnectionId) return;
     const newSettings = { ...(profile.settings as ProfileSettings || {}), [key]: value };
+    // Optimistically update the profile in connection state so settings take effect immediately
+    const updatedProfile = { ...profile, settings: newSettings };
+    setConnections(prev => prev.map(c =>
+      c.id === activeConnectionId ? { ...c, profile: updatedProfile } : c
+    ));
+    // Persist to server
     updateProfile.mutate({ id: profile.id, settings: newSettings });
-  }, [profile, updateProfile]);
+  }, [profile, activeConnectionId, updateProfile]);
   
   // Handle client-side commands (start with /)
   const handleClientCommand = useCallback((cmd: string): boolean => {
