@@ -310,35 +310,103 @@ echo.
 echo --- 6/7 - Installing Mudscape ---
 echo.
 
-set /p INSTALL_DIR_IN="  Installation folder [!INSTALL_DIR!]: "
-if not "!INSTALL_DIR_IN!"=="" set INSTALL_DIR=!INSTALL_DIR_IN!
+REM Detect if script is being run from inside an existing Mudscape project
+set "SCRIPT_DIR=%~dp0"
+set "SOURCE_DIR="
 
-if exist "!INSTALL_DIR!\.git" (
-    echo   [OK] Mudscape already exists at !INSTALL_DIR!
-    set /p DO_UPDATE="  Update to latest version? (y/n) [y]: "
-    if "!DO_UPDATE!"=="" set DO_UPDATE=y
-    if /i "!DO_UPDATE!"=="y" (
-        cd /d "!INSTALL_DIR!"
-        git pull origin main
-        echo   [OK] Updated
-    )
-) else (
-    echo   Downloading Mudscape...
-    
-    where git >nul 2>nul
+REM Check if script lives inside a Mudscape project (installer/ subfolder)
+if exist "%SCRIPT_DIR%..\package.json" (
+    findstr /i "mudscape" "%SCRIPT_DIR%..\package.json" >nul 2>nul
     if !errorlevel! equ 0 (
-        git clone https://github.com/ArtofMUDs/mudscape.git "!INSTALL_DIR!" 2>nul
-    ) else (
-        echo   Git not found, downloading as archive...
-        mkdir "!INSTALL_DIR!" 2>nul
-        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.zip' -OutFile '%TEMP%\mudscape.zip' }"
-        powershell -Command "& { Expand-Archive -Path '%TEMP%\mudscape.zip' -DestinationPath '%TEMP%\mudscape-extract' -Force }"
-        xcopy "%TEMP%\mudscape-extract\mudscape-main\*" "!INSTALL_DIR!\" /E /I /Y >nul
-        rmdir /s /q "%TEMP%\mudscape-extract" 2>nul
-        del "%TEMP%\mudscape.zip" 2>nul
+        pushd "%SCRIPT_DIR%.."
+        set "SOURCE_DIR=!CD!"
+        popd
     )
 )
 
+REM Check if script is in the project root
+if not defined SOURCE_DIR (
+    if exist "%SCRIPT_DIR%package.json" (
+        findstr /i "mudscape" "%SCRIPT_DIR%package.json" >nul 2>nul
+        if !errorlevel! equ 0 set "SOURCE_DIR=%SCRIPT_DIR%"
+    )
+)
+
+if defined SOURCE_DIR (
+    echo   Found Mudscape project at: !SOURCE_DIR!
+    set "INSTALL_DIR=!SOURCE_DIR!"
+    echo.
+    echo   [OK] Using existing project files
+) else (
+    set /p INSTALL_DIR_IN="  Installation folder [!INSTALL_DIR!]: "
+    if not "!INSTALL_DIR_IN!"=="" set INSTALL_DIR=!INSTALL_DIR_IN!
+    
+    REM Check if project already exists at target
+    if exist "!INSTALL_DIR!\package.json" (
+        findstr /i "mudscape" "!INSTALL_DIR!\package.json" >nul 2>nul
+        if !errorlevel! equ 0 (
+            echo   [OK] Mudscape already exists at !INSTALL_DIR!
+            if exist "!INSTALL_DIR!\.git" (
+                set /p DO_UPDATE="  Update to latest version? (y/n) [y]: "
+                if "!DO_UPDATE!"=="" set DO_UPDATE=y
+                if /i "!DO_UPDATE!"=="y" (
+                    cd /d "!INSTALL_DIR!"
+                    git pull origin main 2>nul
+                    if !errorlevel! equ 0 (
+                        echo   [OK] Updated
+                    ) else (
+                        echo   [!] Could not update ^(no remote configured or offline^)
+                    )
+                )
+            )
+            goto install_deps
+        )
+    )
+    
+    echo   Downloading Mudscape...
+    set "DOWNLOAD_OK=n"
+    
+    REM Try git clone first
+    where git >nul 2>nul
+    if !errorlevel! equ 0 (
+        git clone https://github.com/ArtofMUDs/mudscape.git "!INSTALL_DIR!" 2>nul
+        if exist "!INSTALL_DIR!\package.json" (
+            set "DOWNLOAD_OK=y"
+            echo   [OK] Downloaded via git
+        )
+    )
+    
+    REM Try zip download as fallback
+    if "!DOWNLOAD_OK!"=="n" (
+        mkdir "!INSTALL_DIR!" 2>nul
+        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.zip' -OutFile '%TEMP%\mudscape.zip' -ErrorAction Stop } catch { exit 1 } }" 2>nul
+        if exist "%TEMP%\mudscape.zip" (
+            powershell -Command "& { Expand-Archive -Path '%TEMP%\mudscape.zip' -DestinationPath '%TEMP%\mudscape-extract' -Force }" 2>nul
+            xcopy "%TEMP%\mudscape-extract\mudscape-main\*" "!INSTALL_DIR!\" /E /I /Y >nul 2>nul
+            rmdir /s /q "%TEMP%\mudscape-extract" 2>nul
+            del "%TEMP%\mudscape.zip" 2>nul
+            if exist "!INSTALL_DIR!\package.json" (
+                set "DOWNLOAD_OK=y"
+                echo   [OK] Downloaded via archive
+            )
+        )
+    )
+    
+    if "!DOWNLOAD_OK!"=="n" (
+        echo   [X] Could not download Mudscape
+        echo.
+        echo   The download source may not be available yet.
+        echo   If you already have the Mudscape files, place them in:
+        echo     !INSTALL_DIR!
+        echo   Then re-run this script.
+        echo.
+        echo   Or run this script from inside the Mudscape project folder.
+        pause
+        exit /b 1
+    )
+)
+
+:install_deps
 cd /d "!INSTALL_DIR!"
 
 REM Write .env file

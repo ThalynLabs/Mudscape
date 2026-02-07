@@ -457,28 +457,75 @@ print_ok "Session secret generated"
 # ============================================================
 print_step "6/7 - Installing Mudscape"
 
-INSTALL_DIR=$(ask "Installation folder" "$INSTALL_DIR")
+# Detect if the script is being run from inside an existing Mudscape project
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_DIR=""
 
-if [ -d "$INSTALL_DIR/.git" ]; then
+# Check if the script lives inside a Mudscape project (look for package.json with "mudscape")
+if [ -f "$SCRIPT_DIR/../package.json" ] && grep -q "mudscape" "$SCRIPT_DIR/../package.json" 2>/dev/null; then
+  SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+elif [ -f "$SCRIPT_DIR/package.json" ] && grep -q "mudscape" "$SCRIPT_DIR/package.json" 2>/dev/null; then
+  SOURCE_DIR="$SCRIPT_DIR"
+fi
+
+if [ -n "$SOURCE_DIR" ]; then
+  echo "  Found Mudscape project at: $SOURCE_DIR"
+  INSTALL_DIR="$SOURCE_DIR"
   echo ""
-  print_ok "Mudscape already exists at $INSTALL_DIR"
-  UPDATE=$(ask_yes_no "Update to latest version?" "y")
-  if [ "$UPDATE" = "y" ]; then
-    cd "$INSTALL_DIR"
-    git pull origin main
-    print_ok "Updated to latest version"
-  fi
+  print_ok "Using existing project files"
 else
-  echo ""
-  echo "  Downloading Mudscape..."
-  mkdir -p "$INSTALL_DIR"
-  git clone https://github.com/ArtofMUDs/mudscape.git "$INSTALL_DIR" 2>/dev/null
-  if [ $? -ne 0 ]; then
-    print_warn "Git clone failed, trying alternate method..."
-    cd "$INSTALL_DIR"
-    curl -fsSL "https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.tar.gz" -o mudscape.tar.gz
-    tar -xzf mudscape.tar.gz --strip-components=1
-    rm mudscape.tar.gz
+  INSTALL_DIR=$(ask "Installation folder" "$INSTALL_DIR")
+  
+  if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/package.json" ] && grep -q "mudscape" "$INSTALL_DIR/package.json" 2>/dev/null; then
+    echo ""
+    print_ok "Mudscape already exists at $INSTALL_DIR"
+    if [ -d "$INSTALL_DIR/.git" ]; then
+      UPDATE=$(ask_yes_no "Update to latest version?" "y")
+      if [ "$UPDATE" = "y" ]; then
+        cd "$INSTALL_DIR"
+        git pull origin main 2>/dev/null && print_ok "Updated to latest version" || print_warn "Could not update (no remote configured or offline)"
+      fi
+    fi
+  else
+    echo ""
+    echo "  Downloading Mudscape..."
+    mkdir -p "$INSTALL_DIR"
+    
+    DOWNLOAD_OK="n"
+    
+    # Try git clone first
+    if command -v git &>/dev/null; then
+      git clone https://github.com/ArtofMUDs/mudscape.git "$INSTALL_DIR" 2>/dev/null
+      if [ $? -eq 0 ] && [ -f "$INSTALL_DIR/package.json" ]; then
+        DOWNLOAD_OK="y"
+        print_ok "Downloaded via git"
+      fi
+    fi
+    
+    # Try tarball download as fallback
+    if [ "$DOWNLOAD_OK" != "y" ]; then
+      curl -fsSL "https://github.com/ArtofMUDs/mudscape/archive/refs/heads/main.tar.gz" -o "/tmp/mudscape.tar.gz" 2>/dev/null
+      if [ -f "/tmp/mudscape.tar.gz" ] && [ -s "/tmp/mudscape.tar.gz" ]; then
+        tar -xzf "/tmp/mudscape.tar.gz" --strip-components=1 -C "$INSTALL_DIR" 2>/dev/null
+        rm -f "/tmp/mudscape.tar.gz"
+        if [ -f "$INSTALL_DIR/package.json" ]; then
+          DOWNLOAD_OK="y"
+          print_ok "Downloaded via tarball"
+        fi
+      fi
+    fi
+    
+    if [ "$DOWNLOAD_OK" != "y" ]; then
+      print_fail "Could not download Mudscape"
+      echo ""
+      echo "  The download source may not be available yet."
+      echo "  If you already have the Mudscape files, place them in:"
+      echo "    $INSTALL_DIR"
+      echo "  Then re-run this script."
+      echo ""
+      echo "  Or run this script from inside the Mudscape project folder."
+      exit 1
+    fi
   fi
 fi
 
