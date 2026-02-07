@@ -485,13 +485,24 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/install/status", async (req, res) => {
-    const config = await storage.getAppConfig();
+    let config = await storage.getAppConfig();
     const userCount = await storage.getUserCount();
     
+    if (!config?.installed) {
+      const isSingle = process.env.SINGLE_USER_MODE === "true";
+      const mode = isSingle ? "single" : (userCount > 0 ? "multi" : "single");
+      config = await storage.updateAppConfig({
+        accountMode: mode,
+        appName: "Mudscape",
+        installed: true,
+      });
+      console.log(`[install] Auto-configured as ${mode}-user mode`);
+    }
+    
     res.json({
-      installed: config?.installed ?? false,
+      installed: config.installed ?? false,
       hasUsers: userCount > 0,
-      accountMode: config?.accountMode ?? "multi",
+      accountMode: config.accountMode ?? "multi",
     });
   });
 

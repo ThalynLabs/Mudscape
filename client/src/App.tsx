@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,7 +12,6 @@ import Settings from "@/pages/Settings";
 import Install from "@/pages/Install";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
-import Setup from "@/pages/Setup";
 import Admin from "@/pages/Admin";
 import GettingStarted from "@/pages/help/GettingStarted";
 import Speech from "@/pages/help/Speech";
@@ -76,7 +75,6 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
 
 function SetupCheck({ children }: { children: React.ReactNode }) {
   const { data: status, isLoading } = useInstallStatus();
-  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -86,11 +84,12 @@ function SetupCheck({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const publicPaths = ["/setup", "/install", "/help"];
-  const isPublicPath = publicPaths.some(p => location.startsWith(p));
-
-  if (!status?.installed && !isPublicPath) {
-    return <Redirect to="/setup" />;
+  if (!status?.installed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -102,7 +101,6 @@ function Router() {
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
-        <Route path="/setup" component={Setup} />
         <Route path="/install" component={Install} />
         <Route path="/">
           <ProtectedRoute component={Home} />
