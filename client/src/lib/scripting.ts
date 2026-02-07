@@ -27,6 +27,7 @@ export interface ScriptingContext {
   echo: (text: string) => void;
   setVariable: (name: string, value: unknown) => void;
   getVariable: (name: string) => unknown;
+  playSound?: (name: string, volume?: number, loop?: boolean) => void;
   matches: string[];
   line: string;
 }
@@ -109,6 +110,10 @@ export function processTriggers(
       }
 
       if (matches) {
+        if (trigger.soundFile && context.playSound) {
+          context.playSound(trigger.soundFile, trigger.soundVolume ?? 1, trigger.soundLoop ?? false);
+        }
+
         const triggerContext = createScriptingContext(
           context.send,
           context.echo,
