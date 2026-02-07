@@ -6,7 +6,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated, aiLimiter } from "./auth";
 import { setSocketIO } from "./index";
 
 // Telnet constants
@@ -113,7 +113,7 @@ export async function registerRoutes(
     res.json(soundpack);
   });
 
-  app.post(api.soundpacks.create.path, async (req, res) => {
+  app.post(api.soundpacks.create.path, isAuthenticated, async (req, res) => {
     try {
       const input = api.soundpacks.create.input.parse(req.body);
       const soundpack = await storage.createSoundpack(input);
@@ -126,7 +126,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.soundpacks.update.path, async (req, res) => {
+  app.put(api.soundpacks.update.path, isAuthenticated, async (req, res) => {
     try {
       const input = api.soundpacks.update.input.parse(req.body);
       const soundpack = await storage.updateSoundpack(Number(req.params.id), input);
@@ -140,7 +140,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.soundpacks.delete.path, async (req, res) => {
+  app.delete(api.soundpacks.delete.path, isAuthenticated, async (req, res) => {
     await storage.deleteSoundpack(Number(req.params.id));
     res.status(204).send();
   });
@@ -157,7 +157,7 @@ export async function registerRoutes(
     res.json(pkg);
   });
 
-  app.post(api.packages.create.path, async (req, res) => {
+  app.post(api.packages.create.path, isAuthenticated, async (req, res) => {
     try {
       const input = api.packages.create.input.parse(req.body);
       const pkg = await storage.createPackage(input);
@@ -170,7 +170,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.packages.delete.path, async (req, res) => {
+  app.delete(api.packages.delete.path, isAuthenticated, async (req, res) => {
     await storage.deletePackage(Number(req.params.id));
     res.status(204).send();
   });
@@ -181,7 +181,7 @@ export async function registerRoutes(
     res.json(settings);
   });
 
-  app.put(api.settings.update.path, async (req, res) => {
+  app.put(api.settings.update.path, isAuthenticated, async (req, res) => {
     try {
       const input = api.settings.update.input.parse(req.body);
       const settings = await storage.updateGlobalSettings(input);
@@ -195,7 +195,7 @@ export async function registerRoutes(
   });
 
   // === AI SCRIPT GENERATION ===
-  app.post('/api/ai/generate-script', async (req, res) => {
+  app.post('/api/ai/generate-script', isAuthenticated, aiLimiter, async (req, res) => {
     try {
       const { description, context, apiKey } = req.body;
       
@@ -279,7 +279,7 @@ Guidelines:
 
   // === AI SCRIPT ASSISTANT (Conversational) ===
   // Users provide their own OpenAI API key to use the wizard
-  app.post('/api/ai/script-assistant', async (req, res) => {
+  app.post('/api/ai/script-assistant', isAuthenticated, aiLimiter, async (req, res) => {
     try {
       const { messages, systemPrompt, apiKey } = req.body;
       
@@ -335,10 +335,12 @@ Guidelines:
   // Using Socket.IO for better proxy support (HTTP polling fallback)
   // Force polling first as Replit's proxy may not forward WebSocket upgrades on custom paths
   // Use /api/socket path to avoid Replit proxy interference
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   const io = new SocketIOServer(httpServer, {
     path: '/api/socket',
     cors: {
-      origin: '*',
+      origin: isProduction ? false : '*',
       methods: ['GET', 'POST', 'OPTIONS'],
     },
     transports: ['polling', 'websocket'],
@@ -354,7 +356,22 @@ Guidelines:
   // Store Socket.IO instance for access in index.ts
   setSocketIO(io);
 
+  const MAX_CONNECTIONS_PER_IP = 10;
+  const connectionCounts = new Map<string, number>();
+
   io.on('connection', (socket) => {
+    const clientIp = socket.handshake.address || 'unknown';
+    const currentCount = connectionCounts.get(clientIp) || 0;
+    
+    if (currentCount >= MAX_CONNECTIONS_PER_IP) {
+      console.log(`Socket.IO: Rejected connection from ${clientIp} (limit reached)`);
+      socket.emit('error', { message: 'Too many connections from your address' });
+      socket.disconnect(true);
+      return;
+    }
+    
+    connectionCounts.set(clientIp, currentCount + 1);
+    
     let tcpSocket: net.Socket | null = null;
     let connected = false;
     let gmcpEnabled = false;
@@ -466,6 +483,30 @@ Guidelines:
 
     socket.on('mud:connect', (data: { host: string; port: number; encoding?: string; gmcp?: boolean }) => {
       try {
+        if (!data.host || !data.port) {
+          socket.emit('error', { message: 'Host and port are required' });
+          return;
+        }
+        
+        const port = Number(data.port);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          socket.emit('error', { message: 'Invalid port number' });
+          return;
+        }
+
+        const host = String(data.host).trim();
+        if (host.length > 255 || !/^[a-zA-Z0-9._-]+$/.test(host)) {
+          socket.emit('error', { message: 'Invalid hostname' });
+          return;
+        }
+
+        const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+        const isPrivateIP = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host);
+        if (blockedHosts.includes(host.toLowerCase()) || isPrivateIP) {
+          socket.emit('error', { message: 'Connections to local/private addresses are not allowed' });
+          return;
+        }
+
         if (tcpSocket) {
           tcpSocket.destroy();
           tcpSocket = null;
@@ -475,10 +516,10 @@ Guidelines:
         gmcpNegotiated = false;
         pendingBuffer = Buffer.alloc(0);
 
-        console.log(`Socket.IO: Connecting to ${data.host}:${data.port} (GMCP: ${gmcpEnabled})`);
+        console.log(`Socket.IO: Connecting to ${host}:${port} (GMCP: ${gmcpEnabled})`);
         
         tcpSocket = new net.Socket();
-        tcpSocket.connect(data.port, data.host, () => {
+        tcpSocket.connect(port, host, () => {
           connected = true;
           console.log('Socket.IO: TCP Connected');
           socket.emit('connected', { host: data.host, port: data.port });
@@ -533,6 +574,12 @@ Guidelines:
       console.log('Socket.IO: Client disconnected');
       if (tcpSocket) {
         tcpSocket.destroy();
+      }
+      const count = connectionCounts.get(clientIp) || 1;
+      if (count <= 1) {
+        connectionCounts.delete(clientIp);
+      } else {
+        connectionCounts.set(clientIp, count - 1);
       }
     });
   });

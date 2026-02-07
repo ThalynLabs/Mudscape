@@ -3,11 +3,36 @@ import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
 const SALT_ROUNDS = 10;
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: "Too many attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many accounts created, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { message: "Too many AI requests, please slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export interface AuthUser {
   id: string;
@@ -38,6 +63,8 @@ const registerSchema = z.object({
   username: z.string().min(3).max(50),
   password: z.string().min(6).max(100),
 });
+
+export { aiLimiter };
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
@@ -180,7 +207,7 @@ export function registerAuthRoutes(app: Express): void {
     });
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", registerLimiter, async (req, res) => {
     try {
       const config = await storage.getAppConfig();
       
@@ -240,7 +267,7 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const config = await storage.getAppConfig();
       
@@ -290,7 +317,7 @@ export function registerAuthRoutes(app: Express): void {
         console.error("Logout error:", err);
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      res.clearCookie("mudscape.sid");
       res.json({ message: "Logged out" });
     });
   });
@@ -414,23 +441,22 @@ export function registerAuthRoutes(app: Express): void {
     res.json(config || { accountMode: "multi", registrationEnabled: true, appName: "Mudscape", installed: false });
   });
 
+  const adminConfigSchema = z.object({
+    accountMode: z.enum(["single", "multi"]).optional(),
+    registrationEnabled: z.boolean().optional(),
+    appName: z.string().min(1).max(100).optional(),
+  });
+
   app.put("/api/admin/config", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const updates: Record<string, unknown> = {};
-      
-      if (req.body.accountMode !== undefined) {
-        updates.accountMode = req.body.accountMode;
-      }
-      if (req.body.registrationEnabled !== undefined) {
-        updates.registrationEnabled = req.body.registrationEnabled;
-      }
-      if (req.body.appName !== undefined) {
-        updates.appName = req.body.appName;
-      }
+      const updates = adminConfigSchema.parse(req.body);
 
       const config = await storage.updateAppConfig(updates);
       res.json(config);
     } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
       console.error("Update config error:", e);
       res.status(500).json({ message: "Failed to update configuration" });
     }
