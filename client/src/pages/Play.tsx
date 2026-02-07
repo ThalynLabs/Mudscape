@@ -82,6 +82,7 @@ export default function Play() {
   
   // Multi-line trigger buffer - stores recent lines for pattern matching
   const lineBufferRef = useRef<string[]>([]);
+  const incomingBufferRef = useRef<string>('');
   const MAX_LINE_BUFFER = 20; // Maximum lines to keep in buffer
   
   // Line modification state for current trigger execution
@@ -1040,57 +1041,68 @@ export default function Play() {
       handleGmcpMessage(msg);
     });
 
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    
+    const flushIncomingBuffer = () => {
+      if (incomingBufferRef.current.length > 0) {
+        const buffered = incomingBufferRef.current;
+        incomingBufferRef.current = '';
+        addLinesToConnection(currentConnId, [buffered]);
+      }
+    };
+
     socket.on('data', (data: { content: string }) => {
       try {
-        const msg: WsServerMessage = { type: 'data', content: data.content };
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
         
-        if (msg.type === 'data') {
-          // Process MSP sound triggers
-          const processedContent = processLineForMSP(msg.content);
+        const rawContent = incomingBufferRef.current + data.content;
+        const parts = rawContent.split(/\r?\n|\r/);
+        incomingBufferRef.current = parts.pop() || '';
+        const lines = parts;
+        const linesToAdd: string[] = [];
+        
+        for (const line of lines) {
+          const processedContent = processLineForMSP(line);
           
-          // Speak if enabled
           if (settings.speechEnabled) {
-            // Interrupt existing speech if enabled
             if (settings.interruptOnIncoming) {
               cancelSpeech();
             }
             const cleanText = stripAnsi(processedContent);
-            speak(cleanText);
+            if (cleanText.trim()) {
+              speak(cleanText);
+            }
           }
 
-          // Reset line modifications for this trigger run
           lineModificationsRef.current = { gagged: false, replacements: [] };
           
-          // Run triggers (if enabled)
           const cleanLine = stripAnsi(processedContent);
           let displayLine = processedContent;
           
-          // Update line buffer for multi-line triggers
           lineBufferRef.current.push(cleanLine);
           if (lineBufferRef.current.length > MAX_LINE_BUFFER) {
             lineBufferRef.current = lineBufferRef.current.slice(-MAX_LINE_BUFFER);
           }
           
-          // Check for prompt pattern match
           let isPromptLine = false;
           if (profileSettings.promptPattern) {
             try {
               const promptRe = new RegExp(profileSettings.promptPattern);
               isPromptLine = promptRe.test(cleanLine);
             } catch {
-              // Invalid regex, ignore
             }
           }
           
           if (settings.triggersEnabled !== false) {
-            // Process permanent triggers
             for (const trigger of triggers) {
               if (!trigger.active || !isClassActive(trigger.classId)) continue;
               
               let matches: string[] | null = null;
               let namedCaptures: Record<string, string> = {};
               
-              // Handle multi-line triggers
               if (trigger.multiLine && trigger.lineCount && trigger.lineCount > 1) {
                 const numLines = Math.min(trigger.lineCount, lineBufferRef.current.length);
                 if (numLines >= trigger.lineCount) {
@@ -1098,7 +1110,7 @@ export default function Play() {
                   const combinedLines = lineBufferRef.current.slice(-numLines).join(delimiter);
                   
                   if (trigger.type === 'regex') {
-                    const re = new RegExp(trigger.pattern, 's'); // 's' flag for dotall mode
+                    const re = new RegExp(trigger.pattern, 's');
                     const match = re.exec(combinedLines);
                     if (match) {
                       matches = Array.from(match);
@@ -1113,7 +1125,6 @@ export default function Play() {
                   }
                 }
               } else {
-                // Single-line trigger (original logic)
                 if (trigger.type === 'regex') {
                   const re = new RegExp(trigger.pattern);
                   const match = re.exec(cleanLine);
@@ -1131,12 +1142,10 @@ export default function Play() {
               }
               
               if (matches) {
-                // Handle gag flag (no script needed)
                 if (trigger.gag) {
                   lineModificationsRef.current.gagged = true;
                 }
                 
-                // Execute script if present
                 if (trigger.script) {
                   const matchLine = trigger.multiLine 
                     ? lineBufferRef.current.slice(-(trigger.lineCount || 1)).join(trigger.lineDelimiter ?? '\n')
@@ -1150,14 +1159,12 @@ export default function Play() {
               }
             }
             
-            // Process temporary triggers (support both regex and plain text)
             const tempTriggersCopy = [...tempTriggersRef.current];
             for (const tempTrigger of tempTriggersCopy) {
               try {
                 let matches: string[] | null = null;
                 let namedCaptures: Record<string, string> = {};
                 
-                // Try regex first, fall back to plain text substring match
                 try {
                   const re = new RegExp(tempTrigger.pattern);
                   const match = re.exec(cleanLine);
@@ -1168,7 +1175,6 @@ export default function Play() {
                     }
                   }
                 } catch {
-                  // If pattern is not valid regex, use substring match
                   if (cleanLine.includes(tempTrigger.pattern)) {
                     matches = [tempTrigger.pattern];
                   }
@@ -1176,7 +1182,6 @@ export default function Play() {
                 
                 if (matches) {
                   executeScript(tempTrigger.script, cleanLine, matches, namedCaptures);
-                  // Temp triggers fire once then are removed
                   tempTriggersRef.current = tempTriggersRef.current.filter(t => t.id !== tempTrigger.id);
                 }
               } catch (err) {
@@ -1185,15 +1190,21 @@ export default function Play() {
             }
           }
           
-          // Apply line modifications (replace)
           for (const replacement of lineModificationsRef.current.replacements) {
             displayLine = displayLine.replace(replacement.old, replacement.new);
           }
           
-          // Add line to display (unless gagged)
           if (!lineModificationsRef.current.gagged) {
-            addLinesToConnection(currentConnId, [displayLine]);
+            linesToAdd.push(displayLine);
           }
+        }
+        
+        if (linesToAdd.length > 0) {
+          addLinesToConnection(currentConnId, linesToAdd);
+        }
+        
+        if (incomingBufferRef.current.length > 0) {
+          flushTimer = setTimeout(flushIncomingBuffer, 100);
         }
       } catch (e) {
         console.error("Failed to parse Socket.IO message", e);
@@ -1245,6 +1256,8 @@ export default function Play() {
     };
 
     return () => {
+      if (flushTimer) clearTimeout(flushTimer);
+      incomingBufferRef.current = '';
       socket.disconnect();
     };
   }, [profile, activeConnectionId, connections, updateConnectionState, addLinesToConnection, toast, speak, cancelSpeech, settings.speechEnabled, settings.interruptOnIncoming, triggers, sendCommand, echoLocal]);

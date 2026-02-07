@@ -19,6 +19,10 @@ const DONT = 254;
 const SB = 250;
 const SE = 240;
 const GMCP = 201;
+const TTYPE = 24;
+const NAWS = 31;
+const IS = 0;
+const SEND = 1;
 
 // Type for incoming WebSocket messages
 type WsClientMessage = 
@@ -585,6 +589,22 @@ Guidelines:
               } else if (cmd === DO && gmcpEnabled) {
                 tcpSocket?.write(Buffer.from([IAC, WILL, GMCP]));
               }
+            } else if (option === TTYPE) {
+              if (cmd === DO) {
+                tcpSocket?.write(Buffer.from([IAC, WILL, TTYPE]));
+              }
+            } else if (option === NAWS) {
+              if (cmd === DO) {
+                tcpSocket?.write(Buffer.from([IAC, WILL, NAWS]));
+                const nawsBuf = Buffer.from([IAC, SB, NAWS, 0, 80, 0, 24, IAC, SE]);
+                tcpSocket?.write(nawsBuf);
+              }
+            } else {
+              if (cmd === WILL) {
+                tcpSocket?.write(Buffer.from([IAC, DONT, option]));
+              } else if (cmd === DO) {
+                tcpSocket?.write(Buffer.from([IAC, WONT, option]));
+              }
             }
             i += 3;
             continue;
@@ -620,6 +640,14 @@ Guidelines:
               }
               
               socket.emit('gmcp', { module, data: jsonData });
+            } else if (option === TTYPE) {
+              const subCmd = pendingBuffer[i + 3];
+              if (subCmd === SEND) {
+                const ttypeResponse = Buffer.from([IAC, SB, TTYPE, IS]);
+                const clientName = Buffer.from('Mudscape', 'ascii');
+                const ttypeEnd = Buffer.from([IAC, SE]);
+                tcpSocket?.write(Buffer.concat([ttypeResponse, clientName, ttypeEnd]));
+              }
             }
             
             i = seIndex + 2;
