@@ -558,6 +558,7 @@ export default function Play() {
           const { getImportSummary } = await import('@/lib/mudlet-parser');
           echoLocal(`\x1b[32mPackage "${result.name}" parsed: ${getImportSummary(result.contents)}\x1b[0m`);
 
+          const allSavedFiles: { name: string; filename: string }[] = [];
           if (result.soundFiles && result.soundFiles.length > 0) {
             echoLocal(`\x1b[36mUploading ${result.soundFiles.length} sound files...\x1b[0m`);
             let uploadedCount = 0;
@@ -578,6 +579,9 @@ export default function Play() {
                 const saved = uploadData.files?.length || 0;
                 uploadedCount += saved;
                 skippedCount += files.length - saved;
+                if (uploadData.files) {
+                  allSavedFiles.push(...uploadData.files);
+                }
               } catch (soundErr) {
                 skippedCount += files.length;
                 echoLocal(`\x1b[33mWarning: Batch ${batchNum} failed: ${soundErr instanceof Error ? soundErr.message : 'Unknown error'}\x1b[0m`);
@@ -598,6 +602,48 @@ export default function Play() {
               await uploadBatch(batch);
             }
             echoLocal(`\x1b[32mSound upload complete: ${uploadedCount}/${totalFiles} saved${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}.\x1b[0m`);
+
+            if (allSavedFiles.length > 0) {
+              try {
+                const seenNames = new Set<string>();
+                const soundpackFiles = allSavedFiles
+                  .filter(f => {
+                    const key = f.name.toLowerCase();
+                    if (seenNames.has(key)) return false;
+                    seenNames.add(key);
+                    return true;
+                  })
+                  .map(f => {
+                    const baseName = f.name.replace(/\.[^.]+$/, '');
+                    return {
+                      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                      name: baseName,
+                      filename: f.filename,
+                      category: 'effect' as const,
+                      volume: 1,
+                      loop: false,
+                    };
+                  });
+                const spRes = await apiRequest('/api/soundpacks', 'POST', {
+                  name: result.name || 'Imported Soundpack',
+                  description: `Imported from ${result.name || 'package'}`,
+                  files: soundpackFiles,
+                });
+                const newSoundpack = await spRes.json();
+                echoLocal(`\x1b[32mCreated soundpack "${newSoundpack.name}" with ${soundpackFiles.length} sounds.\x1b[0m`);
+
+                soundManager.preloadSoundpack(soundpackFiles);
+                echoLocal(`\x1b[32mSoundpack loaded and ready to play.\x1b[0m`);
+
+                if (profile) {
+                  updateProfile.mutate({ id: profile.id, activeSoundpackId: String(newSoundpack.id) });
+                }
+                const { queryClient: qc } = await import('@/lib/queryClient');
+                qc.invalidateQueries({ queryKey: ['/api/soundpacks'] });
+              } catch (spErr) {
+                echoLocal(`\x1b[33mWarning: Could not create soundpack: ${spErr instanceof Error ? spErr.message : 'Unknown error'}\x1b[0m`);
+              }
+            }
           }
 
           if (profile) {

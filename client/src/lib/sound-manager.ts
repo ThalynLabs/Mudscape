@@ -43,7 +43,43 @@ class SoundManager {
     this.soundpackFiles.clear();
     for (const file of files) {
       this.soundpackFiles.set(file.name, file);
+      this.soundpackFiles.set(file.name.toLowerCase(), file);
+      const withExt = file.filename.split('_').slice(2).join('_');
+      if (withExt && withExt !== file.name) {
+        this.soundpackFiles.set(withExt, file);
+        this.soundpackFiles.set(withExt.toLowerCase(), file);
+      }
     }
+  }
+
+  private resolveSound(name: string): AudioBuffer | undefined {
+    let buffer = this.soundBuffers.get(name);
+    if (buffer) return buffer;
+
+    const noExt = name.replace(/\.[^.]+$/, '');
+    if (noExt !== name) {
+      buffer = this.soundBuffers.get(noExt);
+      if (buffer) return buffer;
+    }
+
+    const basename = name.split('/').pop() || name;
+    if (basename !== name) {
+      buffer = this.soundBuffers.get(basename);
+      if (buffer) return buffer;
+      const bnNoExt = basename.replace(/\.[^.]+$/, '');
+      if (bnNoExt !== basename) {
+        buffer = this.soundBuffers.get(bnNoExt);
+        if (buffer) return buffer;
+      }
+    }
+
+    const lower = noExt.toLowerCase();
+    const entries = Array.from(this.soundBuffers.entries());
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i][0].toLowerCase() === lower) return entries[i][1];
+    }
+
+    return undefined;
   }
 
   async loadSound(name: string, url: string): Promise<void> {
@@ -67,6 +103,14 @@ class SoundManager {
       if (!this.soundBuffers.has(file.name)) {
         await this.loadSound(file.name, `/api/sounds/${file.filename}`);
       }
+      const withExt = file.filename.split('_').slice(2).join('_');
+      if (withExt && withExt !== file.name) {
+        const buffer = this.soundBuffers.get(file.name);
+        if (buffer) {
+          this.soundBuffers.set(withExt, buffer);
+          this.soundBuffers.set(withExt.replace(/\.[^.]+$/, ''), buffer);
+        }
+      }
     }
   }
 
@@ -80,7 +124,13 @@ class SoundManager {
       return;
     }
 
-    const buffer = this.soundBuffers.get(name);
+    let buffer = this.resolveSound(name);
+    if (!buffer) {
+      const spFile = this.resolveSoundpackFile(name);
+      if (spFile) {
+        buffer = this.soundBuffers.get(spFile.name);
+      }
+    }
     if (!buffer) {
       console.warn(`Sound "${name}" not loaded`);
       return;
@@ -169,12 +219,41 @@ class SoundManager {
     sound.pannerNode.positionZ.setValueAtTime(z, this.audioContext.currentTime);
   }
 
+  private resolveSoundpackFile(name: string): SoundpackFile | undefined {
+    let file = this.soundpackFiles.get(name);
+    if (file) return file;
+    file = this.soundpackFiles.get(name.toLowerCase());
+    if (file) return file;
+    const noExt = name.replace(/\.[^.]+$/, '');
+    if (noExt !== name) {
+      file = this.soundpackFiles.get(noExt);
+      if (file) return file;
+      file = this.soundpackFiles.get(noExt.toLowerCase());
+      if (file) return file;
+    }
+    const basename = name.split('/').pop() || name;
+    if (basename !== name) {
+      file = this.soundpackFiles.get(basename);
+      if (file) return file;
+      file = this.soundpackFiles.get(basename.toLowerCase());
+      if (file) return file;
+      const bnNoExt = basename.replace(/\.[^.]+$/, '');
+      if (bnNoExt !== basename) {
+        file = this.soundpackFiles.get(bnNoExt);
+        if (file) return file;
+        file = this.soundpackFiles.get(bnNoExt.toLowerCase());
+        if (file) return file;
+      }
+    }
+    return undefined;
+  }
+
   playFromSoundpack(
     mspName: string,
     volumeOverride?: number,
     loopOverride?: boolean
   ): void {
-    const file = this.soundpackFiles.get(mspName);
+    const file = this.resolveSoundpackFile(mspName);
     if (!file) {
       console.warn(`MSP sound "${mspName}" not in soundpack`);
       return;
