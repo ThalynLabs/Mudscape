@@ -224,6 +224,30 @@ fi
 # ============================================================
 print_step "3/7 - PostgreSQL"
 
+# Homebrew installs postgresql@15 to a keg-only path that isn't in PATH by default.
+# Check common Homebrew PostgreSQL locations and add to PATH if found.
+add_brew_pg_to_path() {
+  local pg_dirs=(
+    "/opt/homebrew/opt/postgresql@15/bin"
+    "/usr/local/opt/postgresql@15/bin"
+    "/opt/homebrew/opt/postgresql@16/bin"
+    "/usr/local/opt/postgresql@16/bin"
+    "/opt/homebrew/opt/postgresql@17/bin"
+    "/usr/local/opt/postgresql@17/bin"
+    "/opt/homebrew/bin"
+    "/usr/local/bin"
+  )
+  for dir in "${pg_dirs[@]}"; do
+    if [ -x "$dir/psql" ] && [[ ":$PATH:" != *":$dir:"* ]]; then
+      export PATH="$dir:$PATH"
+      return 0
+    fi
+  done
+  return 1
+}
+
+add_brew_pg_to_path
+
 PG_RUNNING="n"
 if command -v psql &>/dev/null; then
   print_ok "PostgreSQL client found"
@@ -245,8 +269,26 @@ if [ "$PG_RUNNING" != "y" ]; then
       if [ "$USE_BREW" = "y" ]; then
         echo "  Installing PostgreSQL via Homebrew..."
         brew install postgresql@15
+        
+        # Add the newly installed PostgreSQL to PATH
+        add_brew_pg_to_path
+        # Also try brew link as a fallback
+        brew link postgresql@15 --force 2>/dev/null
+        
         brew services start postgresql@15
-        sleep 2
+        sleep 3
+        
+        if command -v psql &>/dev/null; then
+          print_ok "PostgreSQL installed and added to PATH"
+        else
+          print_warn "PostgreSQL installed but not yet in PATH"
+          echo "  Checking Homebrew prefix..."
+          BREW_PG_BIN="$(brew --prefix postgresql@15 2>/dev/null)/bin"
+          if [ -x "$BREW_PG_BIN/psql" ]; then
+            export PATH="$BREW_PG_BIN:$PATH"
+            print_ok "Found PostgreSQL at $BREW_PG_BIN"
+          fi
+        fi
       else
         echo ""
         echo "  Without Homebrew, you'll need to install PostgreSQL manually."
@@ -266,20 +308,36 @@ if [ "$PG_RUNNING" != "y" ]; then
     if [ "$START_PG" = "y" ]; then
       if [ "$USE_BREW" = "y" ]; then
         brew services start postgresql@15 2>/dev/null || brew services start postgresql 2>/dev/null
-        sleep 2
+        sleep 3
       else
         pg_ctl -D /usr/local/var/postgres start 2>/dev/null || pg_ctl -D /opt/homebrew/var/postgres start 2>/dev/null
-        sleep 2
+        sleep 3
       fi
     fi
   fi
   
+  # Final check — give PostgreSQL a moment to fully start
+  retries=0
+  while [ $retries -lt 5 ] && ! pg_isready &>/dev/null; do
+    sleep 1
+    retries=$((retries + 1))
+  done
+  
   if pg_isready &>/dev/null; then
     print_ok "PostgreSQL is running"
   else
-    print_fail "Could not start PostgreSQL"
-    echo "  Try starting it manually and re-running this script."
-    exit 1
+    print_fail "Could not verify PostgreSQL is running"
+    echo ""
+    echo "  This sometimes happens when PostgreSQL needs a moment to start."
+    echo "  You can try:"
+    echo "    1. Wait a few seconds and re-run this script"
+    echo "    2. Run: brew services restart postgresql@15"
+    echo "    3. Check status: brew services list"
+    echo ""
+    CONTINUE_ANYWAY=$(ask_yes_no "Try to continue anyway?" "y")
+    if [ "$CONTINUE_ANYWAY" != "y" ]; then
+      exit 1
+    fi
   fi
 fi
 
