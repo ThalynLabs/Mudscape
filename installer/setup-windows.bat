@@ -437,15 +437,20 @@ REM Write .env file
 echo DATABASE_URL=!DATABASE_URL!
 echo SESSION_SECRET=!SESSION_SECRET!
 echo PORT=!APP_PORT!
-echo NODE_ENV=production
 if "!ACCOUNT_MODE!"=="single" echo SINGLE_USER_MODE=true
 ) > .env
 
 echo   [OK] Configuration saved
 
 echo   Installing dependencies (this may take a minute)...
-call npm install --silent 2>nul
-echo   [OK] Dependencies installed
+echo   (including build tools - this is the longest step)
+call npm install 2>nul
+if exist "node_modules" (
+    echo   [OK] Dependencies installed
+) else (
+    echo   [X] Failed to install dependencies
+    echo   Try running 'npm install' manually in !INSTALL_DIR!
+)
 
 echo   Setting up database tables...
 call npx drizzle-kit push 2>nul
@@ -467,6 +472,9 @@ if exist "dist\index.cjs" (
     echo   until the build succeeds.
     set BUILD_FAILED=1
 )
+
+REM Now set production mode for runtime
+echo NODE_ENV=production>> .env
 
 REM Seed admin account if multi-user
 if "!ACCOUNT_MODE!"=="multi" (

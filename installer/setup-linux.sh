@@ -554,7 +554,6 @@ cat > .env << ENVFILE
 DATABASE_URL=${DATABASE_URL}
 SESSION_SECRET=${SESSION_SECRET}
 PORT=${APP_PORT}
-NODE_ENV=production
 ENVFILE
 
 if [ "$ACCOUNT_MODE" = "single" ]; then
@@ -564,6 +563,7 @@ fi
 print_ok "Configuration saved to .env"
 
 echo "  Installing dependencies (this may take a minute)..."
+echo "  (including build tools - this is the longest step)"
 npm install 2>&1 | tail -5
 if [ -d "node_modules" ]; then
   print_ok "Dependencies installed"
@@ -596,6 +596,9 @@ else
   echo "  until the build succeeds."
   BUILD_FAILED="y"
 fi
+
+# Now set production mode in .env for runtime
+echo "NODE_ENV=production" >> .env
 
 # Seed admin account if multi-user
 if [ "$ACCOUNT_MODE" = "multi" ] && [ -n "$ADMIN_USER" ] && [ -n "$ADMIN_PASS" ]; then
