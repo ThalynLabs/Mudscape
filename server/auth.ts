@@ -118,11 +118,27 @@ export function setupAuth(app: Express): void {
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
     },
   });
 
   _sessionMiddleware = sessionMw;
+
+  // Debug: log cookie headers on auth requests
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.includes('/api/auth')) {
+      console.log(`[auth-debug] ${req.method} ${req.path} | cookies: ${req.headers.cookie || 'NONE'} | x-forwarded-proto: ${req.headers['x-forwarded-proto'] || 'NONE'} | origin: ${req.headers.origin || 'NONE'} | referer: ${req.headers.referer || 'NONE'}`);
+      const origSetHeader = res.setHeader.bind(res);
+      res.setHeader = function(name: string, value: any) {
+        if (name.toLowerCase() === 'set-cookie') {
+          console.log(`[auth-debug] Set-Cookie response: ${value}`);
+        }
+        return origSetHeader(name, value);
+      };
+    }
+    next();
+  });
 
   // Skip session middleware for Socket.IO requests to avoid interfering with polling
   app.use((req: Request, res: Response, next: NextFunction) => {
