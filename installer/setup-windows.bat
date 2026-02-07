@@ -148,12 +148,13 @@ if not defined PG_RUNNING (
                 start /wait "%TEMP%\pg-setup.exe"
                 del "%TEMP%\pg-setup.exe"
                 
-                REM Add PostgreSQL to PATH
-                set "PATH=%PATH%;C:\Program Files\PostgreSQL\15\bin"
+                REM Add common PostgreSQL paths
+                if exist "C:\Program Files\PostgreSQL\15\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\15\bin"
+                if exist "C:\Program Files\PostgreSQL\16\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\16\bin"
+                if exist "C:\Program Files\PostgreSQL\17\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\17\bin"
                 
                 echo.
                 echo   [OK] PostgreSQL installer completed
-                echo   If you just installed PostgreSQL, the server should be running.
             ) else (
                 echo   [X] Download failed.
                 echo   Install PostgreSQL manually from https://www.postgresql.org/download/windows/
@@ -174,6 +175,44 @@ if not defined PG_RUNNING (
             pause
             exit /b 1
         )
+    )
+    
+    REM Wait for PostgreSQL to accept connections (up to 30 seconds)
+    pg_isready >nul 2>nul
+    if !errorlevel! equ 0 (
+        echo   [OK] PostgreSQL is running
+    ) else (
+        set /a PG_WAIT=0
+        echo.
+        set /p "=  Waiting for PostgreSQL to accept connections..." <nul
+        :pg_wait_loop
+        if !PG_WAIT! geq 30 goto pg_wait_done
+        pg_isready >nul 2>nul
+        if !errorlevel! equ 0 (
+            echo  ready!
+            echo   [OK] PostgreSQL is running
+            goto pg_ready
+        )
+        set /p "=." <nul
+        timeout /t 1 /nobreak >nul
+        set /a PG_WAIT+=1
+        goto pg_wait_loop
+        :pg_wait_done
+        echo  timed out.
+        echo   [!] PostgreSQL did not respond within 30 seconds
+        echo.
+        echo   You can try:
+        echo     1. Re-run this script ^(it may just need more time^)
+        echo     2. Start PostgreSQL from Services ^(services.msc^)
+        echo     3. Check if the PostgreSQL service is installed
+        echo.
+        set /p CONTINUE_ANYWAY="  Try to continue anyway? (y/n) [y]: "
+        if "!CONTINUE_ANYWAY!"=="" set CONTINUE_ANYWAY=y
+        if /i not "!CONTINUE_ANYWAY!"=="y" (
+            pause
+            exit /b 1
+        )
+        :pg_ready
     )
 )
 
