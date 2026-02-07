@@ -44,6 +44,10 @@ export function UpdateDialog() {
     }
   }, [updateInfo?.updateAvailable, dismissed]);
 
+  if (!isAdminOrSingle) {
+    return null;
+  }
+
   const installMutation = useMutation<InstallResult>({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/update-install");

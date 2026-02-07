@@ -176,6 +176,92 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === SHARED PACKAGE REPOSITORY ===
+
+  app.get('/api/shared-packages', isAuthenticated, async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const packages = await storage.getSharedPackages(search);
+    res.json(packages);
+  });
+
+  app.post('/api/packages/:id/share', isAuthenticated, async (req, res) => {
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+
+    const { targetMud } = req.body || {};
+    const updated = await storage.updatePackage(pkg.id, {
+      isShared: true,
+      userId: req.authUser?.id || null,
+      author: req.authUser?.username || pkg.author || "Anonymous",
+      targetMud: typeof targetMud === 'string' ? targetMud : pkg.targetMud,
+    });
+    res.json(updated);
+  });
+
+  app.post('/api/packages/:id/unshare', isAuthenticated, async (req, res) => {
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+
+    if (pkg.userId !== req.authUser?.id && !req.authUser?.isAdmin) {
+      return res.status(403).json({ message: "You can only unshare your own packages" });
+    }
+
+    const updated = await storage.updatePackage(pkg.id, { isShared: false });
+    res.json(updated);
+  });
+
+  app.post('/api/shared-packages/:id/install', isAuthenticated, async (req, res) => {
+    const { profileId } = req.body;
+    if (!profileId) return res.status(400).json({ message: "profileId is required" });
+
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg || !pkg.isShared) return res.status(404).json({ message: "Shared package not found" });
+
+    const profile = await storage.getProfile(Number(profileId));
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+    if (profile.userId && profile.userId !== req.authUser?.id) {
+      return res.status(403).json({ message: "You can only install to your own profiles" });
+    }
+
+    const contents = pkg.contents || {};
+    const updates: Record<string, any> = {};
+
+    if (contents.triggers?.length) {
+      updates.triggers = [...(profile.triggers || []), ...contents.triggers];
+    }
+    if (contents.aliases?.length) {
+      updates.aliases = [...(profile.aliases || []), ...contents.aliases];
+    }
+    if (contents.timers?.length) {
+      updates.timers = [...(profile.timers || []), ...contents.timers];
+    }
+    if (contents.keybindings?.length) {
+      updates.keybindings = [...(profile.keybindings || []), ...contents.keybindings];
+    }
+    if (contents.buttons?.length) {
+      updates.buttons = [...(profile.buttons || []), ...contents.buttons];
+    }
+    if (contents.scripts?.length) {
+      updates.scripts = [...(profile.scripts || []), ...contents.scripts];
+    }
+    if (contents.classes?.length) {
+      updates.classes = [...(profile.classes || []), ...contents.classes];
+    }
+
+    const updatedProfile = await storage.updateProfile(profile.id, updates);
+    await storage.incrementDownloads(pkg.id);
+
+    res.json({ message: "Package installed successfully", profile: updatedProfile });
+  });
+
+  app.delete('/api/shared-packages/:id', isAuthenticated, isAdmin, async (req, res) => {
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+    await storage.updatePackage(pkg.id, { isShared: false });
+    res.status(204).send();
+  });
+
   // === GLOBAL SETTINGS ROUTES ===
   app.get(api.settings.get.path, async (req, res) => {
     const settings = await storage.getGlobalSettings();

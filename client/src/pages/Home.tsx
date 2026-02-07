@@ -2,7 +2,7 @@ import { useProfiles, useDeleteProfile, useCreateProfile } from "@/hooks/use-pro
 import { CreateProfileDialog } from "@/components/CreateProfileDialog";
 import { useState, useEffect, useRef } from "react";
 import { Profile, InsertProfile } from "@shared/schema";
-import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload, HelpCircle, Keyboard, Volume2, Zap, LogIn, LogOut, User } from "lucide-react";
+import { Loader2, TerminalSquare, Settings, MoreHorizontal, Pencil, Trash2, Play, Download, Upload, HelpCircle, Keyboard, Volume2, Zap, LogIn, LogOut, User, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
@@ -327,6 +327,12 @@ export default function Home() {
               <Upload className="w-4 h-4 mr-2" />
               Import Profile
             </Button>
+            <Link href="/packages">
+              <Button variant="outline" size="icon" data-testid="button-package-repo" title="Package Repository">
+                <Package className="w-5 h-5" />
+                <span className="sr-only">Package Repository</span>
+              </Button>
+            </Link>
             <Link href="/settings">
               <Button variant="outline" size="icon" data-testid="button-global-settings">
                 <Settings className="w-5 h-5" />

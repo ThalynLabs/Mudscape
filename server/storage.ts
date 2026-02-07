@@ -16,7 +16,7 @@ import {
   DEFAULT_GLOBAL_SETTINGS,
 } from "@shared/schema";
 import { users, appConfig, type User, type UpsertUser, type AppConfig } from "@shared/models/auth";
-import { eq } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Profiles
@@ -40,9 +40,13 @@ export interface IStorage {
   
   // Packages
   getPackages(): Promise<Package[]>;
+  getPackagesByUser(userId: string): Promise<Package[]>;
   getPackage(id: number): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
+  updatePackage(id: number, updates: Partial<InsertPackage>): Promise<Package>;
   deletePackage(id: number): Promise<void>;
+  getSharedPackages(search?: string): Promise<Package[]>;
+  incrementDownloads(id: number): Promise<void>;
   
   // Users
   getUsers(): Promise<User[]>;
@@ -159,6 +163,10 @@ export class DatabaseStorage implements IStorage {
   async getPackages(): Promise<Package[]> {
     return await db.select().from(packages).orderBy(packages.name);
   }
+
+  async getPackagesByUser(userId: string): Promise<Package[]> {
+    return await db.select().from(packages).where(eq(packages.userId, userId)).orderBy(packages.name);
+  }
   
   async getPackage(id: number): Promise<Package | undefined> {
     const [pkg] = await db.select().from(packages).where(eq(packages.id, id));
@@ -169,9 +177,46 @@ export class DatabaseStorage implements IStorage {
     const [pkg] = await db.insert(packages).values(insertPackage as typeof packages.$inferInsert).returning();
     return pkg;
   }
+
+  async updatePackage(id: number, updates: Partial<InsertPackage>): Promise<Package> {
+    const [pkg] = await db
+      .update(packages)
+      .set({ ...updates, updatedAt: new Date() } as Partial<typeof packages.$inferInsert>)
+      .where(eq(packages.id, id))
+      .returning();
+    return pkg;
+  }
   
   async deletePackage(id: number): Promise<void> {
     await db.delete(packages).where(eq(packages.id, id));
+  }
+
+  async getSharedPackages(search?: string): Promise<Package[]> {
+    if (search) {
+      const term = `%${search.toLowerCase()}%`;
+      return await db
+        .select()
+        .from(packages)
+        .where(
+          and(
+            eq(packages.isShared, true),
+            sql`(LOWER(${packages.name}) LIKE ${term} OR LOWER(COALESCE(${packages.targetMud}, '')) LIKE ${term} OR LOWER(COALESCE(${packages.author}, '')) LIKE ${term})`
+          )
+        )
+        .orderBy(desc(packages.downloads), packages.name);
+    }
+    return await db
+      .select()
+      .from(packages)
+      .where(eq(packages.isShared, true))
+      .orderBy(desc(packages.downloads), packages.name);
+  }
+
+  async incrementDownloads(id: number): Promise<void> {
+    await db
+      .update(packages)
+      .set({ downloads: sql`COALESCE(${packages.downloads}, 0) + 1` } as any)
+      .where(eq(packages.id, id));
   }
   
   // Users

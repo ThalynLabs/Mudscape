@@ -57,7 +57,13 @@ export const packages = pgTable("packages", {
   description: text("description"),
   version: text("version").default("1.0.0"),
   author: text("author"),
+  userId: text("user_id"),
+  targetMud: text("target_mud"),
+  isShared: boolean("is_shared").default(false),
+  downloads: integer("downloads").default(0),
   contents: jsonb("contents").$type<PackageContents>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Package contents - what's bundled in a package

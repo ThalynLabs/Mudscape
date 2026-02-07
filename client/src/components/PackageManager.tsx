@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Package, Upload, Download, Trash2, FolderOpen, Plus, FileJson, FileArchive } from "lucide-react";
+import { Package, Upload, Download, Trash2, FolderOpen, Plus, FileJson, FileArchive, Share2, Globe } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +58,7 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
   });
 
   const createPackageMutation = useMutation({
-    mutationFn: (pkg: Omit<PackageType, 'id'>) => 
+    mutationFn: (pkg: { name: string; description?: string; version?: string; author?: string; contents: PackageContents; targetMud?: string }) => 
       apiRequest('POST', '/api/packages', pkg),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/packages'] });
@@ -75,9 +75,39 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     },
   });
 
+  const sharePackageMutation = useMutation({
+    mutationFn: async ({ id, targetMud }: { id: number; targetMud?: string }) => {
+      const res = await apiRequest('POST', `/api/packages/${id}/share`, { targetMud });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-packages'], exact: false });
+      toast({ title: "Package shared", description: "Package is now available in the server repository" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Share failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const unsharePackageMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('POST', `/api/packages/${id}/unshare`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-packages'], exact: false });
+      toast({ title: "Package unshared", description: "Package removed from server repository" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Unshare failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const installPackageMutation = useMutation({
-    mutationFn: async (pkg: PackageType) => {
-      const contents = pkg.contents as PackageContents;
+    mutationFn: async (pkg: { id: number; contents: PackageContents | null }) => {
+      const contents = (pkg.contents || {}) as PackageContents;
       const updates: Partial<Profile> = {};
       
       if (contents.triggers?.length) {
@@ -275,10 +305,6 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     
     installPackageMutation.mutate({
       id: 0,
-      name: mudletImportData.name,
-      description: null,
-      version: null,
-      author: null,
       contents: mudletImportData.contents,
     });
     
@@ -335,10 +361,6 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     
     installPackageMutation.mutate({
       id: 0,
-      name: tintinImportData.name,
-      description: null,
-      version: null,
-      author: null,
       contents: tintinImportData.contents,
     });
     
@@ -395,10 +417,6 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     
     installPackageMutation.mutate({
       id: 0,
-      name: vipmudImportData.name,
-      description: null,
-      version: null,
-      author: null,
       contents: vipmudImportData.contents,
     });
     
@@ -564,6 +582,27 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
                             >
                               <Download className="w-4 h-4" />
                             </Button>
+                            {pkg.isShared ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => unsharePackageMutation.mutate(pkg.id)}
+                                title="Remove from server repository"
+                                data-testid={`button-unshare-package-${pkg.id}`}
+                              >
+                                <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => sharePackageMutation.mutate({ id: pkg.id })}
+                                title="Share to server repository"
+                                data-testid={`button-share-package-${pkg.id}`}
+                              >
+                                <Share2 className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -577,12 +616,17 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
                         </div>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        <p className="text-xs text-muted-foreground mb-3">
-                          {getItemsSummary(pkg)}
-                        </p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-xs text-muted-foreground">
+                            {getItemsSummary(pkg)}
+                          </p>
+                          {pkg.isShared && (
+                            <span className="text-xs text-green-600 dark:text-green-400 font-medium">Shared</span>
+                          )}
+                        </div>
                         <Button
                           size="sm"
-                          onClick={() => installPackageMutation.mutate(pkg)}
+                          onClick={() => installPackageMutation.mutate({ id: pkg.id, contents: pkg.contents })}
                           disabled={installPackageMutation.isPending}
                           className="w-full"
                           data-testid={`button-install-package-${pkg.id}`}

@@ -24,6 +24,7 @@ import Sounds from "@/pages/help/Sounds";
 import Packages from "@/pages/help/Packages";
 import AIAssistant from "@/pages/help/AIAssistant";
 import SettingsHelp from "@/pages/help/SettingsHelp";
+import PackageRepo from "@/pages/PackageRepo";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading, accountMode } = useAuth();
@@ -114,6 +115,9 @@ function Router() {
         </Route>
         <Route path="/admin">
           <AdminRoute component={Admin} />
+        </Route>
+        <Route path="/packages">
+          <ProtectedRoute component={PackageRepo} />
         </Route>
         <Route path="/help" component={GettingStarted} />
         <Route path="/help/speech" component={Speech} />
