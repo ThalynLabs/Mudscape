@@ -456,8 +456,17 @@ if !errorlevel! equ 0 (
 )
 
 echo   Building application...
-call npm run build 2>nul
-echo   [OK] Application built
+call npm run build
+if exist "dist\index.cjs" (
+    echo   [OK] Application built
+) else (
+    echo   [X] Build failed
+    echo.
+    echo   You can try building manually later with: npm run build
+    echo   The installer will continue, but Mudscape won't start
+    echo   until the build succeeds.
+    set BUILD_FAILED=1
+)
 
 REM Seed admin account if multi-user
 if "!ACCOUNT_MODE!"=="multi" (
@@ -475,7 +484,7 @@ echo title Mudscape
 echo cd /d "!INSTALL_DIR!"
 echo echo Starting Mudscape...
 echo start http://localhost:!APP_PORT!
-echo node dist/index.js
+echo node dist/index.cjs
 echo pause
 ) > "!INSTALL_DIR!\Mudscape-Start.bat"
 
@@ -501,13 +510,18 @@ if "!ACCOUNT_MODE!"=="multi" (
     echo.
 )
 
-set /p START_NOW="  Start Mudscape now? (y/n) [y]: "
-if "!START_NOW!"=="" set START_NOW=y
-if /i "!START_NOW!"=="y" (
-    echo.
-    echo   Starting Mudscape...
-    start http://localhost:!APP_PORT!
-    node dist/index.js
+if defined BUILD_FAILED (
+    echo   [!] Mudscape was installed but the build failed.
+    echo   Fix the build issue, then start with: node dist/index.cjs
+) else (
+    set /p START_NOW="  Start Mudscape now? (y/n) [y]: "
+    if "!START_NOW!"=="" set START_NOW=y
+    if /i "!START_NOW!"=="y" (
+        echo.
+        echo   Starting Mudscape...
+        start http://localhost:!APP_PORT!
+        node dist/index.cjs
+    )
 )
 
 pause

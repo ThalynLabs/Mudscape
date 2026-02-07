@@ -578,16 +578,12 @@ fi
 print_ok "Configuration saved to .env"
 
 echo "  Installing dependencies (this may take a minute)..."
-npm install --silent 2>/dev/null
-if [ $? -eq 0 ]; then
+npm install 2>&1 | tail -5
+if [ -d "node_modules" ]; then
   print_ok "Dependencies installed"
 else
-  npm install 2>/dev/null
-  if [ $? -eq 0 ]; then
-    print_ok "Dependencies installed"
-  else
-    print_warn "Some warnings during install (usually fine)"
-  fi
+  print_fail "Failed to install dependencies"
+  echo "  Try running 'npm install' manually in $INSTALL_DIR"
 fi
 
 echo "  Setting up database tables..."
@@ -600,11 +596,19 @@ fi
 
 # Build for production
 echo "  Building application..."
-npm run build 2>/dev/null
-if [ $? -eq 0 ]; then
+BUILD_OUTPUT=$(npm run build 2>&1)
+if [ $? -eq 0 ] && [ -f "dist/index.cjs" ]; then
   print_ok "Application built"
 else
-  print_warn "Build had issues - you can try running 'npm run build' later"
+  print_fail "Build failed"
+  echo ""
+  echo "  Build output:"
+  echo "$BUILD_OUTPUT" | tail -20
+  echo ""
+  echo "  You can try building manually later with: npm run build"
+  echo "  The installer will continue, but Mudscape won't start"
+  echo "  until the build succeeds."
+  BUILD_FAILED="y"
 fi
 
 # Seed admin account if multi-user
@@ -654,7 +658,7 @@ echo "Press Ctrl+C to stop."
 echo ""
 
 open "http://localhost:$PORT" &
-node dist/index.js
+node dist/index.cjs
 STARTSCRIPT
 
 chmod +x "$START_SCRIPT"
@@ -673,7 +677,7 @@ echo "    Double-click Mudscape-Start.command in:"
 echo "    $INSTALL_DIR"
 echo ""
 echo "  Or from terminal:"
-echo "    cd $INSTALL_DIR && node dist/index.js"
+echo "    cd $INSTALL_DIR && node dist/index.cjs"
 echo ""
 
 if [ "$ACCOUNT_MODE" = "multi" ]; then
@@ -682,12 +686,18 @@ if [ "$ACCOUNT_MODE" = "multi" ]; then
   echo ""
 fi
 
-START_NOW=$(ask_yes_no "Start Mudscape now?" "y")
-if [ "$START_NOW" = "y" ]; then
+if [ "$BUILD_FAILED" = "y" ]; then
   echo ""
-  echo "  Starting Mudscape..."
-  echo "  Opening browser to http://localhost:${APP_PORT}"
-  echo ""
-  open "http://localhost:${APP_PORT}" &
-  node dist/index.js
+  print_warn "Mudscape was installed but the build failed."
+  echo "  Fix the build issue, then start with: node dist/index.cjs"
+else
+  START_NOW=$(ask_yes_no "Start Mudscape now?" "y")
+  if [ "$START_NOW" = "y" ]; then
+    echo ""
+    echo "  Starting Mudscape..."
+    echo "  Opening browser to http://localhost:${APP_PORT}"
+    echo ""
+    open "http://localhost:${APP_PORT}" &
+    node dist/index.cjs
+  fi
 fi
