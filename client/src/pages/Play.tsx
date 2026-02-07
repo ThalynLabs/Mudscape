@@ -561,23 +561,32 @@ export default function Play() {
           if (result.soundFiles && result.soundFiles.length > 0) {
             echoLocal(`\x1b[36mUploading ${result.soundFiles.length} sound files...\x1b[0m`);
             let uploadedCount = 0;
-            const BATCH_SIZE_BYTES = 1.5 * 1024 * 1024; // ~1.5MB per batch to stay under 2MB body limit
+            const BATCH_SIZE_BYTES = 1.5 * 1024 * 1024;
+            const BATCH_MAX_FILES = 50;
             let batch: typeof result.soundFiles = [];
             let batchSize = 0;
+            let batchNum = 0;
+            let skippedCount = 0;
+            const totalFiles = result.soundFiles.length;
 
             const uploadBatch = async (files: typeof result.soundFiles) => {
+              batchNum++;
               try {
+                echoLocal(`\x1b[36mUploading batch ${batchNum} (${files.length} files)...\x1b[0m`);
                 const uploadRes = await apiRequest('/api/sounds/upload', 'POST', { files });
                 const uploadData = await uploadRes.json();
-                uploadedCount += uploadData.files?.length || 0;
+                const saved = uploadData.files?.length || 0;
+                uploadedCount += saved;
+                skippedCount += files.length - saved;
               } catch (soundErr) {
-                echoLocal(`\x1b[33mWarning: Failed to upload batch: ${soundErr instanceof Error ? soundErr.message : 'Unknown error'}\x1b[0m`);
+                skippedCount += files.length;
+                echoLocal(`\x1b[33mWarning: Batch ${batchNum} failed: ${soundErr instanceof Error ? soundErr.message : 'Unknown error'}\x1b[0m`);
               }
             };
 
             for (const sf of result.soundFiles) {
-              const fileSize = sf.data.length; // base64 length
-              if (batchSize + fileSize > BATCH_SIZE_BYTES && batch.length > 0) {
+              const fileSize = sf.data.length;
+              if ((batchSize + fileSize > BATCH_SIZE_BYTES || batch.length >= BATCH_MAX_FILES) && batch.length > 0) {
                 await uploadBatch(batch);
                 batch = [];
                 batchSize = 0;
@@ -588,7 +597,7 @@ export default function Play() {
             if (batch.length > 0) {
               await uploadBatch(batch);
             }
-            echoLocal(`\x1b[32mUploaded ${uploadedCount} sound files.\x1b[0m`);
+            echoLocal(`\x1b[32mSound upload complete: ${uploadedCount}/${totalFiles} saved${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}.\x1b[0m`);
           }
 
           if (profile) {

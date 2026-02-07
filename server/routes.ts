@@ -301,7 +301,7 @@ export async function registerRoutes(
       }
 
       if (files.length > MAX_SOUND_FILES) {
-        return res.status(400).json({ message: `Too many files (max ${MAX_SOUND_FILES})` });
+        return res.status(400).json({ message: `Too many files in single batch (max ${MAX_SOUND_FILES}). Upload in smaller batches.` });
       }
 
       const savedFiles: { name: string; filename: string }[] = [];
