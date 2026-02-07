@@ -476,11 +476,20 @@ if exist "dist\index.cjs" (
 REM Now set production mode for runtime
 echo NODE_ENV=production>> .env
 
+REM Mark installation as complete in app_config
+echo   Finalizing installation...
+node -e "const {Pool}=require('pg');const pool=new Pool({connectionString:process.env.DATABASE_URL});(async()=>{const r=await pool.query('SELECT id FROM app_config LIMIT 1');if(r.rows.length>0){await pool.query('UPDATE app_config SET account_mode=$1,app_name=$2,installed=true WHERE id=$3',[process.argv[1],process.argv[2],r.rows[0].id])}else{await pool.query('INSERT INTO app_config (account_mode,app_name,installed) VALUES ($1,$2,true)',[process.argv[1],process.argv[2]])}await pool.end()})().catch(e=>{console.error(e.message);process.exit(1)})" "!ACCOUNT_MODE!" "Mudscape" 2>nul
+if errorlevel 1 (
+    echo   [!] Could not finalize installation ^(setup wizard will appear on first launch^)
+) else (
+    echo   [OK] Installation finalized
+)
+
 REM Seed admin account if multi-user
 if "!ACCOUNT_MODE!"=="multi" (
     if not "!ADMIN_USER!"=="" (
         echo   Creating admin account...
-        node -e "const bcrypt=require('bcrypt');const {Pool}=require('pg');const pool=new Pool({connectionString:process.env.DATABASE_URL});(async()=>{const hash=await bcrypt.hash(process.argv[1],10);await pool.query('INSERT INTO users (username, password, is_admin) VALUES ($1, $2, true) ON CONFLICT (username) DO NOTHING',[process.argv[2],hash]);await pool.end()})().catch(()=>{})" "!ADMIN_PASS!" "!ADMIN_USER!" 2>nul
+        node -e "const bcrypt=require('bcrypt');const {Pool}=require('pg');const pool=new Pool({connectionString:process.env.DATABASE_URL});(async()=>{const hash=await bcrypt.hash(process.argv[1],10);await pool.query('INSERT INTO users (username, password_hash, is_admin) VALUES ($1, $2, true) ON CONFLICT (username) DO NOTHING',[process.argv[2],hash]);await pool.end()})().catch(()=>{})" "!ADMIN_PASS!" "!ADMIN_USER!" 2>nul
         echo   [OK] Admin account created
     )
 )
