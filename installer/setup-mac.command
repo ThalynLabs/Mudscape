@@ -248,6 +248,25 @@ add_brew_pg_to_path() {
 
 add_brew_pg_to_path
 
+# Wait for PostgreSQL to become ready instead of sleeping a fixed time.
+# Polls pg_isready every second, up to 30 seconds (handles slow machines).
+wait_for_pg() {
+  local max_wait=30
+  local waited=0
+  echo -n "  Waiting for PostgreSQL to accept connections..."
+  while [ $waited -lt $max_wait ]; do
+    if pg_isready &>/dev/null; then
+      echo " ready!"
+      return 0
+    fi
+    echo -n "."
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo " timed out."
+  return 1
+}
+
 PG_RUNNING="n"
 if command -v psql &>/dev/null; then
   print_ok "PostgreSQL client found"
@@ -276,7 +295,6 @@ if [ "$PG_RUNNING" != "y" ]; then
         brew link postgresql@15 --force 2>/dev/null
         
         brew services start postgresql@15
-        sleep 3
         
         if command -v psql &>/dev/null; then
           print_ok "PostgreSQL installed and added to PATH"
@@ -308,29 +326,21 @@ if [ "$PG_RUNNING" != "y" ]; then
     if [ "$START_PG" = "y" ]; then
       if [ "$USE_BREW" = "y" ]; then
         brew services start postgresql@15 2>/dev/null || brew services start postgresql 2>/dev/null
-        sleep 3
       else
         pg_ctl -D /usr/local/var/postgres start 2>/dev/null || pg_ctl -D /opt/homebrew/var/postgres start 2>/dev/null
-        sleep 3
       fi
     fi
   fi
   
-  # Final check — give PostgreSQL a moment to fully start
-  retries=0
-  while [ $retries -lt 5 ] && ! pg_isready &>/dev/null; do
-    sleep 1
-    retries=$((retries + 1))
-  done
-  
   if pg_isready &>/dev/null; then
     print_ok "PostgreSQL is running"
+  elif wait_for_pg; then
+    print_ok "PostgreSQL is running"
   else
-    print_fail "Could not verify PostgreSQL is running"
+    print_fail "PostgreSQL did not respond within 30 seconds"
     echo ""
-    echo "  This sometimes happens when PostgreSQL needs a moment to start."
     echo "  You can try:"
-    echo "    1. Wait a few seconds and re-run this script"
+    echo "    1. Re-run this script (it may just need more time)"
     echo "    2. Run: brew services restart postgresql@15"
     echo "    3. Check status: brew services list"
     echo ""

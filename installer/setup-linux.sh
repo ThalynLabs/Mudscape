@@ -252,6 +252,25 @@ fi
 # ============================================================
 print_step "3/7 - PostgreSQL"
 
+# Wait for PostgreSQL to become ready instead of sleeping a fixed time.
+# Polls pg_isready every second, up to 30 seconds (handles slow machines).
+wait_for_pg() {
+  local max_wait=30
+  local waited=0
+  echo -n "  Waiting for PostgreSQL to accept connections..."
+  while [ $waited -lt $max_wait ]; do
+    if pg_isready &>/dev/null; then
+      echo " ready!"
+      return 0
+    fi
+    echo -n "."
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo " timed out."
+  return 1
+}
+
 PG_RUNNING="n"
 if command -v psql &>/dev/null; then
   print_ok "PostgreSQL client found"
@@ -300,7 +319,6 @@ if [ "$PG_RUNNING" != "y" ]; then
       
       sudo systemctl start postgresql 2>/dev/null || sudo service postgresql start 2>/dev/null
       sudo systemctl enable postgresql 2>/dev/null || true
-      sleep 2
       print_ok "PostgreSQL installed"
     else
       print_fail "PostgreSQL is required. Cannot continue without it."
@@ -310,14 +328,25 @@ if [ "$PG_RUNNING" != "y" ]; then
     START_PG=$(ask_yes_no "Start PostgreSQL now?" "y")
     if [ "$START_PG" = "y" ]; then
       sudo systemctl start postgresql 2>/dev/null || sudo service postgresql start 2>/dev/null
-      sleep 2
     fi
   fi
   
   if pg_isready &>/dev/null; then
     print_ok "PostgreSQL is running"
+  elif wait_for_pg; then
+    print_ok "PostgreSQL is running"
   else
-    print_warn "Could not verify PostgreSQL is running (may still work)"
+    print_fail "PostgreSQL did not respond within 30 seconds"
+    echo ""
+    echo "  You can try:"
+    echo "    1. Re-run this script (it may just need more time)"
+    echo "    2. Run: sudo systemctl restart postgresql"
+    echo "    3. Check status: sudo systemctl status postgresql"
+    echo ""
+    CONTINUE_ANYWAY=$(ask_yes_no "Try to continue anyway?" "y")
+    if [ "$CONTINUE_ANYWAY" != "y" ]; then
+      exit 1
+    fi
   fi
 fi
 
