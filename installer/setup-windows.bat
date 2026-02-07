@@ -480,7 +480,7 @@ REM Seed admin account if multi-user
 if "!ACCOUNT_MODE!"=="multi" (
     if not "!ADMIN_USER!"=="" (
         echo   Creating admin account...
-        node -e "const bcrypt=require('bcrypt');const {Pool}=require('pg');const pool=new Pool({connectionString:'!DATABASE_URL!'});(async()=>{const hash=await bcrypt.hash('!ADMIN_PASS!',10);await pool.query('INSERT INTO users (username, password, is_admin) VALUES ($1, $2, true) ON CONFLICT (username) DO NOTHING',['!ADMIN_USER!',hash]);await pool.end()})().catch(()=>{})" 2>nul
+        node -e "const bcrypt=require('bcrypt');const {Pool}=require('pg');const pool=new Pool({connectionString:process.env.DATABASE_URL});(async()=>{const hash=await bcrypt.hash(process.argv[1],10);await pool.query('INSERT INTO users (username, password, is_admin) VALUES ($1, $2, true) ON CONFLICT (username) DO NOTHING',[process.argv[2],hash]);await pool.end()})().catch(()=>{})" "!ADMIN_PASS!" "!ADMIN_USER!" 2>nul
         echo   [OK] Admin account created
     )
 )
