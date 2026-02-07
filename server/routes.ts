@@ -497,8 +497,24 @@ Guidelines:
   // Store Socket.IO instance for access in index.ts
   setSocketIO(io);
 
-  // Socket.IO authentication middleware - require valid session
+  // Socket.IO authentication middleware - require valid session or token
   io.use(async (socket, next) => {
+    const config = await storage.getAppConfig();
+    if (config?.accountMode === "single") {
+      return next();
+    }
+
+    // Check for Bearer token auth first (works in iframe contexts where cookies are blocked)
+    const authToken = socket.handshake.auth?.token as string | undefined;
+    if (authToken) {
+      const dbUser = await storage.getUserByToken(authToken);
+      if (dbUser) {
+        return next();
+      }
+      return next(new Error("Authentication required"));
+    }
+
+    // Fall back to session cookie auth
     const sessionMw = getSessionMiddleware();
     if (!sessionMw) {
       return next(new Error("Server not initialized"));
@@ -508,11 +524,6 @@ Guidelines:
     const res = new ServerResponse(req);
     
     sessionMw(req, res as any, async () => {
-      const config = await storage.getAppConfig();
-      if (config?.accountMode === "single") {
-        return next();
-      }
-      
       if (!req.session?.userId) {
         return next(new Error("Authentication required"));
       }

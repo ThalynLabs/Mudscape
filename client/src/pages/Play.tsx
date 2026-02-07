@@ -1014,6 +1014,7 @@ export default function Play() {
     const currentConnId = activeConnectionId;
     const socketUrl = window.location.origin;
     
+    const authToken = localStorage.getItem('mudscape_auth_token');
     const socket = io(socketUrl, {
       path: '/api/socket',
       transports: ['polling', 'websocket'],
@@ -1022,6 +1023,7 @@ export default function Play() {
       reconnectionDelay: 1000,
       upgrade: true,
       forceNew: true,
+      auth: authToken ? { token: authToken } : {},
     });
     
     // Store socket in connection state
