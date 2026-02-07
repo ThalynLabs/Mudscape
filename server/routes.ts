@@ -13,7 +13,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter, get
 import { setSocketIO } from "./index";
 import { startUpdateChecker, getUpdateInfo, checkForUpdates, installUpdate } from "./update-checker";
 
-const SOUNDS_DIR = path.join(process.cwd(), 'uploads', 'sounds');
+const SOUNDS_DIR = path.join(process.cwd(), 'sounds');
 if (!fs.existsSync(SOUNDS_DIR)) {
   fs.mkdirSync(SOUNDS_DIR, { recursive: true });
 }
