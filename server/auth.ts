@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -66,6 +67,11 @@ const registerSchema = z.object({
 
 export { aiLimiter };
 
+let _sessionMiddleware: ReturnType<typeof session> | null = null;
+export function getSessionMiddleware() {
+  return _sessionMiddleware;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
@@ -90,37 +96,41 @@ export function setupAuth(app: Express): void {
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
   if (!sessionSecret) {
-    console.warn("WARNING: SESSION_SECRET not set. Using insecure default for development only.");
+    console.warn("WARNING: SESSION_SECRET not set. Generating random secret for this session (will change on restart).");
   }
+
+  const effectiveSecret = sessionSecret || crypto.randomBytes(32).toString("hex");
 
   // Trust proxy for proper secure cookies behind reverse proxy
   app.set('trust proxy', 1);
 
-  const sessionMiddleware = session({
+  const sessionMw = session({
     store: new PgSession({
       pool,
       tableName: "sessions",
       createTableIfMissing: true,
     }),
-    secret: sessionSecret || "mudscape-dev-secret-insecure",
+    secret: effectiveSecret,
     name: "mudscape.sid",
     resave: false,
     saveUninitialized: false,
     proxy: true,
     cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     },
   });
 
+  _sessionMiddleware = sessionMw;
+
   // Skip session middleware for Socket.IO requests to avoid interfering with polling
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/socket')) {
       return next();
     }
-    sessionMiddleware(req, res, next);
+    sessionMw(req, res, next);
   });
 
   // Skip auth user lookup for Socket.IO requests
@@ -138,6 +148,18 @@ export function setupAuth(app: Express): void {
           claims: { sub: dbUser.id },
         };
       }
+    }
+    next();
+  });
+
+  // Security headers
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (process.env.NODE_ENV === "production") {
+      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws:; font-src 'self' data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
     }
     next();
   });

@@ -1,12 +1,12 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { createServer, type Server, ServerResponse } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
-import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter } from "./auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter, getSessionMiddleware } from "./auth";
 import { setSocketIO } from "./index";
 import { startUpdateChecker, getUpdateInfo, checkForUpdates, installUpdate } from "./update-checker";
 
@@ -103,12 +103,12 @@ export async function registerRoutes(
   });
 
   // === SOUNDPACKS ROUTES ===
-  app.get(api.soundpacks.list.path, async (req, res) => {
+  app.get(api.soundpacks.list.path, isAuthenticated, async (req, res) => {
     const soundpacksList = await storage.getSoundpacks();
     res.json(soundpacksList);
   });
 
-  app.get(api.soundpacks.get.path, async (req, res) => {
+  app.get(api.soundpacks.get.path, isAuthenticated, async (req, res) => {
     const soundpack = await storage.getSoundpack(Number(req.params.id));
     if (!soundpack) return res.status(404).json({ message: "Soundpack not found" });
     res.json(soundpack);
@@ -141,18 +141,20 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.soundpacks.delete.path, isAuthenticated, async (req, res) => {
+  app.delete(api.soundpacks.delete.path, isAuthenticated, isAdmin, async (req, res) => {
+    const soundpack = await storage.getSoundpack(Number(req.params.id));
+    if (!soundpack) return res.status(404).json({ message: "Soundpack not found" });
     await storage.deleteSoundpack(Number(req.params.id));
     res.status(204).send();
   });
 
   // === PACKAGE ROUTES ===
-  app.get(api.packages.list.path, async (req, res) => {
+  app.get(api.packages.list.path, isAuthenticated, async (req, res) => {
     const packagesList = await storage.getPackages();
     res.json(packagesList);
   });
 
-  app.get(api.packages.get.path, async (req, res) => {
+  app.get(api.packages.get.path, isAuthenticated, async (req, res) => {
     const pkg = await storage.getPackage(Number(req.params.id));
     if (!pkg) return res.status(404).json({ message: "Package not found" });
     res.json(pkg);
@@ -171,7 +173,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.packages.delete.path, isAuthenticated, async (req, res) => {
+  app.delete(api.packages.delete.path, isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
+    const pkg = await storage.getPackage(Number(req.params.id));
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+    if (pkg.userId && pkg.userId !== userId && !req.authUser?.isAdmin) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     await storage.deletePackage(Number(req.params.id));
     res.status(204).send();
   });
@@ -184,9 +192,14 @@ export async function registerRoutes(
     res.json(packages);
   });
 
-  app.post('/api/packages/:id/share', isAuthenticated, async (req, res) => {
+  app.post('/api/packages/:id/share', isAuthenticated, async (req: any, res) => {
+    const userId = getUserId(req);
     const pkg = await storage.getPackage(Number(req.params.id));
     if (!pkg) return res.status(404).json({ message: "Package not found" });
+
+    if (pkg.userId && pkg.userId !== userId && !req.authUser?.isAdmin) {
+      return res.status(403).json({ message: "You can only share your own packages" });
+    }
 
     const { targetMud } = req.body || {};
     const updated = await storage.updatePackage(pkg.id, {
@@ -211,8 +224,10 @@ export async function registerRoutes(
   });
 
   app.post('/api/shared-packages/:id/install', isAuthenticated, async (req, res) => {
-    const { profileId } = req.body;
-    if (!profileId) return res.status(400).json({ message: "profileId is required" });
+    const installSchema = z.object({ profileId: z.number().int().positive() });
+    const parsed = installSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Valid profileId is required" });
+    const { profileId } = parsed.data;
 
     const pkg = await storage.getPackage(Number(req.params.id));
     if (!pkg || !pkg.isShared) return res.status(404).json({ message: "Shared package not found" });
@@ -263,7 +278,7 @@ export async function registerRoutes(
   });
 
   // === GLOBAL SETTINGS ROUTES ===
-  app.get(api.settings.get.path, async (req, res) => {
+  app.get(api.settings.get.path, isAuthenticated, async (req, res) => {
     const settings = await storage.getGlobalSettings();
     res.json(settings);
   });
@@ -318,8 +333,11 @@ export async function registerRoutes(
     try {
       const { description, context, apiKey } = req.body;
       
-      if (!description || !apiKey) {
-        return res.status(400).json({ message: 'Description and API key are required' });
+      if (!description || typeof description !== 'string') {
+        return res.status(400).json({ message: 'Description is required' });
+      }
+      if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 20) {
+        return res.status(400).json({ message: 'Valid API key is required' });
       }
 
       const contextHints: Record<string, string> = {
@@ -406,7 +424,7 @@ Guidelines:
         return res.status(400).json({ message: 'Messages array is required' });
       }
 
-      if (!apiKey) {
+      if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 20) {
         return res.status(400).json({ 
           message: 'API key required. Please add your OpenAI API key in Settings to use the Script Assistant.',
           needsApiKey: true,
@@ -474,6 +492,35 @@ Guidelines:
   
   // Store Socket.IO instance for access in index.ts
   setSocketIO(io);
+
+  // Socket.IO authentication middleware - require valid session
+  io.use(async (socket, next) => {
+    const sessionMw = getSessionMiddleware();
+    if (!sessionMw) {
+      return next(new Error("Server not initialized"));
+    }
+
+    const req = socket.request as any;
+    const res = new ServerResponse(req);
+    
+    sessionMw(req, res as any, async () => {
+      const config = await storage.getAppConfig();
+      if (config?.accountMode === "single") {
+        return next();
+      }
+      
+      if (!req.session?.userId) {
+        return next(new Error("Authentication required"));
+      }
+      
+      const dbUser = await storage.getUser(req.session.userId);
+      if (!dbUser) {
+        return next(new Error("Authentication required"));
+      }
+      
+      next();
+    });
+  });
 
   const MAX_CONNECTIONS_PER_IP = 10;
   const connectionCounts = new Map<string, number>();

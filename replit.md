@@ -98,11 +98,21 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle ORM**: Type-safe ORM.
 - **connect-pg-simple**: PostgreSQL session storage.
 
+### Security
+- **Session**: 7-day session lifetime, httpOnly + sameSite=lax cookies, random secret fallback in dev.
+- **Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy; CSP in production.
+- **Rate Limiting**: Login (20/15min), registration (10/hr), AI (30/min).
+- **Body Limits**: 2MB max for JSON and URL-encoded bodies.
+- **Authorization**: All API routes require authentication; ownership checks on profiles, packages, soundpacks.
+- **Socket.IO Auth**: Session-based authentication middleware validates user before allowing TCP relay connections.
+- **SSRF Protection**: Private/local IP blocking on TCP relay; hostname validation.
+- **Connection Limits**: Max 10 Socket.IO connections per IP.
+
 ### MUD Protocol
 - **socket.io**: Socket.IO for real-time MUD relay with polling fallback.
 - **Socket.IO Path**: Uses `/api/socket` path to avoid Replit proxy interference (standard `/socket.io` path may be intercepted by the proxy).
 - **Transport**: Polling-first with WebSocket upgrade for reliability through proxies.
-- **Session Bypass**: Session middleware skips `/api/socket` requests to prevent interference with Socket.IO polling.
+- **Session Auth**: Socket.IO middleware authenticates via express-session before allowing connections; skips auth in single-user mode.
 - **net module**: Node.js TCP connections to MUD servers.
 
 ### UI Framework
