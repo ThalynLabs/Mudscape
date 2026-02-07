@@ -1,10 +1,16 @@
 import JSZip from 'jszip';
 import type { MudTrigger, MudAlias, MudTimer, MudKeybinding, MudButton, MudScript, MudClass, PackageContents } from '@shared/schema';
 
+export interface ExtractedSoundFile {
+  name: string;
+  data: string;
+}
+
 interface MudletParseResult {
   success: boolean;
   contents?: PackageContents;
   name?: string;
+  soundFiles?: ExtractedSoundFile[];
   error?: string;
 }
 
@@ -403,6 +409,51 @@ function parseMudletXml(xmlString: string): PackageContents {
   return contents;
 }
 
+const SOUND_EXTENSIONS = ['.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.mid', '.midi'];
+
+async function parseZipPackage(zipData: JSZip, defaultName: string): Promise<MudletParseResult> {
+  let xmlContent: string | null = null;
+  let packageName = defaultName;
+  const soundFiles: ExtractedSoundFile[] = [];
+
+  for (const [name, zipFile] of Object.entries(zipData.files)) {
+    if (zipFile.dir) continue;
+
+    if (name.endsWith('.xml') && !xmlContent) {
+      xmlContent = await zipFile.async('string');
+      const baseName = name.split('/').pop()?.replace('.xml', '');
+      if (baseName) packageName = baseName;
+    }
+
+    const ext = name.toLowerCase().substring(name.lastIndexOf('.'));
+    if (SOUND_EXTENSIONS.includes(ext)) {
+      try {
+        const data = await zipFile.async('base64');
+        const soundName = name.split('/').pop() || name;
+        soundFiles.push({ name: soundName, data });
+      } catch {}
+    }
+  }
+
+  const configLua = zipData.files['config.lua'];
+  if (configLua) {
+    try {
+      const configContent = await configLua.async('string');
+      const match = configContent.match(/mpackage\s*=\s*["']([^"']+)["']/);
+      if (match) {
+        packageName = match[1];
+      }
+    } catch {}
+  }
+
+  if (!xmlContent) {
+    return { success: false, error: 'No XML file found in package' };
+  }
+
+  const contents = parseMudletXml(xmlContent);
+  return { success: true, contents, name: packageName, soundFiles: soundFiles.length > 0 ? soundFiles : undefined };
+}
+
 export async function parseMudletPackage(file: File): Promise<MudletParseResult> {
   const fileName = file.name.toLowerCase();
   
@@ -410,33 +461,8 @@ export async function parseMudletPackage(file: File): Promise<MudletParseResult>
     if (fileName.endsWith('.mpackage') || fileName.endsWith('.zip')) {
       const zip = new JSZip();
       const zipData = await zip.loadAsync(file);
-      
-      let xmlContent: string | null = null;
-      let packageName = file.name.replace(/\.(mpackage|zip)$/i, '');
-      
-      for (const [name, zipFile] of Object.entries(zipData.files)) {
-        if (!zipFile.dir && name.endsWith('.xml')) {
-          xmlContent = await zipFile.async('string');
-          packageName = name.replace('.xml', '');
-          break;
-        }
-      }
-      
-      const configLua = zipData.files['config.lua'];
-      if (configLua) {
-        const configContent = await configLua.async('string');
-        const match = configContent.match(/mpackage\s*=\s*["']([^"']+)["']/);
-        if (match) {
-          packageName = match[1];
-        }
-      }
-      
-      if (!xmlContent) {
-        return { success: false, error: 'No XML file found in package' };
-      }
-      
-      const contents = parseMudletXml(xmlContent);
-      return { success: true, contents, name: packageName };
+      const defaultName = file.name.replace(/\.(mpackage|zip)$/i, '');
+      return parseZipPackage(zipData, defaultName);
       
     } else if (fileName.endsWith('.xml')) {
       const xmlContent = await file.text();
@@ -451,6 +477,37 @@ export async function parseMudletPackage(file: File): Promise<MudletParseResult>
     return { 
       success: false, 
       error: err instanceof Error ? err.message : 'Failed to parse Mudlet package' 
+    };
+  }
+}
+
+export async function parseMudletPackageFromBuffer(
+  buffer: ArrayBuffer,
+  fileName: string
+): Promise<MudletParseResult> {
+  const lowerName = fileName.toLowerCase();
+
+  try {
+    if (lowerName.endsWith('.mpackage') || lowerName.endsWith('.zip')) {
+      const zip = new JSZip();
+      const zipData = await zip.loadAsync(buffer);
+      const defaultName = fileName.replace(/\.(mpackage|zip)$/i, '');
+      return parseZipPackage(zipData, defaultName);
+
+    } else if (lowerName.endsWith('.xml')) {
+      const decoder = new TextDecoder();
+      const xmlContent = decoder.decode(buffer);
+      const contents = parseMudletXml(xmlContent);
+      const packageName = fileName.replace('.xml', '');
+      return { success: true, contents, name: packageName };
+
+    } else {
+      return { success: false, error: 'Unsupported file format. Use .mpackage, .zip, or .xml' };
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to parse Mudlet package'
     };
   }
 }

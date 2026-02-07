@@ -49,6 +49,9 @@ export interface LuaScriptContext {
   // Prompt detection
   onPrompt?: (callback: () => void) => void;
   isPrompt?: boolean;
+
+  // Package management
+  installPackage?: (url: string) => void;
 }
 
 let luaEngine: LuaEngine | null = null;
@@ -217,6 +220,10 @@ export function setScriptContext(context: LuaScriptContext): void {
   // Notifications - show toast messages
   luaEngine.global.set('notify', (message: string, type?: string) => {
     scriptContext?.notify?.(message, (type as 'info' | 'success' | 'warning' | 'danger') ?? 'info');
+  });
+
+  luaEngine.global.set('installPackage', (url: string) => {
+    scriptContext?.installPackage?.(url);
   });
   
   // Cooldowns - prevent command spam

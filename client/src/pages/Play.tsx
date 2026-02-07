@@ -302,6 +302,9 @@ export default function Play() {
       echoLocal(`  ${prefix}config prefix <char>   - Change command prefix (current: "${prefix}")`);
       echoLocal(`  ${prefix}config settings        - Open settings panel`);
       echoLocal('');
+      echoLocal('\x1b[33mPackage Management:\x1b[0m');
+      echoLocal(`  ${prefix}installPackage <url> - Install a Mudlet .mpackage from a URL`);
+      echoLocal('');
       echoLocal('\x1b[33mMulti-MUD Connections:\x1b[0m');
       echoLocal('  Click "+ Add MUD" to open additional MUD connections in tabs.');
       echoLocal('  Click tabs to switch between connections.');
@@ -522,11 +525,108 @@ export default function Play() {
       }
     }
     
+    if (baseCommand === 'installpackage') {
+      const url = args[0];
+      if (!url) {
+        echoLocal(`\x1b[33mUsage: ${prefix}installPackage <url>\x1b[0m`);
+        echoLocal('Downloads and installs a Mudlet .mpackage from a URL.');
+        echoLocal('Supported formats: .mpackage, .zip, .xml');
+        return true;
+      }
+
+      (async () => {
+        try {
+          echoLocal(`\x1b[36mDownloading package from: ${url}\x1b[0m`);
+
+          const { apiRequest } = await import('@/lib/queryClient');
+          const downloadRes = await apiRequest('/api/package-download', 'POST', { url });
+          const buffer = await downloadRes.arrayBuffer();
+
+          echoLocal(`\x1b[36mDownloaded ${(buffer.byteLength / 1024).toFixed(1)} KB, parsing...\x1b[0m`);
+
+          const urlPath = new URL(url).pathname;
+          const fileName = urlPath.split('/').pop() || 'package.mpackage';
+
+          const { parseMudletPackageFromBuffer } = await import('@/lib/mudlet-parser');
+          const result = await parseMudletPackageFromBuffer(buffer, fileName);
+
+          if (!result.success || !result.contents) {
+            echoLocal(`\x1b[31mFailed to parse package: ${result.error || 'Unknown error'}\x1b[0m`);
+            return;
+          }
+
+          const { getImportSummary } = await import('@/lib/mudlet-parser');
+          echoLocal(`\x1b[32mPackage "${result.name}" parsed: ${getImportSummary(result.contents)}\x1b[0m`);
+
+          if (result.soundFiles && result.soundFiles.length > 0) {
+            echoLocal(`\x1b[36mUploading ${result.soundFiles.length} sound files...\x1b[0m`);
+            let uploadedCount = 0;
+            const BATCH_SIZE_BYTES = 1.5 * 1024 * 1024; // ~1.5MB per batch to stay under 2MB body limit
+            let batch: typeof result.soundFiles = [];
+            let batchSize = 0;
+
+            const uploadBatch = async (files: typeof result.soundFiles) => {
+              try {
+                const uploadRes = await apiRequest('/api/sounds/upload', 'POST', { files });
+                const uploadData = await uploadRes.json();
+                uploadedCount += uploadData.files?.length || 0;
+              } catch (soundErr) {
+                echoLocal(`\x1b[33mWarning: Failed to upload batch: ${soundErr instanceof Error ? soundErr.message : 'Unknown error'}\x1b[0m`);
+              }
+            };
+
+            for (const sf of result.soundFiles) {
+              const fileSize = sf.data.length; // base64 length
+              if (batchSize + fileSize > BATCH_SIZE_BYTES && batch.length > 0) {
+                await uploadBatch(batch);
+                batch = [];
+                batchSize = 0;
+              }
+              batch.push(sf);
+              batchSize += fileSize;
+            }
+            if (batch.length > 0) {
+              await uploadBatch(batch);
+            }
+            echoLocal(`\x1b[32mUploaded ${uploadedCount} sound files.\x1b[0m`);
+          }
+
+          if (profile) {
+            const currentTriggers = profile.triggers || [];
+            const currentAliases = profile.aliases || [];
+            const currentTimers = profile.timers || [];
+            const currentKeybindings = profile.keybindings || [];
+            const currentButtons = profile.buttons || [];
+            const currentScripts = profile.scripts || [];
+            const currentClasses = profile.classes || [];
+
+            const merged = {
+              triggers: [...currentTriggers, ...(result.contents.triggers || [])],
+              aliases: [...currentAliases, ...(result.contents.aliases || [])],
+              timers: [...currentTimers, ...(result.contents.timers || [])],
+              keybindings: [...currentKeybindings, ...(result.contents.keybindings || [])],
+              buttons: [...currentButtons, ...(result.contents.buttons || [])],
+              scripts: [...currentScripts, ...(result.contents.scripts || [])],
+              classes: [...currentClasses, ...(result.contents.classes || [])],
+            };
+
+            updateProfile.mutate({ id: profile.id, ...merged });
+            echoLocal(`\x1b[32mPackage "${result.name}" installed to profile "${profile.name}"!\x1b[0m`);
+          } else {
+            echoLocal(`\x1b[31mNo active profile to install the package to.\x1b[0m`);
+          }
+        } catch (err) {
+          echoLocal(`\x1b[31mInstall failed: ${err instanceof Error ? err.message : 'Unknown error'}\x1b[0m`);
+        }
+      })();
+      return true;
+    }
+
     // Unknown command starting with prefix
     echoLocal(`\x1b[31mUnknown command: ${command}\x1b[0m`);
     echoLocal(`Type ${prefix}help for available commands.`);
     return true;
-  }, [echoLocal, settings, updateProfileSetting, speak, cancelSpeech, voices, setSettingsOpen]);
+  }, [echoLocal, settings, updateProfileSetting, speak, cancelSpeech, voices, setSettingsOpen, profile, updateProfile]);
 
   const variablesPersistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -798,6 +898,9 @@ export default function Play() {
         log: addToLog,
         getLog: getSessionLog,
         clearLog: clearSessionLog,
+        installPackage: (url: string) => {
+          handleClientCommand(`/installPackage ${url}`);
+        },
       });
       await executeLuaScript(script, line, matches, namedCaptures);
     } catch (err) {
@@ -810,7 +913,8 @@ export default function Play() {
     createTempTrigger, createTempAlias, createTempTimer, killTempTrigger, killTempAlias, killTempTimer,
     enableTriggerByName, disableTriggerByName, enableAliasByName, disableAliasByName,
     enableTimerByName, disableTimerByName, enableClassByName, disableClassByName,
-    expandAliasCommand, showNotification, updateGauge, removeGauge, addToLog, getSessionLog, clearSessionLog
+    expandAliasCommand, showNotification, updateGauge, removeGauge, addToLog, getSessionLog, clearSessionLog,
+    handleClientCommand
   ]);
 
   const disableTimer = useCallback((timerId: string) => {

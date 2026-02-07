@@ -6,10 +6,17 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import * as dns from "dns";
+import * as fs from "fs";
+import * as path from "path";
 import OpenAI from "openai";
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter, getSessionMiddleware } from "./auth";
 import { setSocketIO } from "./index";
 import { startUpdateChecker, getUpdateInfo, checkForUpdates, installUpdate } from "./update-checker";
+
+const SOUNDS_DIR = path.join(process.cwd(), 'uploads', 'sounds');
+if (!fs.existsSync(SOUNDS_DIR)) {
+  fs.mkdirSync(SOUNDS_DIR, { recursive: true });
+}
 
 // Telnet constants
 const IAC = 255;
@@ -151,6 +158,175 @@ export async function registerRoutes(
     if (!soundpack) return res.status(404).json({ message: "Soundpack not found" });
     await storage.deleteSoundpack(Number(req.params.id));
     res.status(204).send();
+  });
+
+  app.get('/api/sounds/:filename', isAuthenticated, (req, res) => {
+    const filename = path.basename(String(req.params.filename));
+    const filePath = path.join(SOUNDS_DIR, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Sound not found' });
+    }
+    res.sendFile(filePath);
+  });
+
+  const isPrivateIPCheck = (ip: string) =>
+    /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|fc|fd|fe80)/.test(ip) ||
+    ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0';
+
+  const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024; // 50MB
+  const MAX_REDIRECTS = 5;
+
+  async function validateUrl(urlStr: string): Promise<{ valid: true; url: URL } | { valid: false; error: string }> {
+    let parsed: URL;
+    try {
+      parsed = new URL(urlStr);
+    } catch {
+      return { valid: false, error: 'Invalid URL' };
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'Only HTTP/HTTPS URLs are supported' };
+    }
+    const hostname = parsed.hostname;
+    const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+    if (blockedHosts.includes(hostname.toLowerCase()) || isPrivateIPCheck(hostname)) {
+      return { valid: false, error: 'Downloads from private/local addresses are not allowed' };
+    }
+    if (!net.isIP(hostname)) {
+      try {
+        const results = await dns.promises.lookup(hostname, { all: true });
+        if (results.some(r => isPrivateIPCheck(r.address))) {
+          return { valid: false, error: 'Downloads from private/local addresses are not allowed' };
+        }
+      } catch {
+        return { valid: false, error: 'Could not resolve hostname' };
+      }
+    }
+    return { valid: true, url: parsed };
+  }
+
+  app.post('/api/package-download', isAuthenticated, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: 'URL is required' });
+      }
+
+      const check = await validateUrl(url);
+      if (!check.valid) {
+        return res.status(400).json({ message: check.error });
+      }
+
+      let currentUrl = url;
+      let response: Response | null = null;
+
+      for (let i = 0; i <= MAX_REDIRECTS; i++) {
+        const redirectCheck = await validateUrl(currentUrl);
+        if (!redirectCheck.valid) {
+          return res.status(400).json({ message: redirectCheck.error });
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+
+        response = await fetch(currentUrl, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mudscape/1.0' },
+          redirect: 'manual',
+        });
+        clearTimeout(timeout);
+
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location');
+          if (!location) {
+            return res.status(502).json({ message: 'Redirect without Location header' });
+          }
+          currentUrl = new URL(location, currentUrl).toString();
+          continue;
+        }
+        break;
+      }
+
+      if (!response || (response.status >= 300 && response.status < 400)) {
+        return res.status(400).json({ message: 'Too many redirects' });
+      }
+
+      if (!response.ok) {
+        return res.status(502).json({ message: `Download failed: ${response.status} ${response.statusText}` });
+      }
+
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > MAX_DOWNLOAD_BYTES) {
+        return res.status(400).json({ message: 'File too large (max 50MB)' });
+      }
+
+      const chunks: Buffer[] = [];
+      let totalBytes = 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        return res.status(502).json({ message: 'No response body' });
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalBytes += value.length;
+        if (totalBytes > MAX_DOWNLOAD_BYTES) {
+          reader.cancel();
+          return res.status(400).json({ message: 'File too large (max 50MB)' });
+        }
+        chunks.push(Buffer.from(value));
+      }
+
+      const buffer = Buffer.concat(chunks);
+      res.set('Content-Type', 'application/octet-stream');
+      res.send(buffer);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return res.status(504).json({ message: 'Download timed out' });
+      }
+      console.error('Package download error:', err);
+      res.status(500).json({ message: 'Failed to download package' });
+    }
+  });
+
+  const MAX_SOUND_FILES = 100;
+  const MAX_SOUND_FILE_BYTES = 10 * 1024 * 1024; // 10MB per file
+  const ALLOWED_SOUND_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.mid', '.midi']);
+
+  app.post('/api/sounds/upload', isAuthenticated, async (req, res) => {
+    try {
+      const { files } = req.body;
+      if (!Array.isArray(files)) {
+        return res.status(400).json({ message: 'files array is required' });
+      }
+
+      if (files.length > MAX_SOUND_FILES) {
+        return res.status(400).json({ message: `Too many files (max ${MAX_SOUND_FILES})` });
+      }
+
+      const savedFiles: { name: string; filename: string }[] = [];
+      for (const file of files) {
+        if (!file.name || !file.data || typeof file.name !== 'string' || typeof file.data !== 'string') continue;
+
+        const ext = path.extname(file.name).toLowerCase();
+        if (!ALLOWED_SOUND_EXTENSIONS.has(ext)) continue;
+
+        const buffer = Buffer.from(file.data, 'base64');
+        if (buffer.length > MAX_SOUND_FILE_BYTES) continue;
+
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const uniqueName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}`;
+        const filePath = path.join(SOUNDS_DIR, uniqueName);
+
+        await fs.promises.writeFile(filePath, buffer);
+        savedFiles.push({ name: file.name, filename: uniqueName });
+      }
+
+      res.json({ files: savedFiles });
+    } catch (err) {
+      console.error('Sound upload error:', err);
+      res.status(500).json({ message: 'Failed to upload sounds' });
+    }
   });
 
   // === PACKAGE ROUTES ===
