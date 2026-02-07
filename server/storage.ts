@@ -67,6 +67,7 @@ export interface IStorage {
   getUserByToken(token: string): Promise<User | undefined>;
   deleteAuthToken(token: string): Promise<void>;
   deleteUserTokens(userId: string): Promise<void>;
+  cleanupExpiredTokens(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -307,6 +308,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserTokens(userId: string): Promise<void> {
     await db.delete(authTokens).where(eq(authTokens.userId, userId));
+  }
+
+  async cleanupExpiredTokens(): Promise<void> {
+    await db.delete(authTokens).where(
+      sql`${authTokens.expiresAt} <= NOW()`
+    );
   }
 }
 

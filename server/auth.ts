@@ -333,6 +333,9 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
+      // Cleanup expired tokens periodically (piggyback on login)
+      storage.cleanupExpiredTokens().catch(() => {});
+
       // Create auth token for cookie-free auth (works in iframes)
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days

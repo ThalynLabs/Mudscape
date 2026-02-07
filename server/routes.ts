@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
+import * as dns from "dns";
 import OpenAI from "openai";
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter, getSessionMiddleware } from "./auth";
 import { setSocketIO } from "./index";
@@ -686,7 +687,7 @@ Guidelines:
       }
     }
 
-    socket.on('mud:connect', (data: { host: string; port: number; encoding?: string; gmcp?: boolean }) => {
+    socket.on('mud:connect', async (data: { host: string; port: number; encoding?: string; gmcp?: boolean }) => {
       try {
         if (!data.host || !data.port) {
           socket.emit('error', { message: 'Host and port are required' });
@@ -706,10 +707,27 @@ Guidelines:
         }
 
         const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
-        const isPrivateIP = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host);
-        if (blockedHosts.includes(host.toLowerCase()) || isPrivateIP) {
+        const isPrivateIP = (ip: string) =>
+          /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|fc|fd|fe80)/.test(ip) ||
+          ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0';
+
+        if (blockedHosts.includes(host.toLowerCase()) || isPrivateIP(host)) {
           socket.emit('error', { message: 'Connections to local/private addresses are not allowed' });
           return;
+        }
+
+        // Resolve DNS to check for rebinding attacks (hostname pointing to private IP)
+        if (!net.isIP(host)) {
+          try {
+            const results = await dns.promises.lookup(host, { all: true });
+            if (results.some(r => isPrivateIP(r.address))) {
+              socket.emit('error', { message: 'Connections to local/private addresses are not allowed' });
+              return;
+            }
+          } catch {
+            socket.emit('error', { message: 'Could not resolve hostname' });
+            return;
+          }
         }
 
         if (tcpSocket) {
