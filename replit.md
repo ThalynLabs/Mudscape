@@ -111,6 +111,13 @@ Preferred communication style: Simple, everyday language.
 - **Framer Motion**: UI animations.
 - **Lucide React**: Icon library.
 
+### Auto-Update System
+- **Update Checker**: Background service (server/update-checker.ts) polls GitHub every 6 hours for new versions by comparing package.json semver.
+- **Update Dialog**: On startup, admins see a dialog if an update is available with Install/Cancel options.
+- **Install Flow**: `git pull --ff-only` → `npm install --production` → `npm run db:push`, all async (non-blocking) via spawned processes.
+- **Restart**: After successful install, a "Restart Now" button triggers `process.exit(0)` which process managers (PM2/Docker/systemd) will auto-restart.
+- **Endpoints**: GET/POST `/api/update-check` (authenticated), POST `/api/update-install` (admin-only), POST `/api/restart` (admin-only).
+
 ### Build & Development
 - **Vite**: Frontend build tool.
 - **esbuild**: Server bundling.

@@ -6,9 +6,9 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as net from "net";
 import OpenAI from "openai";
-import { setupAuth, registerAuthRoutes, isAuthenticated, aiLimiter } from "./auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, aiLimiter } from "./auth";
 import { setSocketIO } from "./index";
-import { startUpdateChecker, getUpdateInfo, checkForUpdates } from "./update-checker";
+import { startUpdateChecker, getUpdateInfo, checkForUpdates, installUpdate } from "./update-checker";
 
 // Telnet constants
 const IAC = 255;
@@ -205,6 +205,26 @@ export async function registerRoutes(
   app.post('/api/update-check', isAuthenticated, async (_req, res) => {
     const info = await checkForUpdates();
     res.json(info);
+  });
+
+  app.post('/api/update-install', isAuthenticated, isAdmin, async (_req, res) => {
+    const steps: any[] = [];
+    try {
+      const result = await installUpdate((progress) => {
+        steps.push(progress);
+      });
+      res.json({ steps, result });
+    } catch (err: any) {
+      res.status(500).json({ steps, result: { status: "error", message: err.message || "Unknown error" } });
+    }
+  });
+
+  app.post('/api/restart', isAuthenticated, isAdmin, async (_req, res) => {
+    res.json({ message: "Server restarting..." });
+    setTimeout(() => {
+      console.log("Restart requested by admin. Exiting process...");
+      process.exit(0);
+    }, 1000);
   });
 
   // === AI SCRIPT GENERATION ===

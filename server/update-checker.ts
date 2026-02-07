@@ -1,5 +1,6 @@
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { spawn } from "child_process";
 
 const REPO_OWNER = "ThalynLabs";
 const REPO_NAME = "Mudscape";
@@ -110,5 +111,90 @@ export function stopUpdateChecker(): void {
   if (checkTimer) {
     clearInterval(checkTimer);
     checkTimer = null;
+  }
+}
+
+export interface InstallProgress {
+  status: "idle" | "pulling" | "installing" | "migrating" | "complete" | "error";
+  message: string;
+  details?: string;
+}
+
+let installInProgress = false;
+
+function runCommand(cmd: string, args: string[], cwd: string, timeoutMs: number): Promise<{ code: number; output: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      reject(new Error(`Command timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
+
+    child.stdout.on("data", (d: Buffer) => { output += d.toString(); });
+    child.stderr.on("data", (d: Buffer) => { output += d.toString(); });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? 1, output });
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+export async function installUpdate(onProgress: (progress: InstallProgress) => void): Promise<InstallProgress> {
+  if (installInProgress) {
+    const p: InstallProgress = { status: "error", message: "An update is already in progress" };
+    onProgress(p);
+    return p;
+  }
+
+  const cwd = process.cwd();
+
+  if (!existsSync(join(cwd, ".git"))) {
+    const p: InstallProgress = { status: "error", message: "Not a git repository. Update must be done manually." };
+    onProgress(p);
+    return p;
+  }
+
+  installInProgress = true;
+
+  try {
+    onProgress({ status: "pulling", message: "Pulling latest code from GitHub..." });
+    const pull = await runCommand("git", ["pull", "--ff-only"], cwd, 60000);
+    if (pull.code !== 0) throw new Error(`git pull failed: ${pull.output.slice(-500)}`);
+    onProgress({ status: "pulling", message: "Code updated", details: pull.output.trim().slice(-500) });
+
+    onProgress({ status: "installing", message: "Installing dependencies..." });
+    const inst = await runCommand("npm", ["install", "--production"], cwd, 120000);
+    if (inst.code !== 0) throw new Error(`npm install failed: ${inst.output.slice(-500)}`);
+    onProgress({ status: "installing", message: "Dependencies installed", details: inst.output.slice(-500) });
+
+    onProgress({ status: "migrating", message: "Running database migrations..." });
+    try {
+      const migrate = await runCommand("npm", ["run", "db:push"], cwd, 60000);
+      onProgress({ status: "migrating", message: "Migrations complete", details: migrate.output.slice(-500) });
+    } catch {
+      onProgress({ status: "migrating", message: "Migration warning (may not be needed)" });
+    }
+
+    updateInfo.updateAvailable = false;
+    updateInfo.currentVersion = getLocalVersion();
+
+    const result: InstallProgress = { status: "complete", message: "Update installed successfully. Restart to apply changes." };
+    onProgress(result);
+    installInProgress = false;
+    return result;
+  } catch (err: any) {
+    installInProgress = false;
+    const result: InstallProgress = {
+      status: "error",
+      message: "Update failed",
+      details: err.message || String(err),
+    };
+    onProgress(result);
+    return result;
   }
 }
