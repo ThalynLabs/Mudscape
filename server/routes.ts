@@ -654,12 +654,16 @@ Guidelines:
   // Force polling first as Replit's proxy may not forward WebSocket upgrades on custom paths
   // Use /api/socket path to avoid Replit proxy interference
   const isProduction = process.env.NODE_ENV === 'production';
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+    : false;
   
   const io = new SocketIOServer(httpServer, {
     path: '/api/socket',
     cors: {
-      origin: isProduction ? false : '*',
-      methods: ['GET', 'POST', 'OPTIONS'],
+      origin: isProduction ? allowedOrigins : true,
+      methods: ['GET', 'POST'],
+      credentials: true,
     },
     transports: ['polling', 'websocket'],
     allowEIO3: true,

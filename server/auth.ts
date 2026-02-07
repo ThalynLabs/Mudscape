@@ -104,6 +104,7 @@ export function setupAuth(app: Express): void {
   // Trust proxy for proper secure cookies behind reverse proxy
   app.set('trust proxy', 1);
 
+  const isReplitEnv = !!process.env.REPL_ID;
   const sessionMw = session({
     store: new PgSession({
       pool,
@@ -119,7 +120,7 @@ export function setupAuth(app: Express): void {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: isReplitEnv ? "none" as const : "lax" as const,
     },
   });
 
@@ -435,8 +436,19 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  const updateUserSchema = z.object({
+    username: z.string().min(3).max(50).optional(),
+    password: z.string().min(6).max(100).optional(),
+    isAdmin: z.boolean().optional(),
+  });
+
   app.put("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
+      const parsed = updateUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+
       const userId = req.params.id as string;
       const dbUser = await storage.getUser(userId);
       
@@ -446,23 +458,23 @@ export function registerAuthRoutes(app: Express): void {
 
       const updates: Record<string, unknown> = {};
       
-      if (req.body.username !== undefined) {
-        const existingUser = await storage.getUserByUsername(req.body.username);
+      if (parsed.data.username !== undefined) {
+        const existingUser = await storage.getUserByUsername(parsed.data.username);
         if (existingUser && existingUser.id !== userId) {
           return res.status(409).json({ message: "Username already taken" });
         }
-        updates.username = req.body.username;
+        updates.username = parsed.data.username;
       }
       
-      if (req.body.password !== undefined && req.body.password.length >= 6) {
-        updates.passwordHash = await hashPassword(req.body.password);
+      if (parsed.data.password !== undefined) {
+        updates.passwordHash = await hashPassword(parsed.data.password);
       }
       
-      if (req.body.isAdmin !== undefined) {
-        if (req.authUser!.id === userId && req.body.isAdmin === false) {
+      if (parsed.data.isAdmin !== undefined) {
+        if (req.authUser!.id === userId && parsed.data.isAdmin === false) {
           return res.status(400).json({ message: "Cannot remove your own admin status" });
         }
-        updates.isAdmin = req.body.isAdmin;
+        updates.isAdmin = parsed.data.isAdmin;
       }
 
       const updated = await storage.updateUser(userId, updates);
@@ -547,6 +559,16 @@ export function registerAuthRoutes(app: Express): void {
     });
   });
 
+  const setupSchema = z.object({
+    accountMode: z.enum(["single", "multi"]),
+    appName: z.string().min(1).max(100).optional(),
+    adminUsername: z.string().min(3).max(50).optional(),
+    adminPassword: z.string().min(6).max(100).optional(),
+  }).refine(
+    (data) => data.accountMode !== "multi" || (data.adminUsername && data.adminPassword),
+    { message: "Admin credentials required for multi-user mode" }
+  );
+
   app.post("/api/install/setup", async (req, res) => {
     try {
       const config = await storage.getAppConfig();
@@ -559,21 +581,14 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(400).json({ message: "Users already exist" });
       }
 
-      const { accountMode, appName, adminUsername, adminPassword } = req.body;
-      
-      if (accountMode === "multi") {
-        if (!adminUsername || !adminPassword) {
-          return res.status(400).json({ message: "Admin credentials required for multi-user mode" });
-        }
-        
-        if (adminUsername.length < 3) {
-          return res.status(400).json({ message: "Username must be at least 3 characters" });
-        }
-        
-        if (adminPassword.length < 6) {
-          return res.status(400).json({ message: "Password must be at least 6 characters" });
-        }
+      const parsed = setupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
 
+      const { accountMode, appName, adminUsername, adminPassword } = parsed.data;
+      
+      if (accountMode === "multi" && adminUsername && adminPassword) {
         const passwordHash = await hashPassword(adminPassword);
         const user = await storage.createUser({
           id: uuidv4(),

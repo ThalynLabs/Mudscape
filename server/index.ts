@@ -61,7 +61,12 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const sensitiveRoutes = ['/api/auth/login', '/api/auth/register', '/api/install/setup'];
+        if (sensitiveRoutes.some(r => path.startsWith(r))) {
+          logLine += ` :: [response redacted]`;
+        } else {
+          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        }
       }
 
       log(logLine);
