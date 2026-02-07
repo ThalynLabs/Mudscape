@@ -614,6 +614,9 @@ fi
 # Now set production mode in .env for runtime
 echo "NODE_ENV=production" >> .env
 
+# Export DATABASE_URL so node scripts can access it
+export DATABASE_URL
+
 # Mark installation as complete in app_config
 echo "  Finalizing installation..."
 node -e "
