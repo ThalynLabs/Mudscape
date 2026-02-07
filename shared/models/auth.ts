@@ -45,6 +45,13 @@ export const appConfig = pgTable("app_config", {
   installed: boolean("installed").default(false),
 });
 
+export const authTokens = pgTable("auth_tokens", {
+  token: varchar("token").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users);
 export const insertAppConfigSchema = createInsertSchema(appConfig);
@@ -53,3 +60,4 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type AppConfig = typeof appConfig.$inferSelect;
 export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;
+export type AuthToken = typeof authTokens.$inferSelect;

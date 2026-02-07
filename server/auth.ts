@@ -125,21 +125,6 @@ export function setupAuth(app: Express): void {
 
   _sessionMiddleware = sessionMw;
 
-  // Debug: log cookie headers on auth requests
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.includes('/api/auth')) {
-      console.log(`[auth-debug] ${req.method} ${req.path} | cookies: ${req.headers.cookie || 'NONE'} | x-forwarded-proto: ${req.headers['x-forwarded-proto'] || 'NONE'} | origin: ${req.headers.origin || 'NONE'} | referer: ${req.headers.referer || 'NONE'}`);
-      const origSetHeader = res.setHeader.bind(res);
-      res.setHeader = function(name: string, value: any) {
-        if (name.toLowerCase() === 'set-cookie') {
-          console.log(`[auth-debug] Set-Cookie response: ${value}`);
-        }
-        return origSetHeader(name, value);
-      };
-    }
-    next();
-  });
-
   // Skip session middleware for Socket.IO requests to avoid interfering with polling
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/socket')) {
@@ -148,11 +133,29 @@ export function setupAuth(app: Express): void {
     sessionMw(req, res, next);
   });
 
-  // Skip auth user lookup for Socket.IO requests
+  // Auth user lookup: check Bearer token first, then session cookie
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/socket')) {
       return next();
     }
+
+    // Check Bearer token (works in iframes / cross-origin contexts)
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const dbUser = await storage.getUserByToken(token);
+      if (dbUser && dbUser.username) {
+        req.authUser = {
+          id: dbUser.id,
+          username: dbUser.username,
+          isAdmin: dbUser.isAdmin || false,
+          claims: { sub: dbUser.id },
+        };
+        return next();
+      }
+    }
+
+    // Fallback: session cookie
     if (req.session?.userId) {
       const dbUser = await storage.getUser(req.session.userId);
       if (dbUser && dbUser.username) {
@@ -193,7 +196,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
     return next();
   }
   
-  if (req.session.userId && req.authUser) {
+  if (req.authUser) {
     return next();
   }
   res.status(401).json({ message: "Authentication required" });
@@ -225,7 +228,7 @@ export function registerAuthRoutes(app: Express): void {
       });
     }
     
-    if (req.session.userId && req.authUser) {
+    if (req.authUser) {
       return res.json({
         authenticated: true,
         accountMode: config?.accountMode || "multi",
@@ -280,6 +283,11 @@ export function registerAuthRoutes(app: Express): void {
         await storage.updateAppConfig({ installed: true });
       }
 
+      // Create auth token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await storage.createAuthToken(token, user.id, expiresAt);
+
       req.session.userId = user.id;
       req.session.isAdmin = user.isAdmin || false;
       
@@ -294,6 +302,7 @@ export function registerAuthRoutes(app: Express): void {
         id: user.id,
         username: user.username,
         isAdmin: user.isAdmin,
+        token,
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -324,6 +333,12 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
+      // Create auth token for cookie-free auth (works in iframes)
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      await storage.createAuthToken(token, user.id, expiresAt);
+
+      // Also set session cookie as fallback for self-hosted users
       req.session.userId = user.id;
       req.session.isAdmin = user.isAdmin || false;
       
@@ -338,6 +353,7 @@ export function registerAuthRoutes(app: Express): void {
         id: user.id,
         username: user.username,
         isAdmin: user.isAdmin,
+        token,
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -348,7 +364,14 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", async (req, res) => {
+    // Delete bearer token if provided
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      await storage.deleteAuthToken(token);
+    }
+
     req.session.destroy((err) => {
       if (err) {
         console.error("Logout error:", err);

@@ -15,8 +15,8 @@ import {
   type InsertPackage,
   DEFAULT_GLOBAL_SETTINGS,
 } from "@shared/schema";
-import { users, appConfig, type User, type UpsertUser, type AppConfig } from "@shared/models/auth";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { users, appConfig, authTokens, type User, type UpsertUser, type AppConfig } from "@shared/models/auth";
+import { eq, and, desc, sql, gt } from "drizzle-orm";
 
 export interface IStorage {
   // Profiles
@@ -61,6 +61,12 @@ export interface IStorage {
   getAppConfig(): Promise<AppConfig | undefined>;
   createAppConfig(config: Partial<AppConfig>): Promise<AppConfig>;
   updateAppConfig(updates: Partial<AppConfig>): Promise<AppConfig>;
+
+  // Auth Tokens
+  createAuthToken(token: string, userId: string, expiresAt: Date): Promise<void>;
+  getUserByToken(token: string): Promise<User | undefined>;
+  deleteAuthToken(token: string): Promise<void>;
+  deleteUserTokens(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -279,6 +285,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(appConfig.id, existing.id))
       .returning();
     return updated;
+  }
+
+  // Auth Tokens
+  async createAuthToken(token: string, userId: string, expiresAt: Date): Promise<void> {
+    await db.insert(authTokens).values({ token, userId, expiresAt });
+  }
+
+  async getUserByToken(token: string): Promise<User | undefined> {
+    const [row] = await db
+      .select()
+      .from(authTokens)
+      .where(and(eq(authTokens.token, token), gt(authTokens.expiresAt, new Date())));
+    if (!row) return undefined;
+    return this.getUser(row.userId);
+  }
+
+  async deleteAuthToken(token: string): Promise<void> {
+    await db.delete(authTokens).where(eq(authTokens.token, token));
+  }
+
+  async deleteUserTokens(userId: string): Promise<void> {
+    await db.delete(authTokens).where(eq(authTokens.userId, userId));
   }
 }
 

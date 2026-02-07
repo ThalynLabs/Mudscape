@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, setAuthToken, clearAuthToken } from "@/lib/queryClient";
 
 export interface AuthUser {
   id: string;
@@ -28,7 +28,10 @@ export function useAuth() {
       const res = await apiRequest("POST", "/api/auth/login", { username, password });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { token?: string }) => {
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
     },
   });
@@ -38,7 +41,10 @@ export function useAuth() {
       const res = await apiRequest("POST", "/api/auth/register", { username, password });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { token?: string }) => {
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
     },
   });
@@ -49,6 +55,7 @@ export function useAuth() {
       return res.json();
     },
     onSuccess: () => {
+      clearAuthToken();
       queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
     },
   });

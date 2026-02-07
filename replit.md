@@ -33,14 +33,16 @@ Preferred communication style: Simple, everyday language.
   - **Single-user mode**: No login required, all access treated as admin
   - **Multi-user mode**: Username/password authentication with registration
 - **Password Security**: bcrypt with 10 salt rounds
-- **Session Storage**: PostgreSQL via connect-pg-simple
+- **Auth Method**: Dual auth - Bearer token (primary, stored in localStorage as `mudscape_auth_token`) + session cookie (fallback for self-hosted). Token auth was needed because Replit's iframe context blocks third-party cookies.
+- **Auth Tokens**: Stored in `auth_tokens` table, 7-day expiry, checked via `Authorization: Bearer <token>` header.
+- **Session Storage**: PostgreSQL via connect-pg-simple (cookie fallback)
 - **First User**: First account created during setup becomes admin
 - **Admin Features**: User management (CRUD), promote/demote admin, toggle registration
 - **Installation Wizard**: Initial setup (/setup) allows choosing account mode and creating admin account
 - **Routes**:
-  - POST /api/auth/login - Login with username/password
-  - POST /api/auth/logout - Session invalidation
-  - POST /api/auth/register - New user registration (if enabled)
+  - POST /api/auth/login - Login with username/password (returns token in response body)
+  - POST /api/auth/logout - Token + session invalidation
+  - POST /api/auth/register - New user registration (if enabled, returns token)
   - GET /api/auth/status - Current auth state and user info
   - POST /api/install/setup - Initial installation
   - GET/POST/PUT/DELETE /api/admin/* - Admin user management
