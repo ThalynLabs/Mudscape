@@ -101,6 +101,8 @@ export interface GlobalSettings {
   keepInputOnSend?: boolean; // Don't clear input field after sending command
   stripSymbols?: boolean; // Remove decorative symbols for screen readers
   screenReaderAnnounce?: boolean; // Use ARIA live regions for NVDA/JAWS announcements
+  linkifyUrls?: boolean; // Make URLs in output clickable
+  linkTarget?: 'tab' | 'window'; // Open links in new tab or new window
   
   // Automation settings
   triggersEnabled?: boolean;
@@ -139,6 +141,8 @@ export interface ProfileSettings {
   keepInputOnSend?: boolean | null;
   stripSymbols?: boolean | null;
   screenReaderAnnounce?: boolean | null; // Use ARIA live regions for NVDA/JAWS announcements
+  linkifyUrls?: boolean | null;
+  linkTarget?: 'tab' | 'window' | null;
   
   // Automation settings (null = use global)
   triggersEnabled?: boolean | null;
@@ -292,6 +296,8 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   showInputEcho: true,
   keepInputOnSend: false,
   stripSymbols: false,
+  linkifyUrls: true,
+  linkTarget: 'tab',
   triggersEnabled: true,
   aliasesEnabled: true,
   commandPrefix: '/',

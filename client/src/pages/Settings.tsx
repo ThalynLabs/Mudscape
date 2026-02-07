@@ -404,6 +404,39 @@ function DisplaySettingsCard({
             onCheckedChange={(checked) => updateSetting('stripSymbols', checked)}
           />
         </SettingRow>
+
+        <SettingRow 
+          label="Clickable Links" 
+          description="Make URLs in output clickable"
+          isOverridden={isOverridden('linkifyUrls')}
+          onReset={() => onResetSetting?.('linkifyUrls')}
+        >
+          <Switch
+            data-testid="switch-linkify-urls"
+            checked={settings.linkifyUrls ?? true}
+            onCheckedChange={(checked) => updateSetting('linkifyUrls', checked)}
+          />
+        </SettingRow>
+
+        <SettingRow 
+          label="Links Open In" 
+          description="Choose how clicked links open"
+          isOverridden={isOverridden('linkTarget')}
+          onReset={() => onResetSetting?.('linkTarget')}
+        >
+          <Select
+            value={settings.linkTarget ?? 'tab'}
+            onValueChange={(value) => updateSetting('linkTarget', value)}
+          >
+            <SelectTrigger className="w-36" data-testid="select-link-target">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tab">New Tab</SelectItem>
+              <SelectItem value="window">New Window</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingRow>
       </CardContent>
     </Card>
   );

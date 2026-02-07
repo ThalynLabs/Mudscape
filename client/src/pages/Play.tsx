@@ -1671,6 +1671,8 @@ export default function Play() {
             <TerminalLine 
               content={line} 
               stripSymbols={settings.stripSymbols}
+              linkifyUrls={settings.linkifyUrls ?? true}
+              linkTarget={settings.linkTarget ?? 'tab'}
               className={clsx(
                 "px-4 py-0.5",
                 settings.highContrast && "bg-black text-white"
