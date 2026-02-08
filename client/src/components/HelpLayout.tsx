@@ -12,7 +12,8 @@ import {
   Music,
   Package,
   Bot,
-  BookOpen
+  BookOpen,
+  Import
 } from "lucide-react";
 
 const sections = [
@@ -24,6 +25,7 @@ const sections = [
   { id: "automation", label: "Triggers & Aliases", icon: BookOpen, path: "/help/automation" },
   { id: "sounds", label: "Sound System", icon: Music, path: "/help/sounds" },
   { id: "packages", label: "Package Manager", icon: Package, path: "/help/packages" },
+  { id: "importing", label: "Importing from Other Clients", icon: Import, path: "/help/importing" },
   { id: "ai-assistant", label: "AI Script Assistant", icon: Bot, path: "/help/ai-assistant" },
   { id: "settings", label: "Settings", icon: Settings, path: "/help/settings" },
 ];

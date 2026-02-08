@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpLayout } from "@/components/HelpLayout";
+import { Link } from "wouter";
 
 export default function Packages() {
   return (
@@ -65,94 +66,20 @@ export default function Packages() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Importing Mudlet Packages</CardTitle>
+            <CardTitle>Importing from Other MUD Clients</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p>
-              Mudscape can import packages created with Mudlet, making it easy to migrate 
-              your existing automation:
-            </p>
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Open the Package Manager</li>
-              <li>Click "Import Mudlet Package"</li>
-              <li>Select a <code className="bg-muted px-1 rounded">.mpackage</code>, 
-                  <code className="bg-muted px-1 rounded">.zip</code>, or 
-                  <code className="bg-muted px-1 rounded">.xml</code> file</li>
-              <li>Preview the imported contents</li>
-              <li>Choose to save to library or install directly</li>
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Mudlet Compatibility</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p>
-              Mudscape converts the following Mudlet automation items:
+              Mudscape can import scripts and sounds from other MUD clients:
             </p>
             <ul className="list-disc list-inside space-y-1">
-              <li><strong>Triggers</strong> - Pattern matching with regex or substring</li>
-              <li><strong>Aliases</strong> - Command shortcuts and macros</li>
-              <li><strong>Timers</strong> - Scheduled execution (one-shot or repeating)</li>
-              <li><strong>Keybindings</strong> - Keyboard shortcuts</li>
-              <li><strong>Buttons</strong> - Clickable action buttons</li>
-              <li><strong>Scripts</strong> - Lua code (preserved as-is)</li>
-              <li><strong>Classes/Folders</strong> - Organizational groups</li>
+              <li><strong>Mudlet</strong> &mdash; .mpackage, .zip, .xml (triggers, aliases, timers, keybindings, sounds)</li>
+              <li><strong>TinTin++</strong> &mdash; .tt, .tin, .txt config files + sound files (triggers, aliases, timers, sounds)</li>
+              <li><strong>VIPMud</strong> &mdash; .set, .cfg files (triggers, aliases, keybindings)</li>
             </ul>
             <p className="text-sm text-muted-foreground mt-2">
-              Lua scripts work in both clients, so your automation logic transfers directly.
-              Folder hierarchy is preserved - items stay grouped as they were in Mudlet.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Importing TinTin++ Configs</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p>
-              Mudscape can import TinTin++ configuration files:
-            </p>
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Open the Package Manager</li>
-              <li>Click "Import TinTin++"</li>
-              <li>Select a <code className="bg-muted px-1 rounded">.tt</code>, 
-                  <code className="bg-muted px-1 rounded">.tin</code>, or 
-                  <code className="bg-muted px-1 rounded">.txt</code> file</li>
-              <li>Preview the imported contents</li>
-              <li>Choose to save to library or install directly</li>
-            </ol>
-            <p className="text-sm text-muted-foreground mt-2">
-              Supported TinTin++ commands: #action (triggers), #alias, #ticker (timers).
-              For triggers, wildcards %0-%9 are fully supported (%0 = full line, %1-%9 = capture groups).
-              For aliases, %0 captures all arguments; individual word capture (%1-%9) is not available.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Importing VIPMud Configs</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p>
-              Mudscape can import VIPMud .SET configuration files:
-            </p>
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Open the Package Manager</li>
-              <li>Click "Import VIPMud"</li>
-              <li>Select a <code className="bg-muted px-1 rounded">.set</code> or
-                  <code className="bg-muted px-1 rounded">.cfg</code> file</li>
-              <li>Preview the imported contents</li>
-              <li>Choose to save to library or install directly</li>
-            </ol>
-            <p className="text-sm text-muted-foreground mt-2">
-              Supported VIPMud commands: #TRIGGER, #ALIAS, #KEY.
-              The * wildcard is converted to regex and @variable references 
-              are converted to getVariable() calls.
+              For detailed step-by-step instructions on importing from each client, 
+              see the <Link href="/help/importing" className="text-primary underline">Importing from Other Clients</Link> help page.
             </p>
           </CardContent>
         </Card>

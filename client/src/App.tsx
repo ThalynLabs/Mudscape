@@ -23,6 +23,7 @@ import Sounds from "@/pages/help/Sounds";
 import Packages from "@/pages/help/Packages";
 import AIAssistant from "@/pages/help/AIAssistant";
 import SettingsHelp from "@/pages/help/SettingsHelp";
+import Importing from "@/pages/help/Importing";
 import PackageRepo from "@/pages/PackageRepo";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -125,6 +126,7 @@ function Router() {
         <Route path="/help/automation" component={Automation} />
         <Route path="/help/sounds" component={Sounds} />
         <Route path="/help/packages" component={Packages} />
+        <Route path="/help/importing" component={Importing} />
         <Route path="/help/ai-assistant" component={AIAssistant} />
         <Route path="/help/settings" component={SettingsHelp} />
         <Route component={NotFound} />
