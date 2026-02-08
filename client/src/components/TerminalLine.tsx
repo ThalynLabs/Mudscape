@@ -3,7 +3,7 @@ import Anser from 'anser';
 import { clsx } from 'clsx';
 import { stripSymbolsForScreenReader } from '@/lib/text-utils';
 
-const URL_REGEX = /(https?:\/\/[^\s<>"')\]},;!?]+[^\s<>"')\]},;!?.:])/g;
+const URL_REGEX = /(https?:\/\/[^\s<>"')\]}]+[^\s<>"')\]}.,:;!?])/g;
 
 interface TerminalLineProps {
   content: string;

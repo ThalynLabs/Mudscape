@@ -24,6 +24,10 @@ export default function Keyboard() {
                   <td className="py-2">Read the 1st through 9th most recent line</td>
                 </tr>
                 <tr>
+                  <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl+1</kbd> twice quickly</td>
+                  <td className="py-2">Copy that line to clipboard (double-tap within 400ms)</td>
+                </tr>
+                <tr>
                   <td className="py-2 pr-4"><kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl</kbd> <kbd className="bg-muted px-2 py-0.5 rounded text-sm">Ctrl</kbd> (double-tap)</td>
                   <td className="py-2">Pause/resume speech</td>
                 </tr>

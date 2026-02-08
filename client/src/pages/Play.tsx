@@ -1039,6 +1039,7 @@ export default function Play() {
   // Track if only Ctrl was pressed (no other keys)
   const ctrlOnlyRef = useRef(true);
   const lastCtrlTapRef = useRef<number>(0);
+  const lastCtrlNumRef = useRef<{ key: number; time: number }>({ key: 0, time: 0 });
 
   // Fetch active soundpack
   const { data: activeSoundpack } = useQuery<SoundpackRow>({
@@ -1095,6 +1096,7 @@ export default function Play() {
       }
 
       // Ctrl + number keys (1-9) to read recent lines
+      // Double-tap same Ctrl+N within 400ms to copy that line to clipboard
       if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
         const num = parseInt(e.key);
         if (num >= 1 && num <= 9) {
@@ -1102,7 +1104,19 @@ export default function Play() {
           const lineIndex = lines.length - num;
           if (lineIndex >= 0 && lines[lineIndex]) {
             const cleanLine = stripAnsi(lines[lineIndex]);
-            speakLine(cleanLine);
+            const now = Date.now();
+            const last = lastCtrlNumRef.current;
+            if (last.key === num && now - last.time < 400) {
+              navigator.clipboard.writeText(cleanLine).then(() => {
+                speakLine('Copied to clipboard');
+              }).catch(() => {
+                speakLine(cleanLine);
+              });
+              lastCtrlNumRef.current = { key: 0, time: 0 };
+            } else {
+              speakLine(cleanLine);
+              lastCtrlNumRef.current = { key: num, time: now };
+            }
           }
           return;
         }
