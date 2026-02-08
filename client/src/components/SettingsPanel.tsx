@@ -43,12 +43,11 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="font-scale">Font Scale</Label>
+                  <Label id="label-font-scale">Font Scale</Label>
                   <span className="text-xs font-mono" aria-hidden="true">{settings.fontScale || 1}x</span>
                 </div>
                 <Slider
-                  id="font-scale"
-                  aria-label={`Font Scale, currently ${settings.fontScale || 1}x`}
+                  aria-label={`Font Scale, ${settings.fontScale || 1}x`}
                   min={0.8}
                   max={2.0}
                   step={0.1}
@@ -60,12 +59,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="high-contrast">High Contrast Mode</Label>
-                  <p className="text-xs text-muted-foreground" id="high-contrast-desc">Removes background colors for readability</p>
+                  <Label id="label-high-contrast">High Contrast Mode</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-high-contrast">Removes background colors for readability</p>
                 </div>
                 <Switch
-                  id="high-contrast"
-                  aria-describedby="high-contrast-desc"
+                  aria-label="High Contrast Mode"
+                  aria-describedby="desc-high-contrast"
                   checked={settings.highContrast ?? false}
                   onCheckedChange={(val) => updateSetting('highContrast', val)}
                   data-testid="switch-high-contrast"
@@ -79,12 +78,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="speech-enabled">Text-to-Speech</Label>
-                  <p className="text-xs text-muted-foreground" id="speech-enabled-desc">Read new lines aloud automatically</p>
+                  <Label id="label-speech-enabled">Text-to-Speech</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-speech-enabled">Read new lines aloud automatically</p>
                 </div>
                 <Switch
-                  id="speech-enabled"
-                  aria-describedby="speech-enabled-desc"
+                  aria-label="Text-to-Speech"
+                  aria-describedby="desc-speech-enabled"
                   checked={settings.speechEnabled ?? false}
                   onCheckedChange={(val) => updateSetting('speechEnabled', val)}
                   data-testid="switch-speech-enabled"
@@ -94,12 +93,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
               {settings.speechEnabled && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="speech-voice">Voice</Label>
+                    <Label id="label-speech-voice">Voice</Label>
                     <Select
                       value={settings.speechVoice ?? undefined}
                       onValueChange={(val) => updateSetting('speechVoice', val)}
                     >
-                      <SelectTrigger id="speech-voice" data-testid="select-speech-voice">
+                      <SelectTrigger aria-label="Voice" aria-labelledby="label-speech-voice" data-testid="select-speech-voice">
                         <SelectValue placeholder="Select a voice" />
                       </SelectTrigger>
                       <SelectContent>
@@ -114,12 +113,11 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="speech-rate">Speech Rate</Label>
+                      <Label id="label-speech-rate">Speech Rate</Label>
                       <span className="text-xs font-mono" aria-hidden="true">{settings.speechRate || 1}x</span>
                     </div>
                     <Slider
-                      id="speech-rate"
-                      aria-label={`Speech Rate, currently ${settings.speechRate || 1}x`}
+                      aria-label={`Speech Rate, ${settings.speechRate || 1}x`}
                       min={0.5}
                       max={3.0}
                       step={0.1}
@@ -131,12 +129,11 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="speech-volume">Speech Volume</Label>
+                      <Label id="label-speech-volume">Speech Volume</Label>
                       <span className="text-xs font-mono" aria-hidden="true">{Math.round((settings.speechVolume || 1) * 100)}%</span>
                     </div>
                     <Slider
-                      id="speech-volume"
-                      aria-label={`Speech Volume, currently ${Math.round((settings.speechVolume || 1) * 100)} percent`}
+                      aria-label={`Speech Volume, ${Math.round((settings.speechVolume || 1) * 100)} percent`}
                       min={0}
                       max={1}
                       step={0.05}
@@ -148,12 +145,11 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="speech-pitch">Speech Pitch</Label>
+                      <Label id="label-speech-pitch">Speech Pitch</Label>
                       <span className="text-xs font-mono" aria-hidden="true">{settings.speechPitch || 1}x</span>
                     </div>
                     <Slider
-                      id="speech-pitch"
-                      aria-label={`Speech Pitch, currently ${settings.speechPitch || 1}x`}
+                      aria-label={`Speech Pitch, ${settings.speechPitch || 1}x`}
                       min={0.5}
                       max={2.0}
                       step={0.1}
@@ -168,12 +164,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
                     
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-0.5">
-                        <Label htmlFor="interrupt-keypress">Interrupt on keypress</Label>
-                        <p className="text-xs text-muted-foreground" id="interrupt-keypress-desc">Stop speech when you type</p>
+                        <Label id="label-interrupt-keypress">Interrupt on keypress</Label>
+                        <p className="text-xs text-muted-foreground" id="desc-interrupt-keypress">Stop speech when you type</p>
                       </div>
                       <Switch
-                        id="interrupt-keypress"
-                        aria-describedby="interrupt-keypress-desc"
+                        aria-label="Interrupt on keypress"
+                        aria-describedby="desc-interrupt-keypress"
                         checked={settings.interruptOnKeypress ?? false}
                         onCheckedChange={(val) => updateSetting('interruptOnKeypress', val)}
                         data-testid="switch-interrupt-keypress"
@@ -182,12 +178,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-0.5">
-                        <Label htmlFor="interrupt-send">Interrupt on send</Label>
-                        <p className="text-xs text-muted-foreground" id="interrupt-send-desc">Stop speech when you press Enter</p>
+                        <Label id="label-interrupt-send">Interrupt on send</Label>
+                        <p className="text-xs text-muted-foreground" id="desc-interrupt-send">Stop speech when you press Enter</p>
                       </div>
                       <Switch
-                        id="interrupt-send"
-                        aria-describedby="interrupt-send-desc"
+                        aria-label="Interrupt on send"
+                        aria-describedby="desc-interrupt-send"
                         checked={settings.interruptOnSend ?? true}
                         onCheckedChange={(val) => updateSetting('interruptOnSend', val)}
                         data-testid="switch-interrupt-send"
@@ -196,12 +192,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-0.5">
-                        <Label htmlFor="interrupt-incoming">Interrupt on incoming</Label>
-                        <p className="text-xs text-muted-foreground" id="interrupt-incoming-desc">Stop speech when new text arrives</p>
+                        <Label id="label-interrupt-incoming">Interrupt on incoming</Label>
+                        <p className="text-xs text-muted-foreground" id="desc-interrupt-incoming">Stop speech when new text arrives</p>
                       </div>
                       <Switch
-                        id="interrupt-incoming"
-                        aria-describedby="interrupt-incoming-desc"
+                        aria-label="Interrupt on incoming"
+                        aria-describedby="desc-interrupt-incoming"
                         checked={settings.interruptOnIncoming ?? false}
                         onCheckedChange={(val) => updateSetting('interruptOnIncoming', val)}
                         data-testid="switch-interrupt-incoming"
@@ -217,12 +213,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="reader-mode">Reader Mode</Label>
-                  <p className="text-xs text-muted-foreground" id="reader-mode-desc">Queue speech until you press Enter</p>
+                  <Label id="label-reader-mode">Reader Mode</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-reader-mode">Queue speech until you press Enter</p>
                 </div>
                 <Switch
-                  id="reader-mode"
-                  aria-describedby="reader-mode-desc"
+                  aria-label="Reader Mode"
+                  aria-describedby="desc-reader-mode"
                   checked={settings.readerMode ?? false}
                   onCheckedChange={(val) => updateSetting('readerMode', val)}
                   data-testid="switch-reader-mode"
@@ -231,12 +227,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="screen-reader-announce">Screen Reader Announcements</Label>
-                  <p className="text-xs text-muted-foreground" id="screen-reader-announce-desc">Use ARIA live regions for NVDA/JAWS auto-speaking</p>
+                  <Label id="label-screen-reader-announce">Screen Reader Announcements</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-screen-reader-announce">Use ARIA live regions for NVDA/JAWS auto-speaking</p>
                 </div>
                 <Switch
-                  id="screen-reader-announce"
-                  aria-describedby="screen-reader-announce-desc"
+                  aria-label="Screen Reader Announcements"
+                  aria-describedby="desc-screen-reader-announce"
                   checked={settings.screenReaderAnnounce ?? false}
                   onCheckedChange={(val) => updateSetting('screenReaderAnnounce', val)}
                   data-testid="switch-screen-reader-announce"
@@ -245,12 +241,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="strip-symbols">Strip Symbols</Label>
-                  <p className="text-xs text-muted-foreground" id="strip-symbols-desc">Remove decorative characters for screen readers</p>
+                  <Label id="label-strip-symbols">Strip Symbols</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-strip-symbols">Remove decorative characters for screen readers</p>
                 </div>
                 <Switch
-                  id="strip-symbols"
-                  aria-describedby="strip-symbols-desc"
+                  aria-label="Strip Symbols"
+                  aria-describedby="desc-strip-symbols"
                   checked={settings.stripSymbols ?? false}
                   onCheckedChange={(val) => updateSetting('stripSymbols', val)}
                   data-testid="switch-strip-symbols"
@@ -263,12 +259,12 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label htmlFor="gmcp-enabled">Enable GMCP</Label>
-                  <p className="text-xs text-muted-foreground" id="gmcp-enabled-desc">Receive structured data from MUD</p>
+                  <Label id="label-gmcp-enabled">Enable GMCP</Label>
+                  <p className="text-xs text-muted-foreground" id="desc-gmcp-enabled">Receive structured data from MUD</p>
                 </div>
                 <Switch
-                  id="gmcp-enabled"
-                  aria-describedby="gmcp-enabled-desc"
+                  aria-label="Enable GMCP"
+                  aria-describedby="desc-gmcp-enabled"
                   checked={settings.gmcpEnabled ?? true}
                   onCheckedChange={(val) => updateSetting('gmcpEnabled', val)}
                   data-testid="switch-gmcp-enabled"
