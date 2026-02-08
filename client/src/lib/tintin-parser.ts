@@ -34,9 +34,38 @@ function buildLuaSendCommand(cmd: string, wildcardReplacer: (num: number) => str
   return `send(${parts.join(' .. ')})`;
 }
 
+const SOUND_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.mid', '.midi']);
+
+function isSoundPlayCommand(cmd: string): { soundName: string } | null {
+  const trimmed = cmd.trim();
+  const systemMatch = trimmed.match(/^#system\s*\{(.+)\}\s*$/i) || trimmed.match(/^#system\s+(.+)$/i);
+  if (!systemMatch) return null;
+
+  const systemCmd = systemMatch[1].trim();
+  const playerMatch = systemCmd.match(/^(?:aplay|play|paplay|mpv|mplayer|vlc|ffplay|sox|afplay|cvlc|powershell.*?SoundPlayer)\s+(.+)/i);
+  if (!playerMatch) return null;
+
+  let filePath = playerMatch[1].trim().replace(/^["']|["']$/g, '').replace(/\s*[&>|].*$/, '').trim();
+  const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+  const ext = '.' + (fileName.split('.').pop() || '').toLowerCase();
+  if (!SOUND_EXTENSIONS.has(ext)) return null;
+
+  const soundName = fileName.replace(/\.[^.]+$/, '');
+  return { soundName };
+}
+
+function convertCommandToLua(cmd: string, wildcardReplacer: (num: number) => string): string {
+  const soundInfo = isSoundPlayCommand(cmd);
+  if (soundInfo) {
+    return `playSound("${escapeLuaString(soundInfo.soundName)}")`;
+  }
+  return buildLuaSendCommand(cmd, wildcardReplacer);
+}
+
 interface ParseContext {
   classes: MudClass[];
   classPathMap: Map<string, string>;
+  referencedSounds: Set<string>;
 }
 
 function getOrCreateClass(name: string, context: ParseContext): string {
@@ -74,6 +103,15 @@ function extractBraces(line: string, startIndex: number): { content: string; end
   return null;
 }
 
+function collectSoundsFromCommands(commands: string[], context: ParseContext) {
+  for (const cmd of commands) {
+    const soundInfo = isSoundPlayCommand(cmd);
+    if (soundInfo) {
+      context.referencedSounds.add(soundInfo.soundName);
+    }
+  }
+}
+
 function parseTinTinLine(line: string, context: ParseContext): {
   triggers: MudTrigger[];
   aliases: MudAlias[];
@@ -102,11 +140,14 @@ function parseTinTinLine(line: string, context: ParseContext): {
         
         const hasVariables = /%\d/.test(command.content);
         const commands = command.content.split(';').filter(c => c.trim());
+        collectSoundsFromCommands(commands, context);
+        
+        const hasSounds = commands.some(c => isSoundPlayCommand(c));
         
         let script: string;
-        if (hasVariables) {
+        if (hasVariables || hasSounds) {
           const luaCommands = commands.map(cmd => 
-            buildLuaSendCommand(cmd.trim(), (num) => {
+            convertCommandToLua(cmd.trim(), (num) => {
               if (num === 0) return '(line or "")';
               return `(matches[${num}] or "")`;
             })
@@ -141,11 +182,14 @@ function parseTinTinLine(line: string, context: ParseContext): {
         
         const hasVariables = /%\d/.test(command.content);
         const commands = command.content.split(';').filter(c => c.trim());
+        collectSoundsFromCommands(commands, context);
+        
+        const hasSounds = commands.some(c => isSoundPlayCommand(c));
         
         let commandValue: string;
-        if (hasVariables) {
+        if (hasVariables || hasSounds) {
           const luaCommands = commands.map(cmd => 
-            buildLuaSendCommand(cmd.trim(), (num) => {
+            convertCommandToLua(cmd.trim(), (num) => {
               if (num === 0) return '(matches[1] or "")';
               return `(matches[${num + 1}] or "")`;
             })
@@ -159,7 +203,7 @@ function parseTinTinLine(line: string, context: ParseContext): {
           id: generateId(),
           pattern: convertedPattern,
           command: commandValue,
-          isScript: hasVariables,
+          isScript: hasVariables || hasSounds,
           active: true,
           classId: undefined,
         });
@@ -181,7 +225,13 @@ function parseTinTinLine(line: string, context: ParseContext): {
         const intervalSeconds = interval ? parseInt(interval.content) : 60;
         
         const timerCommands = command.content.split(';').filter(c => c.trim());
-        const timerScript = `-- Converted from TinTin++\n${timerCommands.map(c => `send("${escapeLuaString(c.trim())}")`).join('\n')}`;
+        collectSoundsFromCommands(timerCommands, context);
+        
+        const timerScript = `-- Converted from TinTin++\n${timerCommands.map(c => {
+          const soundInfo = isSoundPlayCommand(c.trim());
+          if (soundInfo) return `playSound("${escapeLuaString(soundInfo.soundName)}")`;
+          return `send("${escapeLuaString(c.trim())}")`;
+        }).join('\n')}`;
         
         timers.push({
           id: generateId(),
@@ -200,10 +250,21 @@ function parseTinTinLine(line: string, context: ParseContext): {
   return { triggers, aliases, timers };
 }
 
+export interface TinTinParseResult {
+  contents: PackageContents;
+  referencedSounds: string[];
+}
+
 export function parseTinTinConfig(content: string): PackageContents {
+  const result = parseTinTinConfigWithSounds(content);
+  return result.contents;
+}
+
+export function parseTinTinConfigWithSounds(content: string): TinTinParseResult {
   const context: ParseContext = {
     classes: [],
     classPathMap: new Map(),
+    referencedSounds: new Set(),
   };
   
   const contents: PackageContents = {
@@ -226,14 +287,18 @@ export function parseTinTinConfig(content: string): PackageContents {
   
   contents.classes = context.classes;
   
-  return contents;
+  return {
+    contents,
+    referencedSounds: Array.from(context.referencedSounds),
+  };
 }
 
-export function getTinTinImportSummary(contents: PackageContents): string {
+export function getTinTinImportSummary(contents: PackageContents, soundCount?: number): string {
   const parts: string[] = [];
   if (contents.triggers && contents.triggers.length) parts.push(`${contents.triggers.length} triggers`);
   if (contents.aliases && contents.aliases.length) parts.push(`${contents.aliases.length} aliases`);
   if (contents.timers && contents.timers.length) parts.push(`${contents.timers.length} timers`);
   if (contents.classes && contents.classes.length) parts.push(`${contents.classes.length} classes`);
+  if (soundCount && soundCount > 0) parts.push(`${soundCount} sound files`);
   return parts.join(', ') || 'No items found';
 }

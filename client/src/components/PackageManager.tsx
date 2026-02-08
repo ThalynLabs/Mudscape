@@ -12,7 +12,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { parseMudletPackage, getImportSummary } from "@/lib/mudlet-parser";
-import { parseTinTinConfig, getTinTinImportSummary } from "@/lib/tintin-parser";
+import { parseTinTinConfigWithSounds, getTinTinImportSummary } from "@/lib/tintin-parser";
+import type { SoundpackFile } from "@shared/schema";
 import { parseVipMudConfig, getVipMudImportSummary } from "@/lib/vipmud-parser";
 import type { Profile, Package as PackageType, PackageContents } from "@shared/schema";
 
@@ -33,7 +34,8 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
   const [tintinPreviewOpen, setTintinPreviewOpen] = useState(false);
   const [vipmudPreviewOpen, setVipmudPreviewOpen] = useState(false);
   const [mudletImportData, setMudletImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
-  const [tintinImportData, setTintinImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
+  const [tintinImportData, setTintinImportData] = useState<{ name: string; contents: PackageContents; soundFiles: File[]; referencedSounds: string[] } | null>(null);
+  const [tintinInstalling, setTintinInstalling] = useState(false);
   const [vipmudImportData, setVipmudImportData] = useState<{ name: string; contents: PackageContents } | null>(null);
   const [exportName, setExportName] = useState('');
   const [exportDescription, setExportDescription] = useState('');
@@ -312,33 +314,96 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     setMudletImportData(null);
   };
 
-  const handleTintinImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const TINTIN_CONFIG_EXTENSIONS = new Set(['.tt', '.tin', '.tintin', '.txt', '.cfg']);
+  const TINTIN_SOUND_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.mid', '.midi']);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const contents = parseTinTinConfig(content);
-        setTintinImportData({
-          name: file.name.replace(/\.(tt|tin|tintin)$/i, ''),
-          contents,
-        });
-        setTintinPreviewOpen(true);
-      } catch (err) {
-        toast({ 
-          title: "Import failed", 
-          description: "Could not parse TinTin++ config file",
-          variant: "destructive" 
-        });
+  const handleTintinImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const allFiles = Array.from(fileList);
+    const configFiles: File[] = [];
+    const soundFiles: File[] = [];
+
+    for (const file of allFiles) {
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+      if (TINTIN_CONFIG_EXTENSIONS.has(ext)) {
+        configFiles.push(file);
+      } else if (TINTIN_SOUND_EXTENSIONS.has(ext)) {
+        soundFiles.push(file);
       }
-    };
-    reader.readAsText(file);
-    
+    }
+
+    if (configFiles.length === 0 && soundFiles.length === 0) {
+      toast({
+        title: "No supported files",
+        description: "Select TinTin++ config files (.tt, .tin, .txt) and/or sound files (.wav, .mp3, .ogg, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const mergedContents: PackageContents = {
+        triggers: [],
+        aliases: [],
+        timers: [],
+        keybindings: [],
+        buttons: [],
+        classes: [],
+      };
+      const allReferencedSounds: string[] = [];
+
+      for (const file of configFiles) {
+        const content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+
+        const result = parseTinTinConfigWithSounds(content);
+        mergedContents.triggers!.push(...(result.contents.triggers || []));
+        mergedContents.aliases!.push(...(result.contents.aliases || []));
+        mergedContents.timers!.push(...(result.contents.timers || []));
+        mergedContents.classes!.push(...(result.contents.classes || []));
+        allReferencedSounds.push(...result.referencedSounds);
+      }
+
+      const firstName = configFiles.length > 0
+        ? configFiles[0].name.replace(/\.(tt|tin|tintin|txt|cfg)$/i, '')
+        : 'TinTin++ Import';
+
+      setTintinImportData({
+        name: firstName,
+        contents: mergedContents,
+        soundFiles,
+        referencedSounds: Array.from(new Set(allReferencedSounds)),
+      });
+      setTintinPreviewOpen(true);
+    } catch (err) {
+      toast({
+        title: "Import failed",
+        description: "Could not parse TinTin++ config files",
+        variant: "destructive",
+      });
+    }
+
     if (tintinInputRef.current) {
       tintinInputRef.current.value = '';
     }
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1] || '');
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleTintinSaveToLibrary = () => {
@@ -356,16 +421,91 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
     setTintinImportData(null);
   };
 
-  const handleTintinInstallDirect = () => {
+  const handleTintinInstallDirect = async () => {
     if (!tintinImportData) return;
-    
-    installPackageMutation.mutate({
-      id: 0,
-      contents: tintinImportData.contents,
-    });
-    
-    setTintinPreviewOpen(false);
-    setTintinImportData(null);
+    setTintinInstalling(true);
+
+    try {
+      if (tintinImportData.soundFiles.length > 0) {
+        const BATCH_SIZE_BYTES = 1.5 * 1024 * 1024;
+        const BATCH_MAX_FILES = 50;
+        const allSavedFiles: { name: string; filename: string }[] = [];
+        let batch: { name: string; data: string }[] = [];
+        let batchSize = 0;
+
+        for (const file of tintinImportData.soundFiles) {
+          const base64 = await readFileAsBase64(file);
+          const fileSize = base64.length;
+
+          if ((batchSize + fileSize > BATCH_SIZE_BYTES || batch.length >= BATCH_MAX_FILES) && batch.length > 0) {
+            const res = await apiRequest('POST', '/api/sounds/upload', { files: batch });
+            const data = await res.json();
+            if (data.files) allSavedFiles.push(...data.files);
+            batch = [];
+            batchSize = 0;
+          }
+          batch.push({ name: file.name, data: base64 });
+          batchSize += fileSize;
+        }
+        if (batch.length > 0) {
+          const res = await apiRequest('POST', '/api/sounds/upload', { files: batch });
+          const data = await res.json();
+          if (data.files) allSavedFiles.push(...data.files);
+        }
+
+        if (allSavedFiles.length > 0) {
+          const seenNames = new Set<string>();
+          const soundpackFiles: SoundpackFile[] = allSavedFiles
+            .filter(f => {
+              const key = f.name.toLowerCase();
+              if (seenNames.has(key)) return false;
+              seenNames.add(key);
+              return true;
+            })
+            .map(f => ({
+              id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              name: f.name.replace(/\.[^.]+$/, ''),
+              filename: f.filename,
+              category: 'effect' as const,
+              volume: 1,
+              loop: false,
+            }));
+
+          const spRes = await apiRequest('POST', '/api/soundpacks', {
+            name: `${tintinImportData.name} Sounds`,
+            description: `Sound files from TinTin++ import`,
+            files: soundpackFiles,
+          });
+          const newSoundpack = await spRes.json();
+
+          await apiRequest('PUT', `/api/profiles/${profile.id}`, {
+            activeSoundpackId: String(newSoundpack.id),
+          });
+          queryClient.invalidateQueries({ queryKey: ['/api/soundpacks'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/profiles', profile.id] });
+
+          toast({
+            title: "Soundpack created",
+            description: `"${tintinImportData.name} Sounds" with ${soundpackFiles.length} sounds`,
+          });
+        }
+      }
+
+      installPackageMutation.mutate({
+        id: 0,
+        contents: tintinImportData.contents,
+      });
+    } catch (err) {
+      toast({
+        title: "Import failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setTintinInstalling(false);
+      setTintinPreviewOpen(false);
+      setTintinImportData(null);
+    }
   };
 
   const handleVipmudImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -514,14 +654,16 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
                     data-testid="button-import-tintin"
                   >
                     <FileArchive className="w-4 h-4 mr-2" />
-                    Import TinTin++
+                    Import TinTin++ (Scripts + Sounds)
                   </Button>
                   <input
                     ref={tintinInputRef}
                     type="file"
-                    accept=".tt,.tin,.tintin,.txt"
+                    multiple
+                    accept=".tt,.tin,.tintin,.txt,.cfg,.wav,.mp3,.ogg,.flac,.m4a,.aac,.mid,.midi"
                     onChange={handleTintinImport}
                     className="hidden"
+                    data-testid="input-tintin-files"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -847,7 +989,7 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileArchive className="w-5 h-5" />
-              Import TinTin++ Config
+              Import TinTin++ Scripts {tintinImportData?.soundFiles.length ? '+ Sounds' : ''}
             </DialogTitle>
             <DialogDescription>
               Preview the contents before importing.
@@ -856,13 +998,13 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
           {tintinImportData && (
             <div className="space-y-4 py-4">
               <div>
-                <Label className="text-sm font-medium">File Name</Label>
+                <Label className="text-sm font-medium">Import Name</Label>
                 <p className="text-lg font-semibold">{tintinImportData.name}</p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Contents</Label>
                 <p className="text-sm text-muted-foreground">
-                  {getTinTinImportSummary(tintinImportData.contents)}
+                  {getTinTinImportSummary(tintinImportData.contents, tintinImportData.soundFiles.length)}
                 </p>
               </div>
               <Card className="bg-muted/50">
@@ -879,6 +1021,12 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
                   {tintinImportData.contents.classes?.length ? (
                     <p>{tintinImportData.contents.classes.length} classes</p>
                   ) : null}
+                  {tintinImportData.soundFiles.length > 0 && (
+                    <p>{tintinImportData.soundFiles.length} sound files (will create soundpack)</p>
+                  )}
+                  {tintinImportData.referencedSounds.length > 0 && (
+                    <p className="text-muted-foreground">{tintinImportData.referencedSounds.length} sound references in scripts (auto-converted to playSound)</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -887,18 +1035,24 @@ export function PackageManager({ profile, open, onOpenChange }: PackageManagerPr
             <Button
               variant="outline"
               onClick={handleTintinSaveToLibrary}
-              disabled={createPackageMutation.isPending}
+              disabled={createPackageMutation.isPending || tintinInstalling}
               data-testid="button-tintin-save-library"
             >
-              Save to Library
+              Save Scripts to Library
             </Button>
             <Button
               onClick={handleTintinInstallDirect}
-              disabled={installPackageMutation.isPending}
+              disabled={installPackageMutation.isPending || tintinInstalling}
               data-testid="button-tintin-install-direct"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Install to {profile.name}
+              {tintinInstalling ? (
+                <>Importing...</>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Install to {profile.name}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
