@@ -1626,8 +1626,8 @@ export default function Play() {
       />
       
       {/* Top Bar */}
-      <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card/50">
-        <div className="flex items-center gap-4">
+      <nav className="border-b border-border flex items-center justify-between px-2 py-1 bg-card/50" role="toolbar" aria-label="MUD toolbar">
+        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Connection">
           <Link href="/">
             <Button variant="ghost" size="sm" data-testid="button-library">
               <Library className="w-4 h-4 mr-2" />
@@ -1645,15 +1645,16 @@ export default function Play() {
             </Button>
           )}
           <h2 className="font-bold text-primary tracking-wider">{profile.name}</h2>
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground" aria-live="polite">
             {isConnected ? (
               <>
-                <Wifi className="w-3 h-3 text-green-500" /> ONLINE
+                <Wifi className="w-3 h-3 text-green-500" aria-hidden="true" /> 
+                <span>ONLINE</span>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={handleDisconnect}
-                  className="text-xs h-6 px-2"
+                  className="text-xs"
                   data-testid="button-disconnect"
                 >
                   <Unplug className="w-3 h-3 mr-1" />
@@ -1661,12 +1662,12 @@ export default function Play() {
                 </Button>
               </>
             ) : (
-              <><WifiOff className="w-3 h-3 text-red-500" /> OFFLINE</>
+              <><WifiOff className="w-3 h-3 text-red-500" aria-hidden="true" /> <span>OFFLINE</span></>
             )}
             <span>{profile.host}:{profile.port}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Tools">
           <VariablesPanel 
             variables={variables}
             onUpdate={(vars) => {
@@ -1694,86 +1695,78 @@ export default function Play() {
           />
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setTriggersOpen(true)}
-            aria-label="Triggers"
             data-testid="button-triggers"
           >
-            <Zap className="w-4 h-4" />
-            <span className="sr-only">Triggers</span>
+            <Zap className="w-4 h-4 mr-1" />
+            Triggers
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setAliasesOpen(true)}
-            aria-label="Aliases"
             data-testid="button-aliases"
           >
-            <Terminal className="w-4 h-4" />
-            <span className="sr-only">Aliases</span>
+            <Terminal className="w-4 h-4 mr-1" />
+            Aliases
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setTimersOpen(true)}
-            aria-label="Timers"
             data-testid="button-timers"
           >
-            <Clock className="w-4 h-4" />
-            <span className="sr-only">Timers</span>
+            <Clock className="w-4 h-4 mr-1" />
+            Timers
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setKeybindingsOpen(true)}
-            aria-label="Keybindings"
             data-testid="button-keybindings"
           >
-            <Keyboard className="w-4 h-4" />
-            <span className="sr-only">Keybindings</span>
+            <Keyboard className="w-4 h-4 mr-1" />
+            Keys
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setButtonsOpen(true)}
-            aria-label="Buttons"
             data-testid="button-buttons"
           >
-            <SquareMousePointer className="w-4 h-4" />
-            <span className="sr-only">Buttons</span>
+            <SquareMousePointer className="w-4 h-4 mr-1" />
+            Buttons
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setPackagesOpen(true)}
-            aria-label="Packages"
             data-testid="button-packages"
           >
-            <Package className="w-4 h-4" />
-            <span className="sr-only">Packages</span>
+            <Package className="w-4 h-4 mr-1" />
+            Packages
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setScriptAssistantOpen(true)}
-            aria-label="Script Assistant"
             data-testid="button-script-assistant"
           >
-            <Wand2 className="w-4 h-4" />
-            <span className="sr-only">Script Assistant</span>
+            <Wand2 className="w-4 h-4 mr-1" />
+            AI
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             onClick={() => setSettingsOpen(true)}
-            aria-label="Settings"
             data-testid="button-settings"
           >
-            <Settings className="w-4 h-4" />
-            <span className="sr-only">Settings</span>
+            <Settings className="w-4 h-4 mr-1" />
+            Settings
           </Button>
         </div>
-      </div>
+      </nav>
 
       {/* Gauges Display */}
       {gauges.size > 0 && (
