@@ -80,14 +80,13 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
                 <Label id="label-blank-enter">Enter key on empty input</Label>
                 <p className="text-xs text-muted-foreground" id="desc-blank-enter">What happens when you press Enter with nothing typed</p>
                 <Select
-                  value={settings.blankEnterAction ?? 'nothing'}
+                  value={settings.blankEnterAction ?? 'send'}
                   onValueChange={(val) => updateSetting('blankEnterAction', val)}
                 >
                   <SelectTrigger aria-label="Enter key on empty input" aria-describedby="desc-blank-enter" data-testid="select-blank-enter">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="nothing">Do nothing</SelectItem>
                     <SelectItem value="send">Send blank line to MUD</SelectItem>
                     <SelectItem value="repeat">Repeat last command</SelectItem>
                   </SelectContent>

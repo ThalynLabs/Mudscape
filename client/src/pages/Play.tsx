@@ -1472,10 +1472,8 @@ export default function Play() {
     e?.preventDefault();
     
     if (!inputValue.trim()) {
-      const blankAction = settings.blankEnterAction ?? 'nothing';
-      if (blankAction === 'send') {
-        sendCommand('');
-      } else if (blankAction === 'repeat') {
+      const blankAction = settings.blankEnterAction ?? 'send';
+      if (blankAction === 'repeat') {
         if (commandHistory.length > 0) {
           const lastCmd = commandHistory[0];
           setInputValue(lastCmd);
@@ -1484,6 +1482,8 @@ export default function Play() {
             addLinesToConnection(activeConnectionId, [`\x1b[36m${lastCmd}\x1b[0m`]);
           }
         }
+      } else {
+        sendCommand('');
       }
       return;
     }
