@@ -135,31 +135,93 @@ if not defined PG_RUNNING (
         if "!INSTALL_PG!"=="" set INSTALL_PG=y
         
         if /i "!INSTALL_PG!"=="y" (
-            echo.
-            echo   Downloading PostgreSQL 15 installer...
-            echo.
+            set "PG_INSTALLED=n"
             
-            powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://get.enterprisedb.com/postgresql/postgresql-15.6-1-windows-x64.exe' -OutFile '%TEMP%\pg-setup.exe' }"
+            REM Try winget first (available on modern Windows 10/11)
+            where winget >nul 2>nul
+            if !errorlevel! equ 0 (
+                echo.
+                echo   Installing PostgreSQL via Windows Package Manager...
+                echo.
+                winget install -e --id PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements 2>nul
+                if !errorlevel! equ 0 (
+                    set "PG_INSTALLED=y"
+                    echo   [OK] PostgreSQL installed via winget
+                ) else (
+                    echo   [!] Winget install did not succeed, trying direct download...
+                )
+            )
             
-            if exist "%TEMP%\pg-setup.exe" (
-                echo   Running PostgreSQL installer...
-                echo   IMPORTANT: Remember the password you set during installation!
+            REM Try direct download if winget failed or unavailable
+            if "!PG_INSTALLED!"=="n" (
                 echo.
-                start /wait "%TEMP%\pg-setup.exe"
-                del "%TEMP%\pg-setup.exe"
-                
-                REM Add common PostgreSQL paths
-                if exist "C:\Program Files\PostgreSQL\15\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\15\bin"
-                if exist "C:\Program Files\PostgreSQL\16\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\16\bin"
-                if exist "C:\Program Files\PostgreSQL\17\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\17\bin"
-                
+                echo   Downloading PostgreSQL installer...
+                echo   ^(This may take a few minutes depending on your connection^)
                 echo.
-                echo   [OK] PostgreSQL installer completed
-            ) else (
-                echo   [X] Download failed.
-                echo   Install PostgreSQL manually from https://www.postgresql.org/download/windows/
+                
+                REM Try multiple PostgreSQL versions in case a specific one is unavailable
+                set "PG_DOWNLOADED=n"
+                
+                for %%V in (
+                    "postgresql-17.2-1-windows-x64.exe"
+                    "postgresql-16.6-1-windows-x64.exe"
+                    "postgresql-16.4-1-windows-x64.exe"
+                    "postgresql-16.2-1-windows-x64.exe"
+                ) do (
+                    if "!PG_DOWNLOADED!"=="n" (
+                        echo   Trying %%~V...
+                        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri 'https://get.enterprisedb.com/postgresql/%%~V' -OutFile '%TEMP%\pg-setup.exe' -UseBasicParsing -ErrorAction Stop; exit 0 } catch { exit 1 } }" 2>nul
+                        if exist "%TEMP%\pg-setup.exe" (
+                            REM Check file is not too small (error page)
+                            for %%F in ("%TEMP%\pg-setup.exe") do (
+                                if %%~zF GTR 1000000 (
+                                    set "PG_DOWNLOADED=y"
+                                    echo   [OK] Downloaded %%~V
+                                ) else (
+                                    del "%TEMP%\pg-setup.exe" 2>nul
+                                )
+                            )
+                        )
+                    )
+                )
+                
+                if "!PG_DOWNLOADED!"=="y" (
+                    echo.
+                    echo   Running PostgreSQL installer...
+                    echo   IMPORTANT: Remember the password you set during installation!
+                    echo   ^(Default username is 'postgres'^)
+                    echo.
+                    start /wait "%TEMP%\pg-setup.exe"
+                    del "%TEMP%\pg-setup.exe" 2>nul
+                    set "PG_INSTALLED=y"
+                    echo.
+                    echo   [OK] PostgreSQL installer completed
+                ) else (
+                    del "%TEMP%\pg-setup.exe" 2>nul
+                )
+            )
+            
+            if "!PG_INSTALLED!"=="n" (
+                echo.
+                echo   [X] Automatic PostgreSQL install failed.
+                echo.
+                echo   Please install PostgreSQL manually:
+                echo     1. Go to https://www.postgresql.org/download/windows/
+                echo     2. Click "Download the installer" 
+                echo     3. Download PostgreSQL 16 for Windows x86-64
+                echo     4. Run the installer ^(remember the password you set!^)
+                echo     5. Re-run this Mudscape setup script
+                echo.
+                echo   Or use winget from PowerShell:
+                echo     winget install PostgreSQL.PostgreSQL.16
+                echo.
                 pause
                 exit /b 1
+            )
+            
+            REM Add common PostgreSQL paths to current session
+            for %%P in (17 16 15) do (
+                if exist "C:\Program Files\PostgreSQL\%%P\bin" set "PATH=%PATH%;C:\Program Files\PostgreSQL\%%P\bin"
             )
         ) else (
             echo   [X] PostgreSQL is required. Cannot continue without it.
