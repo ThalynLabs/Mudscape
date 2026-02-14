@@ -1121,6 +1121,14 @@ export default function Play() {
           return;
         }
       }
+
+      // Auto-focus input: any printable key press when not in the input jumps to it
+      const input = inputRef.current;
+      if (input && document.activeElement !== input) {
+        if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+          input.focus();
+        }
+      }
     };
 
     const handleGlobalKeyUp = (e: KeyboardEvent) => {
