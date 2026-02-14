@@ -1470,7 +1470,23 @@ export default function Play() {
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!inputValue.trim()) return;
+    
+    if (!inputValue.trim()) {
+      const blankAction = settings.blankEnterAction ?? 'nothing';
+      if (blankAction === 'send') {
+        sendCommand('');
+      } else if (blankAction === 'repeat') {
+        if (commandHistory.length > 0) {
+          const lastCmd = commandHistory[0];
+          setInputValue(lastCmd);
+          sendCommand(lastCmd);
+          if (settings.showInputEcho !== false && activeConnectionId) {
+            addLinesToConnection(activeConnectionId, [`\x1b[36m${lastCmd}\x1b[0m`]);
+          }
+        }
+      }
+      return;
+    }
 
     // Interrupt speech on send if enabled
     if (settings.interruptOnSend !== false) {

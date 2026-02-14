@@ -99,6 +99,7 @@ export interface GlobalSettings {
   readerMode?: boolean; // Default to reader mode or live mode
   showInputEcho?: boolean; // Show what the user types in the terminal
   keepInputOnSend?: boolean; // Don't clear input field after sending command
+  blankEnterAction?: 'nothing' | 'send' | 'repeat'; // What Enter does when input is empty
   stripSymbols?: boolean; // Remove decorative symbols for screen readers
   screenReaderAnnounce?: boolean; // Use ARIA live regions for NVDA/JAWS announcements
   linkifyUrls?: boolean; // Make URLs in output clickable
@@ -139,6 +140,7 @@ export interface ProfileSettings {
   readerMode?: boolean | null;
   showInputEcho?: boolean | null;
   keepInputOnSend?: boolean | null;
+  blankEnterAction?: 'nothing' | 'send' | 'repeat' | null;
   stripSymbols?: boolean | null;
   screenReaderAnnounce?: boolean | null; // Use ARIA live regions for NVDA/JAWS announcements
   linkifyUrls?: boolean | null;
@@ -295,6 +297,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   readerMode: false,
   showInputEcho: true,
   keepInputOnSend: false,
+  blankEnterAction: 'nothing',
   stripSymbols: false,
   linkifyUrls: true,
   linkTarget: 'tab',

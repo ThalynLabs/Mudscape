@@ -73,6 +73,28 @@ export function SettingsPanel({ profile, open, onOpenChange }: SettingsPanelProp
 
             </section>
 
+            <section className="space-y-4" aria-labelledby="settings-input">
+              <h3 id="settings-input" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Input</h3>
+
+              <div className="space-y-2">
+                <Label id="label-blank-enter">Enter key on empty input</Label>
+                <p className="text-xs text-muted-foreground" id="desc-blank-enter">What happens when you press Enter with nothing typed</p>
+                <Select
+                  value={settings.blankEnterAction ?? 'nothing'}
+                  onValueChange={(val) => updateSetting('blankEnterAction', val)}
+                >
+                  <SelectTrigger aria-label="Enter key on empty input" aria-describedby="desc-blank-enter" data-testid="select-blank-enter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nothing">Do nothing</SelectItem>
+                    <SelectItem value="send">Send blank line to MUD</SelectItem>
+                    <SelectItem value="repeat">Repeat last command</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+
             <section className="space-y-4" aria-labelledby="settings-speech">
               <h3 id="settings-speech" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Speech & Text-to-Speech</h3>
 
