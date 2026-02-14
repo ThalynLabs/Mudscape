@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import { PackageManager } from "@/components/PackageManager";
 
 export default function Home() {
   const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
@@ -26,6 +27,7 @@ export default function Home() {
   
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [packagesProfile, setPackagesProfile] = useState<Profile | null>(null);
   
   const isLoading = authLoading || (isAuthenticated && profilesLoading);
 
@@ -421,7 +423,7 @@ export default function Home() {
                         </Link>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-options-${profile.id}`}>
+                            <Button variant="ghost" size="icon" data-testid={`button-options-${profile.id}`}>
                               <MoreHorizontal className="w-4 h-4" />
                               <span className="sr-only">Options</span>
                             </Button>
@@ -430,6 +432,10 @@ export default function Home() {
                             <DropdownMenuItem onClick={() => handleEdit(profile)} data-testid={`menu-edit-${profile.id}`}>
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setPackagesProfile(profile)} data-testid={`menu-packages-${profile.id}`}>
+                              <Package className="w-4 h-4 mr-2" />
+                              Packages
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleExportProfile(profile)} data-testid={`menu-export-${profile.id}`}>
                               <Download className="w-4 h-4 mr-2" />
@@ -567,6 +573,14 @@ export default function Home() {
           </div>
         </motion.section>
       </div>
+
+      {packagesProfile && (
+        <PackageManager
+          profile={packagesProfile}
+          open={!!packagesProfile}
+          onOpenChange={(open) => { if (!open) setPackagesProfile(null); }}
+        />
+      )}
     </div>
   );
 }
