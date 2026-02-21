@@ -55,3 +55,31 @@ This is your quality gate before checkpointing.
 5. Repeat in small increments
 
 This gives you a practical Replit-like autonomous loop in VS Code with explicit control and full Git recoverability.
+
+## Promote to main safely (keep pipeline dev-only)
+
+Use this flow when shipping features so dev-only pipeline files do not reach `main`:
+
+1. Start from `main` and create a clean release branch:
+  - `git switch main`
+  - `git pull`
+  - `git switch -c release/<feature-name>`
+2. Cherry-pick only feature commits from `development`:
+  - `git log --oneline development`
+  - `git cherry-pick <feature-commit-sha>`
+3. Verify no dev-only files are included:
+  - `git diff --name-only origin/main...HEAD`
+  - Ensure this list excludes:
+    - `.agent/`
+    - `.vscode/tasks.json`
+    - `.vscode/settings.json`
+    - `.vscode/extensions.json`
+    - `AGENT_PIPELINE.md`
+    - `script/agent-plan.mjs`
+    - `script/agent-checkpoint.mjs`
+4. Run validation before merge:
+  - `npm run check`
+  - `npm run build`
+5. Open PR from `release/<feature-name>` to `main`.
+
+Note: A local `.git/hooks/pre-push` guard blocks pushes to `main` when these dev-only files are present.
