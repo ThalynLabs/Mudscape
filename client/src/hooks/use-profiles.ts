@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type CreateProfileRequest, type UpdateProfileRequest } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { getAuthToken } from "@/lib/queryClient";
+import type { z } from "zod";
+
+type CreateProfileRequest = z.input<typeof api.profiles.create.input>;
+type UpdateProfileRequest = z.input<typeof api.profiles.update.input>;
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };

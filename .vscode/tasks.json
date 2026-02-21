@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Agent Pipeline: Plan",
+      "type": "shell",
+      "command": "npm run agent:plan",
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent Pipeline: Validate",
+      "type": "shell",
+      "command": "npm run agent:validate",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent Pipeline: Checkpoint",
+      "type": "shell",
+      "command": "npm run agent:checkpoint -- \"${input:checkpointMessage}\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent Pipeline: Plan + Validate",
+      "dependsOn": [
+        "Agent Pipeline: Plan",
+        "Agent Pipeline: Validate"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "checkpointMessage",
+      "type": "promptString",
+      "description": "Checkpoint summary"
+    }
+  ]
+}
